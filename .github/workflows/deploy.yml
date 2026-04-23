@@ -1,0 +1,22 @@
+name: Deploy Frontend
+
+on:
+    push:
+        branches: [master]
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Deploy via SSH
+              uses: appleboy/ssh-action@v1
+              with:
+                  host: ${{ secrets.SSH_HOST }}
+                  username: ${{ secrets.SSH_USER }}
+                  key: ${{ secrets.SSH_KEY }}
+                  port: ${{ secrets.SSH_PORT }}
+                  script: |
+                      cd /srv/fillando-frontend
+                      git pull origin master
+                      docker compose -f docker-compose.prod.yml build --no-cache frontend
+                      docker compose -f docker-compose.prod.yml up -d --no-deps frontend
