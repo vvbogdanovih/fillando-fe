@@ -10,6 +10,7 @@ export const API_URLS = {
 		ME: `/auth/me` // GET  — returns current user from active cookie session
 	},
 	USERS: {
+		BASE: `/users`, // GET — admin paginated user list
 		ME: `/users/me` // GET/PATCH — current user profile
 	},
 	CATEGORIES: {

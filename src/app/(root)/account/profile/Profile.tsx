@@ -161,6 +161,7 @@ export function Profile() {
 					<img
 						src={avatarPreview}
 						alt='Avatar preview'
+						referrerPolicy='no-referrer'
 						className='h-20 w-20 rounded-full border object-cover'
 					/>
 				</div>

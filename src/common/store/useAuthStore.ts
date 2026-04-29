@@ -27,11 +27,6 @@ export const useAuthStore = create<AuthState>()(
 			getUser: () => get().user,
 
 			checkAuth: async () => {
-				if (get().user) {
-					set({ isAuthChecked: true })
-					return
-				}
-
 				try {
 					const response = await httpService.get(API_URLS.AUTH.ME, {
 						schema: authResponseSchema,

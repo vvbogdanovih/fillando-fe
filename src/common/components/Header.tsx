@@ -95,6 +95,7 @@ export function Header() {
 											<img
 												src={user.picture}
 												alt={user.name}
+												referrerPolicy='no-referrer'
 												className='h-6 w-6 rounded-full object-cover'
 												onError={() => setAvatarError(true)}
 											/>
