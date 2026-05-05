@@ -22,7 +22,7 @@ export const Pagination = ({ pagination, onPageChange }: PaginationProps) => {
 	})
 
 	return (
-		<div className='mt-8 flex items-center justify-center gap-1'>
+		<div className='flex items-center justify-center gap-1'>
 			<Button
 				variant='outline'
 				size='sm'
