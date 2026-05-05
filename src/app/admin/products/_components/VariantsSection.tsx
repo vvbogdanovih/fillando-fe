@@ -86,6 +86,9 @@ export const VariantsSection = ({
 					<table className='w-full text-sm'>
 						<thead>
 							<tr className='border-b border-gray-200'>
+								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
+									#
+								</th>
 								{hasVariants && (
 									<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
 										Значення
@@ -93,6 +96,9 @@ export const VariantsSection = ({
 								)}
 								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
 									SKU
+								</th>
+								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
+									SKU вендора
 								</th>
 								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
 									Ціна
@@ -110,8 +116,11 @@ export const VariantsSection = ({
 							</tr>
 						</thead>
 						<tbody className='divide-y divide-gray-100'>
-							{variants.map(variant => (
+							{variants.map((variant, index) => (
 								<tr key={variant._id} className='hover:bg-gray-50'>
+									<td className='py-3 pr-4 text-xs text-gray-400'>
+										{index + 1}
+									</td>
 									{hasVariants && (
 										<td className='py-3 pr-4 font-medium text-gray-900'>
 											{variant.v_value ?? '—'}
@@ -119,6 +128,9 @@ export const VariantsSection = ({
 									)}
 									<td className='py-3 pr-4 font-mono text-xs text-gray-700'>
 										{variant.sku}
+									</td>
+									<td className='py-3 pr-4 font-mono text-xs text-gray-700'>
+										{variant.vendor_product_sku || '—'}
 									</td>
 									<td className='py-3 pr-4 text-gray-700'>₴{variant.price}</td>
 									<td className='py-3 pr-4 text-gray-700'>{variant.stock}</td>
