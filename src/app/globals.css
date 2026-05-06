@@ -275,6 +275,25 @@
 	overflow-x: auto;
 	margin-bottom: 0.75rem;
 }
+.description table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0.75rem 0;
+	font-size: 0.8125rem;
+}
+.description table td,
+.description table th {
+	border: 1px solid var(--border);
+	padding: 0.5rem 0.75rem;
+	text-align: left;
+}
+.description table th {
+	font-weight: 600;
+	background: var(--muted);
+}
+.description table tr:nth-child(even) {
+	background: color-mix(in srgb, var(--muted) 50%, transparent);
+}
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
