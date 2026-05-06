@@ -263,30 +263,6 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 				<div className='flex flex-col gap-5 lg:w-1/2'>
 					<h1 className='text-2xl font-bold'>{displayName}</h1>
 
-					{/* Variant switcher */}
-					{siblings.length > 1 && (
-						<div>
-							<p className='text-muted-foreground mb-2 text-sm'>
-								{product.variant_type?.label ?? 'Варіація'}:
-							</p>
-							<Select
-								value={variant.slug}
-								onValueChange={slug => router.push(`/products/${slug}`)}
-							>
-								<SelectTrigger className='w-full'>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{siblings.map(s => (
-										<SelectItem key={s.id} value={s.slug}>
-											{s.v_value ?? s.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					)}
-
 					<Badge
 						className={cn(
 							'w-fit',
@@ -387,6 +363,30 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 						{stockHint && <p className='text-xs text-amber-500'>{stockHint}</p>}
 						{addError && <p className='text-destructive text-sm'>{addError}</p>}
 					</div>
+
+					{/* Variant switcher */}
+					{siblings.length > 1 && (
+						<div>
+							<p className='text-muted-foreground mb-2 text-sm'>
+								{product.variant_type?.label ?? 'Варіація'}:
+							</p>
+							<Select
+								value={variant.slug}
+								onValueChange={slug => router.push(`/products/${slug}`)}
+							>
+								<SelectTrigger className='w-full bg-white'>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{siblings.map(s => (
+										<SelectItem key={s.id} value={s.slug}>
+											{s.v_value ?? s.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
 				</div>
 			</div>
 

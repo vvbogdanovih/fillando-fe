@@ -140,7 +140,15 @@ export const CatalogPage = ({ categorySlug, subcategorySlug }: CatalogPageProps)
 					<FilterSidebar {...filterSidebarProps} />
 				</aside>
 				<main className='min-w-0 flex-1'>
-					<div className='mb-4 flex justify-end'>
+					<div className='mb-4 flex items-center justify-between'>
+						{data && data.pagination.totalPages > 1 ? (
+							<Pagination
+								pagination={data.pagination}
+								onPageChange={setPage}
+							/>
+						) : (
+							<div />
+						)}
 						<PerPageSelector value={currentLimit} onChange={setLimit} />
 					</div>
 					<ProductGrid items={data?.items ?? []} isLoading={isLoading} />

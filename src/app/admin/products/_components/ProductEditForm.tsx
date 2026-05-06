@@ -21,7 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/common/components/ui/select'
-import { toSlug } from '@/common/utils'
+import { toAttrKey } from '@/common/utils'
 import { NameBlock } from './NameBlock'
 import { CategoryBlock } from './CategoryBlock'
 import { DescriptionBlock, type DescriptionValue } from './DescriptionBlock'
@@ -84,12 +84,12 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 		if (prevSubcategoryId.current === selectedSubcategoryId) return
 		prevSubcategoryId.current = selectedSubcategoryId
 		if (!selectedSubcategoryId) return
-		const requiredKeys = new Set(requiredAttrs.map(attr => toSlug(attr.label)))
+		const requiredKeys = new Set(requiredAttrs.map(attr => toAttrKey(attr.label)))
 		const currentCustomAttrs = attributesFieldArray.fields
 			.filter(f => !requiredKeys.has(f.k))
 			.map(({ k, l, v }) => ({ k, l, v }))
 		attributesFieldArray.replace([
-			...requiredAttrs.map(attr => ({ k: toSlug(attr.label), l: attr.label, v: '' })),
+			...requiredAttrs.map(attr => ({ k: toAttrKey(attr.label), l: attr.label, v: '' })),
 			...currentCustomAttrs
 		])
 		// eslint-disable-next-line react-hooks/exhaustive-deps

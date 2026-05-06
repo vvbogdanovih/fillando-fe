@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/common/components/ui/button'
-import { toSlug } from '@/common/utils'
+import { toSlug, toAttrKey } from '@/common/utils'
 import { UI_URLS } from '@/common/constants'
 import { NameBlock } from './NameBlock'
 import { CategoryBlock } from './CategoryBlock'
@@ -106,13 +106,13 @@ export const ProductForm = () => {
 	useEffect(() => {
 		if (!selectedSubcategoryId) return
 
-		const requiredKeys = new Set(requiredAttrs.map(attr => toSlug(attr.label)))
+		const requiredKeys = new Set(requiredAttrs.map(attr => toAttrKey(attr.label)))
 		const currentCustomAttrs = attributesFieldArray.fields
 			.filter(f => !requiredKeys.has(f.k))
 			.map(({ k, l, v }) => ({ k, l, v }))
 
 		attributesFieldArray.replace([
-			...requiredAttrs.map(attr => ({ k: toSlug(attr.label), l: attr.label, v: '' })),
+			...requiredAttrs.map(attr => ({ k: toAttrKey(attr.label), l: attr.label, v: '' })),
 			...currentCustomAttrs
 		])
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -154,6 +154,20 @@ export const ProductForm = () => {
 			sku: v.sku
 		}))
 
+		// 1a. Check for within-request slug duplicates
+		let hasConflict = false
+		const seenSlugs = new Set<string>()
+		variantSlugsAndSkus.forEach(({ slug }, i) => {
+			if (seenSlugs.has(slug)) {
+				setError(`variants.${i}.v_value`, {
+					message: `Slug "${slug}" дублюється з іншим варіантом`
+				})
+				hasConflict = true
+			}
+			seenSlugs.add(slug)
+		})
+		if (hasConflict) return
+
 		try {
 			const { slugs: takenSlugs, skus: takenSkus } = await productsApi.validate({
 				slugs: variantSlugsAndSkus.map(v => v.slug),
@@ -162,7 +176,6 @@ export const ProductForm = () => {
 					.filter((s): s is string => s !== undefined)
 			})
 
-			let hasConflict = false
 			variantSlugsAndSkus.forEach(({ slug, sku }, i) => {
 				if (takenSlugs.includes(slug)) {
 					setError(`variants.${i}.v_value`, {

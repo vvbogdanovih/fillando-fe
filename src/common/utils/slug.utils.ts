@@ -34,7 +34,7 @@ const CYRILLIC_MAP: Record<string, string> = {
 	я: 'ia'
 }
 
-export const toSlug = (label: string): string =>
+export const toAttrKey = (label: string): string =>
 	label
 		.normalize('NFD')
 		.toLowerCase()
@@ -43,3 +43,15 @@ export const toSlug = (label: string): string =>
 		.join('')
 		.replace(/[\s-]+/g, '_')
 		.replace(/[^a-z0-9_]/g, '')
+
+export const toSlug = (label: string): string =>
+	label
+		.normalize('NFD')
+		.toLowerCase()
+		.split('')
+		.map(ch => CYRILLIC_MAP[ch] ?? ch)
+		.join('')
+		.replace(/[\s_]+/g, '-')
+		.replace(/[^a-z0-9-]/g, '')
+		.replace(/-+/g, '-')
+		.replace(/^-|-$/g, '')

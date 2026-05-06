@@ -42,6 +42,9 @@ export const Products = () => {
 					<table className='w-full text-sm'>
 						<thead>
 							<tr className='border-b border-gray-200 bg-gray-50'>
+								<th className='w-12 px-6 py-3 text-left text-xs font-medium text-gray-500'>
+									#
+								</th>
 								<th className='px-6 py-3 text-left text-xs font-medium text-gray-500'>
 									Назва
 								</th>
@@ -52,8 +55,11 @@ export const Products = () => {
 							</tr>
 						</thead>
 						<tbody className='divide-y divide-gray-200'>
-							{products.map(product => (
+							{products.map((product, index) => (
 								<tr key={product._id} className='hover:bg-gray-50'>
+									<td className='px-6 py-4 text-gray-400'>
+										{index + 1}
+									</td>
 									<td className='px-6 py-4 font-medium text-gray-900'>
 										{product.name}
 									</td>

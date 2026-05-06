@@ -6,7 +6,7 @@ import { PlusIcon, XIcon } from 'lucide-react'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
 import { Button } from '@/common/components/ui/button'
-import { toSlug } from '@/common/utils'
+import { toAttrKey } from '@/common/utils'
 import type { ProductFormValues, AttributeItem } from '../products.schema'
 import type { RequiredAttribute } from '../../categories/categories.schema'
 
@@ -41,7 +41,7 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 			return
 		}
 
-		const key = toSlug(trimmedLabel)
+		const key = toAttrKey(trimmedLabel)
 		const duplicate = fields.some(f => f.k === key)
 
 		if (duplicate) {
@@ -84,7 +84,7 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 										value={(field?.v as string) ?? ''}
 										onChange={e =>
 											update(fieldIndex, {
-												k: toSlug(attr.label),
+												k: toAttrKey(attr.label),
 												l: attr.label,
 												v: e.target.value
 											})
