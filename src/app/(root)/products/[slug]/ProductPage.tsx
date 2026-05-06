@@ -43,7 +43,11 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 
 	const variant = data?.variant
 	const product = data?.product
-	const siblings = data?.siblings ?? []
+	const siblings = [...(data?.siblings ?? [])].sort((a, b) => {
+		const aOut = a.stock <= 0 ? 1 : 0
+		const bOut = b.stock <= 0 ? 1 : 0
+		return aOut - bOut
+	})
 	const images = variant?.images ?? []
 
 	const inAuthCart = useCartStore(s => s.items.some(i => i.variant_id === (variant?.id ?? '')))
@@ -377,10 +381,23 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 								<SelectTrigger className='w-full bg-white'>
 									<SelectValue />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent className='max-h-[360px]'>
 									{siblings.map(s => (
-										<SelectItem key={s.id} value={s.slug}>
+										<SelectItem
+											key={s.id}
+											value={s.slug}
+											className={
+												s.stock <= 0
+													? 'text-muted-foreground/50'
+													: ''
+											}
+										>
 											{s.v_value ?? s.name}
+											{s.stock <= 0 && (
+												<span className='text-muted-foreground/40 ml-2 text-xs'>
+													— нема в наявності
+												</span>
+											)}
 										</SelectItem>
 									))}
 								</SelectContent>

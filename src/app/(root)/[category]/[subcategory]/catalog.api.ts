@@ -41,6 +41,7 @@ export interface ProductDetailData {
 		name: string
 		slug: string
 		price: number
+		stock: number
 		v_value: string | null
 		images: string[]
 	}[]
