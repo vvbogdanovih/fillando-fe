@@ -5,15 +5,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ShoppingCart, Check, Loader2, Minus, Plus } from 'lucide-react'
+import { ShoppingCart, Check, Loader2, Minus, Plus, ChevronDown } from 'lucide-react'
 import { Badge } from '@/common/components/ui/badge'
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue
-} from '@/common/components/ui/select'
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger
+} from '@/common/components/ui/dropdown-menu'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { useCartStore } from '@/common/store/useCartStore'
 import { getVariantBySlug } from '@/app/(root)/[category]/[subcategory]/catalog.api'
@@ -374,34 +374,43 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 							<p className='text-muted-foreground mb-2 text-sm'>
 								{product.variant_type?.label ?? 'Варіація'}:
 							</p>
-							<Select
-								value={variant.slug}
-								onValueChange={slug => router.push(`/products/${slug}`)}
-							>
-								<SelectTrigger className='w-full bg-white'>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent className='max-h-[360px]'>
-									{siblings.map(s => (
-										<SelectItem
-											key={s.id}
-											value={s.slug}
-											className={
-												s.stock <= 0
-													? 'text-muted-foreground/50'
-													: ''
-											}
-										>
-											{s.v_value ?? s.name}
-											{s.stock <= 0 && (
-												<span className='text-muted-foreground/40 ml-2 text-xs'>
-													— нема в наявності
-												</span>
-											)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<DropdownMenu>
+								<DropdownMenuTrigger className='border-input flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-sm shadow-xs outline-none focus:outline-none focus-visible:outline-none'>
+									<span>{variant.v_value ?? variant.name}</span>
+									<ChevronDown className='size-4 opacity-50' />
+								</DropdownMenuTrigger>
+								<DropdownMenuContent
+									className='max-h-[360px] min-w-[var(--radix-dropdown-menu-trigger-width)] bg-white'
+									align='start'
+									sideOffset={4}
+								>
+									<DropdownMenuRadioGroup
+										value={variant.slug}
+										onValueChange={slug =>
+											router.push(`/products/${slug}`)
+										}
+									>
+										{siblings.map(s => (
+											<DropdownMenuRadioItem
+												key={s.id}
+												value={s.slug}
+												className={
+													s.stock <= 0
+														? 'text-muted-foreground/50'
+														: ''
+												}
+											>
+												{s.v_value ?? s.name}
+												{s.stock <= 0 && (
+													<span className='text-muted-foreground/40 ml-2 text-xs'>
+														— нема в наявності
+													</span>
+												)}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 					)}
 				</div>
