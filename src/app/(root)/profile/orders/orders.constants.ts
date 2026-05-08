@@ -1,12 +1,14 @@
 import type { DeliveryMethod, OrderStatus, PaymentMethod, PaymentStatus } from './orders.schema'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-	PENDING: 'Очікує',
+	NEW: 'Нове',
 	CONFIRMED: 'Підтверджено',
 	PROCESSING: 'В обробці',
 	SHIPPED: 'Відправлено',
 	DELIVERED: 'Доставлено',
-	CANCELLED: 'Скасовано'
+	COMPLETED: 'Виконано',
+	CANCELLED: 'Скасовано',
+	RETURNED: 'Повернено'
 }
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

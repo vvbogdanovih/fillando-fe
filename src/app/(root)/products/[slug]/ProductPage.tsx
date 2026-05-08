@@ -184,26 +184,34 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 				{/* Image gallery */}
 				<div className='flex flex-col gap-3 lg:w-1/2'>
 					<div className='bg-muted relative aspect-square overflow-hidden rounded-xl'>
-						{images.length > 0 ? (
-							images.map((img, i) => (
-								<Image
-									key={img}
-									src={img}
-									alt={`${displayName} ${i + 1}`}
-									fill
-									className={cn(
-										'object-cover transition-opacity duration-300',
-										i === currentIndex ? 'opacity-100' : 'opacity-0'
-									)}
-									sizes='(max-width: 1024px) 100vw, 50vw'
-									priority={i === 0}
-								/>
-							))
-						) : (
-							<div className='flex h-full w-full items-center justify-center'>
-								<span className='text-muted-foreground text-sm'>Немає фото</span>
+						<div className='absolute inset-4'>
+							<div className='relative h-full w-full overflow-hidden rounded-lg'>
+								{images.length > 0 ? (
+									images.map((img, i) => (
+										<Image
+											key={img}
+											src={img}
+											alt={`${displayName} ${i + 1}`}
+											fill
+											className={cn(
+												'object-contain transition-opacity duration-300',
+												i === currentIndex
+													? 'opacity-100'
+													: 'opacity-0'
+											)}
+											sizes='(max-width: 1024px) 100vw, 50vw'
+											priority={i === 0}
+										/>
+									))
+								) : (
+									<div className='flex h-full w-full items-center justify-center'>
+										<span className='text-muted-foreground text-sm'>
+											Немає фото
+										</span>
+									</div>
+								)}
 							</div>
-						)}
+						</div>
 						{images.length > 1 && (
 							<>
 								<button

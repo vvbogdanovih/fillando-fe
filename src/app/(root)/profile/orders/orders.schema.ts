@@ -1,12 +1,14 @@
 import { z } from 'zod'
 
 export const orderStatusValues = [
-	'PENDING',
+	'NEW',
 	'CONFIRMED',
 	'PROCESSING',
 	'SHIPPED',
 	'DELIVERED',
-	'CANCELLED'
+	'COMPLETED',
+	'CANCELLED',
+	'RETURNED'
 ] as const
 
 export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const

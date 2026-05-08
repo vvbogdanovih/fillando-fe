@@ -1,12 +1,14 @@
 import { z } from 'zod'
 
 export const orderStatusValues = [
-	'PENDING',
+	'NEW',
 	'CONFIRMED',
 	'PROCESSING',
 	'SHIPPED',
 	'DELIVERED',
-	'CANCELLED'
+	'COMPLETED',
+	'CANCELLED',
+	'RETURNED'
 ] as const
 
 export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const
@@ -91,7 +93,7 @@ export const orderSchema = z
 			.catch('PENDING'),
 		order_status: z
 			.preprocess(value => toUpperValue(value), z.enum(orderStatusValues))
-			.catch('PENDING'),
+			.catch('NEW'),
 		comment: z.string().nullable().optional(),
 		nova_post_ttn: z.string().nullable().optional()
 	})

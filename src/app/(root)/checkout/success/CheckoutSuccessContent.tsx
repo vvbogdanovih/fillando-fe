@@ -21,6 +21,7 @@ export function CheckoutSuccessContent() {
 	const hasSubtotal = Number.isFinite(subtotal)
 	const hasTotal = Number.isFinite(total)
 	const hasDiscount = Number.isFinite(discountAmount) && discountAmount > 0
+	const paymentMethod = searchParams.get('payment')
 
 	return (
 		<div className='mx-auto max-w-lg px-4 py-12 md:py-20'>
@@ -43,7 +44,9 @@ export function CheckoutSuccessContent() {
 						</p>
 					)}
 					<p className='text-muted-foreground text-sm leading-relaxed'>
-						Реквізити для оплати будуть надіслані на вашу електронну пошту.
+						{paymentMethod === 'CASH'
+							? 'Оплата готівкою при отриманні. Деталі замовлення надіслані на вашу електронну пошту.'
+							: 'Реквізити для оплати будуть надіслані на вашу електронну пошту.'}
 					</p>
 					{hasTotal && (
 						<div className='rounded-lg border p-3 text-left'>

@@ -287,10 +287,11 @@ export function CheckoutPage() {
 			const body = buildCreateOrderPayload(values, getOrderItems())
 			return createOrder(body)
 		},
-		onSuccess: async data => {
+		onSuccess: async (data, values) => {
 			await clearAfterOrder()
 			const params = new URLSearchParams()
 			params.set('order', String(data.order_number))
+			params.set('payment', values.payment_method)
 			if (data.subtotal_price !== undefined) {
 				params.set('subtotal', String(data.subtotal_price))
 			}

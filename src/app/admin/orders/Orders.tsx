@@ -4,9 +4,17 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+import { ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { Button } from '@/common/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/common/components/ui/select'
+import { Label } from '@/common/components/ui/label'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger
+} from '@/common/components/ui/dropdown-menu'
 import { UI_URLS } from '@/common/constants'
 import { ordersApi } from './orders.api'
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from './orders.constants'
@@ -17,6 +25,12 @@ import {
 	type OrderStatus,
 	type PaymentStatus
 } from './orders.schema'
+
+const LIMIT_OPTIONS = [
+	{ value: '10', label: '10 / сторінку' },
+	{ value: '20', label: '20 / сторінку' },
+	{ value: '50', label: '50 / сторінку' }
+]
 
 export function Orders() {
 	const router = useRouter()
@@ -40,6 +54,12 @@ export function Orders() {
 	const total = data?.total ?? 0
 	const totalPages = Math.max(1, Math.ceil(total / limit))
 
+	const orderStatusLabel =
+		orderStatus === 'all' ? 'Всі статуси замовлення' : ORDER_STATUS_LABELS[orderStatus]
+	const paymentStatusLabel =
+		paymentStatus === 'all' ? 'Всі статуси оплати' : PAYMENT_STATUS_LABELS[paymentStatus]
+	const limitLabel = LIMIT_OPTIONS.find(o => o.value === String(limit))?.label ?? `${limit} / сторінку`
+
 	return (
 		<div className='p-6'>
 			<Card>
@@ -51,60 +71,90 @@ export function Orders() {
 						</div>
 					</div>
 					<div className='mt-3 grid gap-3 sm:grid-cols-3'>
-						<Select
-							value={orderStatus}
-							onValueChange={value => {
-								setOrderStatus(value as 'all' | OrderStatus)
-								setPage(1)
-							}}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Статус замовлення' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='all'>Всі статуси замовлення</SelectItem>
-								{orderStatusValues.map(status => (
-									<SelectItem key={status} value={status}>
-										{ORDER_STATUS_LABELS[status]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						<Select
-							value={paymentStatus}
-							onValueChange={value => {
-								setPaymentStatus(value as 'all' | PaymentStatus)
-								setPage(1)
-							}}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Статус оплати' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='all'>Всі статуси оплати</SelectItem>
-								{paymentStatusValues.map(status => (
-									<SelectItem key={status} value={status}>
-										{PAYMENT_STATUS_LABELS[status]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						<Select
-							value={String(limit)}
-							onValueChange={value => {
-								setLimit(Number(value))
-								setPage(1)
-							}}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder='Ліміт' />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value='10'>10 / сторінку</SelectItem>
-								<SelectItem value='20'>20 / сторінку</SelectItem>
-								<SelectItem value='50'>50 / сторінку</SelectItem>
-							</SelectContent>
-						</Select>
+						<div className='space-y-2'>
+							<Label>Статус замовлення</Label>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant='outline' className='w-full justify-between'>
+										{orderStatusLabel}
+										<ChevronDown className='ml-2 size-4 opacity-50' />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start' className='w-56'>
+									<DropdownMenuRadioGroup
+										value={orderStatus}
+										onValueChange={value => {
+											setOrderStatus(value as 'all' | OrderStatus)
+											setPage(1)
+										}}
+									>
+										<DropdownMenuRadioItem value='all'>
+											Всі статуси замовлення
+										</DropdownMenuRadioItem>
+										{orderStatusValues.map(status => (
+											<DropdownMenuRadioItem key={status} value={status}>
+												{ORDER_STATUS_LABELS[status]}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
+						<div className='space-y-2'>
+							<Label>Статус оплати</Label>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant='outline' className='w-full justify-between'>
+										{paymentStatusLabel}
+										<ChevronDown className='ml-2 size-4 opacity-50' />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start' className='w-56'>
+									<DropdownMenuRadioGroup
+										value={paymentStatus}
+										onValueChange={value => {
+											setPaymentStatus(value as 'all' | PaymentStatus)
+											setPage(1)
+										}}
+									>
+										<DropdownMenuRadioItem value='all'>
+											Всі статуси оплати
+										</DropdownMenuRadioItem>
+										{paymentStatusValues.map(status => (
+											<DropdownMenuRadioItem key={status} value={status}>
+												{PAYMENT_STATUS_LABELS[status]}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
+						<div className='space-y-2'>
+							<Label>Кількість на сторінці</Label>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant='outline' className='w-full justify-between'>
+										{limitLabel}
+										<ChevronDown className='ml-2 size-4 opacity-50' />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start' className='w-44'>
+									<DropdownMenuRadioGroup
+										value={String(limit)}
+										onValueChange={value => {
+											setLimit(Number(value))
+											setPage(1)
+										}}
+									>
+										{LIMIT_OPTIONS.map(option => (
+											<DropdownMenuRadioItem key={option.value} value={option.value}>
+												{option.label}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
 					</div>
 				</CardHeader>
 				<CardContent className='pt-5'>

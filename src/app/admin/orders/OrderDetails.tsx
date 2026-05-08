@@ -3,11 +3,18 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { ChevronDown } from 'lucide-react'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/common/components/ui/select'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger
+} from '@/common/components/ui/dropdown-menu'
 import { Textarea } from '@/common/components/ui/textarea'
 import { ordersApi, parsePatchOrderPayload } from './orders.api'
 import {
@@ -351,41 +358,53 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 				<CardContent className='grid gap-3 sm:grid-cols-3'>
 					<div className='space-y-2'>
 						<Label>Статус замовлення</Label>
-						<Select
-							value={order.order_status}
-							onValueChange={value => statusMutation.mutate(value as Order['order_status'])}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{orderStatusValues.map(status => (
-									<SelectItem key={status} value={status}>
-										{ORDER_STATUS_LABELS[status]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant='outline' className='w-full justify-between'>
+									{ORDER_STATUS_LABELS[order.order_status]}
+									<ChevronDown className='ml-2 size-4 opacity-50' />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align='start' className='w-56'>
+								<DropdownMenuRadioGroup
+									value={order.order_status}
+									onValueChange={value =>
+										statusMutation.mutate(value as Order['order_status'])
+									}
+								>
+									{orderStatusValues.map(status => (
+										<DropdownMenuRadioItem key={status} value={status}>
+											{ORDER_STATUS_LABELS[status]}
+										</DropdownMenuRadioItem>
+									))}
+								</DropdownMenuRadioGroup>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 					<div className='space-y-2'>
 						<Label>Статус оплати</Label>
-						<Select
-							value={order.payment_status}
-							onValueChange={value =>
-								paymentStatusMutation.mutate(value as Order['payment_status'])
-							}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{paymentStatusValues.map(status => (
-									<SelectItem key={status} value={status}>
-										{PAYMENT_STATUS_LABELS[status]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant='outline' className='w-full justify-between'>
+									{PAYMENT_STATUS_LABELS[order.payment_status]}
+									<ChevronDown className='ml-2 size-4 opacity-50' />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align='start' className='w-56'>
+								<DropdownMenuRadioGroup
+									value={order.payment_status}
+									onValueChange={value =>
+										paymentStatusMutation.mutate(value as Order['payment_status'])
+									}
+								>
+									{paymentStatusValues.map(status => (
+										<DropdownMenuRadioItem key={status} value={status}>
+											{PAYMENT_STATUS_LABELS[status]}
+										</DropdownMenuRadioItem>
+									))}
+								</DropdownMenuRadioGroup>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 					<div className='space-y-2'>
 						<Label htmlFor='ttn'>TTN Нова Пошта</Label>
@@ -458,49 +477,63 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					<div className='flex flex-wrap gap-3'>
 						<div className='w-full space-y-2 sm:w-[280px]'>
 							<Label>Метод доставки</Label>
-							<Select
-								value={editValues.delivery_method}
-								onValueChange={value =>
-									setEditValues(prev =>
-										prev
-											? { ...prev, delivery_method: value as DeliveryMethod, delivery_address: {} }
-											: prev
-									)
-								}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{deliveryMethodValues.map(method => (
-										<SelectItem key={method} value={method}>
-											{DELIVERY_METHOD_LABELS[method]}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant='outline' className='w-full justify-between'>
+										{DELIVERY_METHOD_LABELS[editValues.delivery_method!]}
+										<ChevronDown className='ml-2 size-4 opacity-50' />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start' className='w-56'>
+									<DropdownMenuRadioGroup
+										value={editValues.delivery_method}
+										onValueChange={value =>
+											setEditValues(prev =>
+												prev
+													? {
+															...prev,
+															delivery_method: value as DeliveryMethod,
+															delivery_address: {}
+														}
+													: prev
+											)
+										}
+									>
+										{deliveryMethodValues.map(method => (
+											<DropdownMenuRadioItem key={method} value={method}>
+												{DELIVERY_METHOD_LABELS[method]}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 						<div className='w-full space-y-2 sm:w-[280px]'>
 							<Label>Метод оплати</Label>
-							<Select
-								value={editValues.payment_method}
-								onValueChange={value =>
-									setEditValues(prev =>
-										prev ? { ...prev, payment_method: value as PaymentMethod } : prev
-									)
-								}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{paymentMethodValues.map(method => (
-										<SelectItem key={method} value={method}>
-											{PAYMENT_METHOD_LABELS[method]}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant='outline' className='w-full justify-between'>
+										{PAYMENT_METHOD_LABELS[editValues.payment_method!]}
+										<ChevronDown className='ml-2 size-4 opacity-50' />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start' className='w-56'>
+									<DropdownMenuRadioGroup
+										value={editValues.payment_method}
+										onValueChange={value =>
+											setEditValues(prev =>
+												prev ? { ...prev, payment_method: value as PaymentMethod } : prev
+											)
+										}
+									>
+										{paymentMethodValues.map(method => (
+											<DropdownMenuRadioItem key={method} value={method}>
+												{PAYMENT_METHOD_LABELS[method]}
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 					</div>
 
