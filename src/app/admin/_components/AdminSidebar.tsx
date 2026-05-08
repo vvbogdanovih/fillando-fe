@@ -86,10 +86,10 @@ export const AdminSidebar = () => {
 
 	return (
 		<aside className='flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white'>
-			<div className='border-b border-gray-200 px-6 py-5'>
+			<Link href={UI_URLS.HOME} className='border-b border-gray-200 px-6 py-5'>
 				<Image src='/Fillando.png' alt='Fillando' width={96} height={32} className='h-8 w-auto' />
 				<span className='text-lg font-semibold text-gray-900'>Fillando Admin</span>
-			</div>
+			</Link>
 
 			<nav className='flex-1 px-3 py-4'>
 				{topNavItems.map(({ label, href, icon }) => navLink(href, icon, label))}

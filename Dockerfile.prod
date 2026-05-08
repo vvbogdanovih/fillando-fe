@@ -1,19 +1,32 @@
+# Stage 1: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json yarn.lock ./
+
+# Оголошуємо аргументи збірки
+ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_SITE_URL
+
+# Перетворюємо аргументи в змінні оточення для процесу build
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
+COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
-ARG NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN yarn build
 
-FROM node:20-alpine
+# Stage 2: Runner
+FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
+
+ENV NODE_ENV production
+
+# Копіюємо тільки необхідні файли для standalone режиму
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules/sharp ./node_modules/sharp
-COPY --from=builder /app/node_modules/@img ./node_modules/@img
+
 EXPOSE 3000
+
+# server.js створюється автоматично при output: 'standalone'
 CMD ["node", "server.js"]

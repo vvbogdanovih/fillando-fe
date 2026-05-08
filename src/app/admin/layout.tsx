@@ -11,7 +11,7 @@ export const metadata: Metadata = { ...NO_INDEX, title: 'Адмін-панель
 export default function Layout({ children }: { children: ReactNode }) {
 	return (
 		<PrivateRoute allowedRoles={[Role.ADMIN]} redirectTo={UI_URLS.HOME}>
-			<div className='bg-muted flex h-screen w-full'>
+			<div className='bg-muted fixed inset-0 flex overflow-hidden'>
 				<AdminSidebar />
 				<div className='flex-1 overflow-auto'>{children}</div>
 			</div>

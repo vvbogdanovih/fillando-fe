@@ -2,7 +2,7 @@ name: Deploy Frontend
 
 on:
     push:
-        branches: [master]
+        branches: [main]
 
 jobs:
     deploy:
@@ -17,6 +17,7 @@ jobs:
                   port: ${{ secrets.SSH_PORT }}
                   script: |
                       cd /srv/fillando-frontend
-                      git pull origin master
+                      git pull origin main
                       docker compose -f docker-compose.prod.yml build --no-cache frontend
                       docker compose -f docker-compose.prod.yml up -d --no-deps frontend
+                      docker image prune -f
