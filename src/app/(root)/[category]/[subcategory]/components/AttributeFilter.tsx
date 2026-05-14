@@ -9,13 +9,15 @@ interface AttributeFilterProps {
 	options: string[]
 	currentValue: string
 	onChange: (value: string) => void
+	idPrefix?: string
 }
 
 export const AttributeFilter = ({
 	attribute,
 	options,
 	currentValue,
-	onChange
+	onChange,
+	idPrefix = ''
 }: AttributeFilterProps) => {
 	const selected = currentValue ? currentValue.split(',').filter(Boolean) : []
 
@@ -36,12 +38,12 @@ export const AttributeFilter = ({
 					{options.map(option => (
 						<div key={option} className='flex items-center gap-2'>
 							<Checkbox
-								id={`${attribute.key}-${option}`}
+								id={`${idPrefix}${attribute.key}-${option}`}
 								checked={selected.includes(option)}
 								onCheckedChange={() => toggle(option)}
 							/>
 							<Label
-								htmlFor={`${attribute.key}-${option}`}
+								htmlFor={`${idPrefix}${attribute.key}-${option}`}
 								className='cursor-pointer text-sm font-normal'
 							>
 								{option}

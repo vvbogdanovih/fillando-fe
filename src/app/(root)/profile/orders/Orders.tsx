@@ -123,7 +123,7 @@ export function Orders() {
 				) : orders.length === 0 ? (
 					<div className='space-y-1'>
 						<p className='text-sm text-gray-500'>У вас поки немає замовлень за обраними фільтрами.</p>
-						<p className='text-muted-foreground text-xs'>
+						<p className='text-black text-xs'>
 							Спробуйте змінити фільтри або оформити перше замовлення.
 						</p>
 					</div>

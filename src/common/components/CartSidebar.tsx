@@ -285,7 +285,7 @@ export function CartSidebar() {
 							<Dialog.Close asChild>
 								<Link
 									href={UI_URLS.CHECKOUT}
-									className='bg-primary text-primary-foreground hover:bg-primary/90 flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-colors'
+									className='bg-primary text-black hover:bg-primary/90 flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-colors'
 								>
 									Оформити замовлення
 								</Link>

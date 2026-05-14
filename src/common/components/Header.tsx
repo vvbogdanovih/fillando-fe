@@ -46,7 +46,7 @@ export function Header() {
 						href='/'
 						className='flex items-center gap-2 transition-opacity hover:opacity-80'
 					>
-						<Image src='/Fillando.png' alt='Fillando' width={120} height={40} className='h-10 w-auto' />
+						<Image src='/Fillando-120.png' alt='Fillando' width={120} height={40} priority className='h-10 w-auto' />
 						<span className='gradient-text text-4xl font-bold leading-none'>Fillando</span>
 					</Link>
 
@@ -69,6 +69,7 @@ export function Header() {
 						<div className='relative'>
 							<button
 								onClick={openCart}
+								aria-label='Кошик'
 								className='border-border/50 bg-card hover:border-primary hover:text-primary flex h-9 w-9 items-center justify-center rounded-xl border shadow-sm transition-colors'
 							>
 								<ShoppingCart className='h-4 w-4' />

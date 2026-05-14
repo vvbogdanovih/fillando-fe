@@ -277,14 +277,14 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 
 					<Badge
 						className={cn(
-							'w-fit',
+							'w-fit px-3 py-1 text-sm',
 							availableStock > 0
-								? 'border-green-500/30 bg-green-500/10 text-green-400'
+								? 'border-green-600 bg-green-600 text-white'
 								: 'border-border bg-muted text-muted-foreground'
 						)}
 						variant='outline'
 					>
-						{availableStock > 0 ? 'В наявності' : 'Нема в наявності'}
+						{availableStock > 0 ? 'В наявності' : 'Немає в наявності'}
 					</Badge>
 
 					<div>
@@ -297,9 +297,9 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 					{/* Add to cart */}
 					<div className='flex flex-col gap-3'>
 						{isLowStock && (
-							<p className='text-sm text-amber-400'>
+							<div className='w-fit rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white'>
 								Залишилось лише {availableStock} шт.
-							</p>
+							</div>
 						)}
 						<div className='flex items-center gap-3'>
 							<div className='border-border bg-card flex items-center overflow-hidden rounded-lg border shadow-sm'>
@@ -354,8 +354,8 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 									isOutOfStock
 										? 'bg-muted text-muted-foreground cursor-not-allowed'
 										: isInCart
-											? 'border border-green-500/30 bg-green-500/20 text-green-400 hover:bg-green-500/30'
-											: 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60'
+											? 'border border-green-500/30 bg-green-500/20 text-black hover:bg-green-500/30'
+											: 'bg-primary text-black hover:bg-primary/90 disabled:opacity-60'
 								)}
 							>
 								{isAdding ? (
@@ -366,7 +366,7 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 									<ShoppingCart className='h-4 w-4' />
 								)}
 								{isOutOfStock
-									? 'Нема в наявності'
+									? 'Немає в наявності'
 									: isInCart
 										? 'В кошику'
 										: 'Додати в кошик'}
@@ -411,7 +411,7 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 												{s.v_value ?? s.name}
 												{s.stock <= 0 && (
 													<span className='text-muted-foreground/40 ml-2 text-xs'>
-														— нема в наявності
+														— немає в наявності
 													</span>
 												)}
 											</DropdownMenuRadioItem>

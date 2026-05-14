@@ -10,6 +10,7 @@ interface FilterSidebarProps {
 	filterOptions: Record<string, string[]>
 	searchParams: Record<string, string>
 	onParamsChange: (changes: Record<string, string | null>) => void
+	idPrefix?: string
 }
 
 export const FilterSidebar = ({
@@ -17,7 +18,8 @@ export const FilterSidebar = ({
 	priceRange,
 	filterOptions,
 	searchParams,
-	onParamsChange
+	onParamsChange,
+	idPrefix = ''
 }: FilterSidebarProps) => {
 	const currentMin =
 		searchParams.price_min !== undefined ? Number(searchParams.price_min) : priceRange.min
@@ -50,6 +52,7 @@ export const FilterSidebar = ({
 							options={filterOptions[attr.key] ?? []}
 							currentValue={searchParams[attr.key] ?? ''}
 							onChange={value => onParamsChange({ [attr.key]: value || null })}
+							idPrefix={idPrefix}
 						/>
 					</div>
 				))}

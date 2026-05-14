@@ -12,7 +12,7 @@ export function Footer() {
 						href={UI_URLS.HOME}
 						className='flex items-center gap-2 transition-opacity hover:opacity-80'
 					>
-						<Image src='/Fillando.png' alt='Fillando' width={108} height={36} className='h-9 w-auto' />
+						<Image src='/Fillando-120.png' alt='Fillando' width={108} height={36} className='h-9 w-auto' />
 						<span className='gradient-text text-3xl font-bold leading-none'>Fillando</span>
 					</Link>
 

@@ -4,20 +4,28 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal, X } from 'lucide-react'
-import { getCatalogProducts, getCategoryBySlug } from './catalog.api'
+import { getCatalogProducts, getCategoryBySlug, type CatalogResponse } from './catalog.api'
 import { FilterSidebar } from './components/FilterSidebar'
 import { ProductGrid } from './components/ProductGrid'
 import { Pagination } from './components/Pagination'
 import { PerPageSelector } from './components/PerPageSelector'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_URL } from '@/common/constants/seo.constants'
+import type { Category } from '@/app/admin/categories/categories.schema'
 
 interface CatalogPageProps {
 	categorySlug: string
 	subcategorySlug: string
+	initialCategory?: Category | null
+	initialCatalog?: CatalogResponse | null
 }
 
-export const CatalogPage = ({ categorySlug, subcategorySlug }: CatalogPageProps) => {
+export const CatalogPage = ({
+	categorySlug,
+	subcategorySlug,
+	initialCategory,
+	initialCatalog
+}: CatalogPageProps) => {
 	const [isFilterOpen, setIsFilterOpen] = useState(false)
 	const router = useRouter()
 	const searchParams = useSearchParams()
@@ -28,7 +36,8 @@ export const CatalogPage = ({ categorySlug, subcategorySlug }: CatalogPageProps)
 
 	const { data: category } = useQuery({
 		queryKey: ['category', categorySlug],
-		queryFn: () => getCategoryBySlug(categorySlug)
+		queryFn: () => getCategoryBySlug(categorySlug),
+		initialData: initialCategory ?? undefined
 	})
 
 	const subcategory = category?.subcategories.find(s => s.slug === subcategorySlug)
@@ -36,7 +45,8 @@ export const CatalogPage = ({ categorySlug, subcategorySlug }: CatalogPageProps)
 	const { data, isLoading } = useQuery({
 		queryKey: ['catalog', subcategory?._id, params],
 		queryFn: () => getCatalogProducts({ subcategory_id: subcategory!._id, ...params }),
-		enabled: !!subcategory
+		enabled: !!subcategory,
+		initialData: initialCatalog ?? undefined
 	})
 
 	const updateParams = (changes: Record<string, string | null>) => {
@@ -125,12 +135,13 @@ export const CatalogPage = ({ categorySlug, subcategorySlug }: CatalogPageProps)
 						<button
 							className='text-muted-foreground hover:text-foreground transition-colors'
 							onClick={() => setIsFilterOpen(false)}
+							aria-label='Закрити фільтри'
 						>
 							<X size={20} />
 						</button>
 					</div>
 					<div className='p-4'>
-						<FilterSidebar {...filterSidebarProps} />
+						<FilterSidebar {...filterSidebarProps} idPrefix='mobile-' />
 					</div>
 				</div>
 			</div>

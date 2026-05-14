@@ -2,9 +2,13 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { CatalogPage } from './CatalogPage'
 import { SITE_URL } from '@/common/constants/seo.constants'
+import { serverFetch } from '@/common/utils/server-fetch.utils'
+import type { Category } from '@/app/admin/categories/categories.schema'
+import type { CatalogResponse } from './catalog.api'
 
 interface PageProps {
 	params: Promise<{ category: string; subcategory: string }>
+	searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 const formatSlug = (slug: string) =>
@@ -25,12 +29,34 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 	}
 }
 
-export default async function CategorySubcategoryPage({ params }: PageProps) {
+export default async function CategorySubcategoryPage({ params, searchParams }: PageProps) {
 	const { category, subcategory } = await params
+	const sp = await searchParams
+
+	const categoryData = await serverFetch<Category>(`/categories/slug/${category}`)
+	const sub = categoryData?.subcategories.find(s => s.slug === subcategory)
+
+	let initialCatalog: CatalogResponse | null = null
+	if (sub) {
+		const query = new URLSearchParams()
+		query.set('subcategory_id', sub._id)
+		query.set('limit', String(sp.limit ?? '12'))
+		for (const [key, value] of Object.entries(sp)) {
+			if (typeof value === 'string' && key !== 'limit') {
+				query.set(key, value)
+			}
+		}
+		initialCatalog = await serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`)
+	}
 
 	return (
 		<Suspense>
-			<CatalogPage categorySlug={category} subcategorySlug={subcategory} />
+			<CatalogPage
+				categorySlug={category}
+				subcategorySlug={subcategory}
+				initialCategory={categoryData}
+				initialCatalog={initialCatalog}
+			/>
 		</Suspense>
 	)
 }

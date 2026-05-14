@@ -72,6 +72,7 @@ export const PriceRangeFilter = ({
 					onChange={handleMinInput}
 					onBlur={handleInputBlur}
 					disabled={disabled}
+					aria-label='Мінімальна ціна'
 					className='h-8 text-sm'
 				/>
 				<span className='text-muted-foreground text-xs'>—</span>
@@ -81,6 +82,7 @@ export const PriceRangeFilter = ({
 					onChange={handleMaxInput}
 					onBlur={handleInputBlur}
 					disabled={disabled}
+					aria-label='Максимальна ціна'
 					className='h-8 text-sm'
 				/>
 			</div>

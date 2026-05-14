@@ -7,6 +7,11 @@ export const authResponseSchema = z.object({
 	user: userSchema
 })
 
+export const meResponseSchema = z.object({
+	message: z.string(),
+	user: userSchema.nullable()
+})
+
 export const loginSchema = z.object({
 	email: emailSchema,
 	password: passwordSchema

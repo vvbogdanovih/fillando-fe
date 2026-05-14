@@ -84,7 +84,7 @@ export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
 					<p
 						className={cn(
 							'text-lg font-bold',
-							isOutOfStock ? 'text-muted-foreground' : 'text-primary'
+							isOutOfStock ? 'text-muted-foreground' : 'text-foreground'
 						)}
 					>
 						{item.price.toLocaleString('uk-UA')} ₴
@@ -100,14 +100,14 @@ export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
 						isOutOfStock
 							? 'bg-muted text-muted-foreground cursor-not-allowed'
 							: isInCart
-								? 'border border-green-500/30 bg-green-500/20 text-green-400 hover:bg-green-500/30'
-								: 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 border disabled:opacity-60'
+								? 'border border-primary bg-primary/20 text-black hover:bg-primary/30'
+								: 'bg-primary text-black hover:bg-primary/80 disabled:opacity-60'
 					)}
 				>
 					{isAdding ? (
 						<Loader2 className='h-4 w-4 animate-spin' />
 					) : isOutOfStock ? (
-						'Нема в наявності'
+						'Немає в наявності'
 					) : isInCart ? (
 						<>
 							<Check className='h-4 w-4' />В кошику
