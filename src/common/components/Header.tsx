@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LayoutDashboard, LogOut, ChevronDown, ShoppingCart, UserRound } from 'lucide-react'
+import { DesktopSearchBar, MobileSearchToggle } from '@/common/components/SearchBar'
 import { DropdownMenu } from 'radix-ui'
 import { UI_URLS, Role } from '@/common/constants'
 import { useAuthStore } from '@/common/store/useAuthStore'
@@ -41,31 +42,44 @@ export function Header() {
 	return (
 		<>
 			<header className='border-border bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg'>
-				<div className='container mx-auto flex h-16 max-w-7xl items-center justify-between px-4'>
+				<div className='container mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4'>
 					<Link
 						href='/'
-						className='flex items-center gap-2 transition-opacity hover:opacity-80'
+						className='flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80'
 					>
-						<Image src='/Fillando-120.png' alt='Fillando' width={120} height={40} priority className='h-10 w-auto' />
-						<span className='gradient-text text-4xl font-bold leading-none'>Fillando</span>
+						<Image
+							src='/Fillando-120.png'
+							alt='Fillando'
+							width={120}
+							height={40}
+							priority
+							className='h-10 w-auto'
+						/>
+						<span className='gradient-text text-4xl leading-none font-bold'>
+							Fillando
+						</span>
 					</Link>
 
-					<nav className='hidden items-center gap-6 md:flex'>
-						<Link
-							href={UI_URLS.HOME}
-							className='text-muted-foreground hover:text-primary text-sm font-medium transition-colors'
-						>
-							Головна
-						</Link>
-						<Link
-							href={UI_URLS.CATALOG.FILAMENT}
-							className='text-muted-foreground hover:text-primary text-sm font-medium transition-colors'
-						>
-							Матеріали
-						</Link>
-					</nav>
+					<div className='hidden min-w-0 flex-1 items-center justify-center gap-6 md:flex'>
+						<nav className='flex shrink-0 items-center gap-6'>
+							<Link
+								href={UI_URLS.HOME}
+								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
+							>
+								Головна
+							</Link>
+							<Link
+								href={UI_URLS.CATALOG.FILAMENT}
+								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
+							>
+								Матеріали
+							</Link>
+						</nav>
+						<DesktopSearchBar />
+					</div>
 
-					<div className='flex items-center gap-2'>
+					<div className='flex shrink-0 items-center gap-2'>
+						<MobileSearchToggle />
 						<div className='relative'>
 							<button
 								onClick={openCart}

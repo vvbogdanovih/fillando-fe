@@ -1,6 +1,7 @@
 export const UI_URLS = {
 	HOME: '/',
 	NOT_FOUND: '/404',
+	SEARCH: '/search',
 	CHECKOUT: '/checkout',
 	CHECKOUT_SUCCESS: '/checkout/success',
 	CATALOG: {
