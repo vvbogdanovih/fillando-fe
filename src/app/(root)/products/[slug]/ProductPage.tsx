@@ -388,7 +388,7 @@ export const ProductPage = ({ slug }: ProductPageProps) => {
 									<ChevronDown className='size-4 opacity-50' />
 								</DropdownMenuTrigger>
 								<DropdownMenuContent
-									className='max-h-[360px] min-w-[var(--radix-dropdown-menu-trigger-width)] bg-white'
+									className='max-h-[360px] min-w-(--radix-dropdown-menu-trigger-width) bg-white'
 									align='start'
 									sideOffset={4}
 								>
