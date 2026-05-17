@@ -36,6 +36,7 @@ import {
 } from './orders.schema'
 import { OrderItemsList } from './orders.components'
 import { InvoiceModal } from './InvoiceModal'
+import { VendorEmailModal } from './VendorEmailModal'
 
 function normalizeEditValues(order: Order): PatchOrderPayload {
 	return {
@@ -282,7 +283,10 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 							Створено: {formatDate(order.created_at)}
 						</p>
 					</div>
-					<InvoiceModal orderId={orderId} orderNumber={order.order_number} />
+					<div className='flex gap-6'>
+						<VendorEmailModal orderId={orderId} />
+						<InvoiceModal orderId={orderId} orderNumber={order.order_number} />
+					</div>
 				</CardHeader>
 			</Card>
 

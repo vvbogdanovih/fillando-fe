@@ -76,7 +76,13 @@ export const ordersApi = {
 		link.click()
 		link.remove()
 		window.URL.revokeObjectURL(url)
-	}
+	},
+
+	sendVendorEmail: (
+		id: string,
+		payload: { vendor_email: string; admin_comment?: string }
+	): Promise<void> =>
+		httpService.post(API_URLS.ORDERS.VENDOR_EMAIL(id), payload)
 }
 
 export const parsePatchOrderPayload = (payload: PatchOrderPayload): PatchOrderPayload =>
