@@ -1,4 +1,5 @@
-import { API_URLS } from '@/common/constants'
+import axios from 'axios'
+import { API_BASE_URL, API_URLS } from '@/common/constants'
 import { httpService } from '@/common/services/http.service'
 import {
 	orderSchema,
@@ -54,7 +55,28 @@ export const ordersApi = {
 		httpService.patch(API_URLS.ORDERS.TTN(id), payload, {
 			schema: orderSchema,
 			skipErrorToast: true
-		})
+		}),
+
+	downloadInvoice: async (
+		id: string,
+		orderNumber: string,
+		adminComment?: string
+	): Promise<void> => {
+		const response = await axios.post(
+			`${API_BASE_URL}${API_URLS.ORDERS.INVOICE(id)}`,
+			{ admin_comment: adminComment || undefined },
+			{ responseType: 'blob', withCredentials: true }
+		)
+
+		const url = window.URL.createObjectURL(new Blob([response.data]))
+		const link = document.createElement('a')
+		link.href = url
+		link.download = `${orderNumber}.pdf`
+		document.body.appendChild(link)
+		link.click()
+		link.remove()
+		window.URL.revokeObjectURL(url)
+	}
 }
 
 export const parsePatchOrderPayload = (payload: PatchOrderPayload): PatchOrderPayload =>

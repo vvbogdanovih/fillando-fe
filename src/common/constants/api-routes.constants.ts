@@ -62,7 +62,8 @@ export const API_URLS = {
 		ME_BY_ID: (id: string) => `/orders/me/${id}`, // GET — current user order detail
 		STATUS: (id: string) => `/orders/${id}/status`, // PATCH — admin change order status
 		PAYMENT_STATUS: (id: string) => `/orders/${id}/payment-status`, // PATCH — admin change payment status
-		TTN: (id: string) => `/orders/${id}/ttn` // PATCH — admin change Nova Post TTN
+		TTN: (id: string) => `/orders/${id}/ttn`, // PATCH — admin change Nova Post TTN
+		INVOICE: (id: string) => `/orders/${id}/invoice` // POST — admin generate PDF invoice
 	},
 	COUPONS: {
 		BASE: `/discount-coupons`, // GET (list) / POST (create)

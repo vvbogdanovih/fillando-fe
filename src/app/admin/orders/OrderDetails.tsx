@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ChevronDown } from 'lucide-react'
@@ -35,6 +35,7 @@ import {
 	type PaymentMethod
 } from './orders.schema'
 import { OrderItemsList } from './orders.components'
+import { InvoiceModal } from './InvoiceModal'
 
 function normalizeEditValues(order: Order): PatchOrderPayload {
 	return {
@@ -135,6 +136,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 	const queryClient = useQueryClient()
 	const [editValues, setEditValues] = useState<PatchOrderPayload | null>(null)
 	const [ttnValue, setTtnValue] = useState('')
+	const lastInitIdRef = useRef<string | null>(null)
 
 	const { data: order, isLoading, isError, refetch } = useQuery({
 		queryKey: ['admin-order', orderId],
@@ -143,6 +145,8 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 
 	useEffect(() => {
 		if (!order) return
+		if (lastInitIdRef.current === order.id) return
+		lastInitIdRef.current = order.id
 		setEditValues(normalizeEditValues(order))
 		setTtnValue(order.nova_post_ttn ?? '')
 	}, [order])
@@ -219,6 +223,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		},
 		onSuccess: updated => {
 			updateOrderInCache(updated)
+			setTtnValue(updated.nova_post_ttn ?? '')
 			toast.success('TTN оновлено')
 		}
 	})
@@ -227,16 +232,19 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		mutationFn: async () => {
 			if (!order || !editValues) throw new Error('Немає даних для оновлення')
 			const patchPayload = buildOrderPatchPayload(order, parsePatchOrderPayload(editValues))
-			if (Object.keys(patchPayload).length === 0) return order
+			if (Object.keys(patchPayload).length === 0) return null
 			return ordersApi.patchOrder(orderId, patchPayload)
 		},
 		onError: (error: Error) => {
 			toast.error(mapOrderErrorMessage(error.message))
 		},
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['admin-order', orderId] })
-			await queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
-			await refetch()
+		onSuccess: updated => {
+			if (!updated) {
+				toast.success('Змін не виявлено')
+				return
+			}
+			updateOrderInCache(updated)
+			setEditValues(normalizeEditValues(updated))
 			toast.success('Замовлення успішно оновлено')
 		}
 	})
@@ -267,9 +275,14 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 	return (
 		<div className='space-y-6 p-6'>
 			<Card>
-				<CardHeader className='border-b'>
-					<CardTitle>Замовлення #{order.order_number}</CardTitle>
-					<p className='text-muted-foreground text-xs'>Створено: {formatDate(order.created_at)}</p>
+				<CardHeader className='flex flex-row items-center justify-between border-b'>
+					<div>
+						<CardTitle>Замовлення #{order.order_number}</CardTitle>
+						<p className='text-muted-foreground text-xs'>
+							Створено: {formatDate(order.created_at)}
+						</p>
+					</div>
+					<InvoiceModal orderId={orderId} orderNumber={order.order_number} />
 				</CardHeader>
 			</Card>
 
@@ -416,7 +429,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								placeholder='Вкажіть TTN'
 							/>
 							<Button
-								variant='outline'
+								className='bg-primary text-black hover:bg-primary/80'
 								onClick={() => ttnMutation.mutate(ttnValue.trim())}
 								disabled={ttnMutation.isPending}
 							>
@@ -609,7 +622,11 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 						/>
 					</div>
 
-					<Button onClick={() => fullEditMutation.mutate()} disabled={fullEditMutation.isPending}>
+					<Button
+						className='bg-primary text-black hover:bg-primary/80'
+						onClick={() => fullEditMutation.mutate()}
+						disabled={fullEditMutation.isPending}
+					>
 						{fullEditMutation.isPending ? 'Збереження...' : 'Зберегти зміни'}
 					</Button>
 				</CardContent>
