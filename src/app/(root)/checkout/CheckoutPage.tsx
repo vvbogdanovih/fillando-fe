@@ -369,7 +369,7 @@ export function CheckoutPage() {
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						<div className='space-y-2'>
-							<Label htmlFor='customer.name'>Ім&apos;я</Label>
+							<Label htmlFor='customer.name'>ПІБ</Label>
 							<Input
 								id='customer.name'
 								autoComplete='name'

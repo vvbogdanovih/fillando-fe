@@ -39,10 +39,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductDetailPage({ params }: PageProps) {
 	const { slug } = await params
+	const initialData = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
 
 	return (
 		<Suspense>
-			<ProductPage slug={slug} />
+			<ProductPage slug={slug} initialData={initialData} />
 		</Suspense>
 	)
 }

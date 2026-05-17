@@ -16,19 +16,24 @@ import {
 } from '@/common/components/ui/dropdown-menu'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { useCartStore } from '@/common/store/useCartStore'
-import { getVariantBySlug } from '@/app/(root)/[category]/[subcategory]/catalog.api'
+import {
+	getVariantBySlug,
+	type ProductDetailData
+} from '@/app/(root)/[category]/[subcategory]/catalog.api'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_NAME, SITE_URL } from '@/common/constants/seo.constants'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 
 interface ProductPageProps {
 	slug: string
+	initialData?: ProductDetailData | null
 }
 
-export const ProductPage = ({ slug }: ProductPageProps) => {
+export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['product', slug],
-		queryFn: () => getVariantBySlug(slug)
+		queryFn: () => getVariantBySlug(slug),
+		initialData: initialData ?? undefined
 	})
 
 	const [currentIndex, setCurrentIndex] = useState(0)
