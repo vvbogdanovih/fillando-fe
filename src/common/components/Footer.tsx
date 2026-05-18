@@ -1,6 +1,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { Phone } from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
+
+const PHONE = '+380986050187'
+const PHONE_DISPLAY = '+38 098 605 01 87'
 
 export function Footer() {
 	return (
@@ -31,6 +35,38 @@ export function Footer() {
 							Філамент
 						</Link>
 					</nav>
+
+					{/* Contacts */}
+					<div className='flex flex-col gap-2'>
+						<div className='flex items-center gap-3'>
+							<a
+								href={`tel:${PHONE}`}
+								className='text-muted-foreground hover:text-primary flex items-center gap-1.5 text-sm transition-colors'
+							>
+								<Phone className='size-4' />
+								{PHONE_DISPLAY}
+							</a>
+						</div>
+						<div className='flex items-center gap-3'>
+							<a
+								href={`viber://chat?number=${PHONE}`}
+								className='text-muted-foreground hover:text-primary text-sm transition-colors'
+								target='_blank'
+								rel='noopener noreferrer'
+							>
+								Viber
+							</a>
+							<span className='text-muted-foreground/40'>|</span>
+							<a
+								href='https://t.me/fillando'
+								className='text-muted-foreground hover:text-primary text-sm transition-colors'
+								target='_blank'
+								rel='noopener noreferrer'
+							>
+								Telegram
+							</a>
+						</div>
+					</div>
 				</div>
 
 				<div className='border-border mt-8 border-t pt-6'>
