@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Mail } from 'lucide-react'
+import { Mail, Paperclip, X } from 'lucide-react'
 import { Button } from '@/common/components/ui/button'
 import {
 	Dialog,
@@ -31,14 +31,30 @@ interface VendorEmailModalProps {
 	orderId: string
 }
 
+function fileToBase64(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onload = () => {
+			const result = reader.result as string
+			resolve(result.split(',')[1])
+		}
+		reader.onerror = reject
+		reader.readAsDataURL(file)
+	})
+}
+
 export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 	const [open, setOpen] = useState(false)
 	const [selectedEmail, setSelectedEmail] = useState<string>('')
 	const [adminComment, setAdminComment] = useState('')
+	const [files, setFiles] = useState<File[]>([])
+	const fileInputRef = useRef<HTMLInputElement>(null)
 
 	const resetForm = () => {
 		setSelectedEmail('')
 		setAdminComment('')
+		setFiles([])
+		if (fileInputRef.current) fileInputRef.current.value = ''
 	}
 
 	const handleOpenChange = (nextOpen: boolean) => {
@@ -46,12 +62,36 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 		if (!nextOpen) resetForm()
 	}
 
+	const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+		if (e.target.files) {
+			setFiles(prev => [...prev, ...Array.from(e.target.files!)])
+		}
+		if (fileInputRef.current) fileInputRef.current.value = ''
+	}
+
+	const removeFile = (index: number) => {
+		setFiles(prev => prev.filter((_, i) => i !== index))
+	}
+
 	const sendMutation = useMutation({
-		mutationFn: () =>
-			ordersApi.sendVendorEmail(orderId, {
+		mutationFn: async () => {
+			let attachments: { filename: string; content: string }[] | undefined
+
+			if (files.length > 0) {
+				attachments = await Promise.all(
+					files.map(async file => ({
+						filename: file.name,
+						content: await fileToBase64(file)
+					}))
+				)
+			}
+
+			return ordersApi.sendVendorEmail(orderId, {
 				vendor_email: selectedEmail,
-				admin_comment: adminComment.trim() || undefined
-			}),
+				admin_comment: adminComment.trim() || undefined,
+				attachments
+			})
+		},
 		onSuccess: () => {
 			toast.success('Лист відправлено')
 			setOpen(false)
@@ -101,6 +141,44 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 							placeholder="Необов'язковий коментар адміна"
 							rows={3}
 						/>
+					</div>
+					<div className='space-y-2'>
+						<Label>Вкладення</Label>
+						<input
+							ref={fileInputRef}
+							type='file'
+							multiple
+							className='hidden'
+							onChange={handleFilesSelected}
+						/>
+						<Button
+							type='button'
+							variant='outline'
+							size='sm'
+							onClick={() => fileInputRef.current?.click()}
+						>
+							<Paperclip className='size-3.5' />
+							Прикріпити файл
+						</Button>
+						{files.length > 0 && (
+							<ul className='space-y-1'>
+								{files.map((file, index) => (
+									<li
+										key={`${file.name}-${index}`}
+										className='flex items-center gap-2 rounded bg-muted px-2 py-1 text-sm'
+									>
+										<span className='truncate'>{file.name}</span>
+										<button
+											type='button'
+											onClick={() => removeFile(index)}
+											className='ml-auto shrink-0 text-muted-foreground hover:text-foreground'
+										>
+											<X className='size-3.5' />
+										</button>
+									</li>
+								))}
+							</ul>
+						)}
 					</div>
 				</div>
 				<DialogFooter>

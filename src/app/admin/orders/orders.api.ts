@@ -80,7 +80,11 @@ export const ordersApi = {
 
 	sendVendorEmail: (
 		id: string,
-		payload: { vendor_email: string; admin_comment?: string }
+		payload: {
+			vendor_email: string
+			admin_comment?: string
+			attachments?: { filename: string; content: string }[]
+		}
 	): Promise<void> =>
 		httpService.post(API_URLS.ORDERS.VENDOR_EMAIL(id), payload)
 }
