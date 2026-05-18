@@ -13,7 +13,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 		<PrivateRoute allowedRoles={[Role.ADMIN]} redirectTo={UI_URLS.HOME}>
 			<div className='bg-muted fixed inset-0 flex overflow-hidden'>
 				<AdminSidebar />
-				<div className='flex-1 overflow-auto'>{children}</div>
+				<div className='flex-1 overflow-auto pt-[52px] md:pt-0'>{children}</div>
 			</div>
 		</PrivateRoute>
 	)

@@ -252,7 +252,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 
 	if (isLoading) {
 		return (
-			<div className='space-y-4 p-6'>
+			<div className='space-y-4 p-4 sm:p-6'>
 				{Array.from({ length: 5 }).map((_, index) => (
 					<div key={index} className='h-32 animate-pulse rounded-md bg-gray-100' />
 				))}
@@ -262,7 +262,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 
 	if (isError || !order || !editValues) {
 		return (
-			<div className='p-6'>
+			<div className='p-4 sm:p-6'>
 				<p className='text-sm text-gray-500'>Не вдалося завантажити замовлення</p>
 				<Button className='mt-3' variant='outline' onClick={() => refetch()}>
 					Оновити
@@ -274,16 +274,16 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 	const deliveryAddress = (editValues.delivery_address ?? {}) as Record<string, unknown>
 
 	return (
-		<div className='space-y-6 p-6'>
+		<div className='max-w-[1400px] space-y-4 p-4 sm:space-y-6 sm:p-6'>
 			<Card>
-				<CardHeader className='flex flex-row items-center justify-between border-b'>
+				<CardHeader className='flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between'>
 					<div>
 						<CardTitle>Замовлення #{order.order_number}</CardTitle>
 						<p className='text-muted-foreground text-xs'>
 							Створено: {formatDate(order.created_at)}
 						</p>
 					</div>
-					<div className='flex gap-6'>
+					<div className='flex gap-3 sm:gap-6'>
 						<VendorEmailModal orderId={orderId} />
 						<InvoiceModal orderId={orderId} orderNumber={order.order_number} />
 					</div>

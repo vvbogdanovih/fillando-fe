@@ -18,7 +18,9 @@ import {
 	CreditCard,
 	Landmark,
 	Wallet,
-	Banknote
+	Banknote,
+	Menu,
+	X
 } from 'lucide-react'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { UI_URLS } from '@/common/constants'
@@ -51,6 +53,7 @@ export const AdminSidebar = () => {
 	const router = useRouter()
 	const user = useAuthStore(state => state.getUser())
 	const logOut = useAuthStore(state => state.logOut)
+	const [mobileOpen, setMobileOpen] = useState(false)
 
 	const isPaymentDetailsActive = paymentDetailsItems.some(item =>
 		pathname.startsWith(item.href)
@@ -72,6 +75,7 @@ export const AdminSidebar = () => {
 			<Link
 				key={href}
 				href={href}
+				onClick={() => setMobileOpen(false)}
 				className={`mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
 					isActive
 						? 'bg-gray-100 font-medium text-gray-900'
@@ -84,14 +88,14 @@ export const AdminSidebar = () => {
 		)
 	}
 
-	return (
-		<aside className='flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white'>
+	const sidebarContent = (
+		<>
 			<Link href={UI_URLS.HOME} className='border-b border-gray-200 px-6 py-5'>
 				<Image src='/Fillando.png' alt='Fillando' width={96} height={32} className='h-8 w-auto' />
 				<span className='text-lg font-semibold text-gray-900'>Fillando Admin</span>
 			</Link>
 
-			<nav className='flex-1 px-3 py-4'>
+			<nav className='flex-1 overflow-auto px-3 py-4'>
 				{topNavItems.map(({ label, href, icon }) => navLink(href, icon, label))}
 
 				{/* Payment details accordion */}
@@ -165,6 +169,43 @@ export const AdminSidebar = () => {
 					<LogOut size={16} /> Logout
 				</Button>
 			</div>
-		</aside>
+		</>
+	)
+
+	return (
+		<>
+			{/* Mobile header */}
+			<div className='fixed top-0 right-0 left-0 z-40 flex items-center border-b border-gray-200 bg-white px-4 py-3 md:hidden'>
+				<button type='button' onClick={() => setMobileOpen(true)}>
+					<Menu size={24} className='text-gray-700' />
+				</button>
+				<span className='ml-3 text-sm font-semibold text-gray-900'>Fillando Admin</span>
+			</div>
+
+			{/* Mobile overlay */}
+			{mobileOpen && (
+				<div
+					className='fixed inset-0 z-40 bg-black/40 md:hidden'
+					onClick={() => setMobileOpen(false)}
+				/>
+			)}
+
+			{/* Sidebar — desktop: static, mobile: slide-over */}
+			<aside
+				className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-200 md:static md:translate-x-0 ${
+					mobileOpen ? 'translate-x-0' : '-translate-x-full'
+				}`}
+			>
+				{/* Mobile close button */}
+				<button
+					type='button'
+					onClick={() => setMobileOpen(false)}
+					className='absolute top-4 right-3 z-10 md:hidden'
+				>
+					<X size={20} className='text-gray-500' />
+				</button>
+				{sidebarContent}
+			</aside>
+		</>
 	)
 }

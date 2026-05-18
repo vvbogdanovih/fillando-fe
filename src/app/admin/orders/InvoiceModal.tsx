@@ -51,8 +51,8 @@ export function InvoiceModal({
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
 				<Button size='sm' className='bg-primary text-black hover:bg-primary/80'>
-					<FileText className='mr-2 size-4' />
-					Завантажити інвойс
+					<FileText className='size-4 sm:mr-2' />
+					<span className='hidden sm:inline'>Завантажити інвойс</span>
 				</Button>
 			</DialogTrigger>
 			<DialogContent>

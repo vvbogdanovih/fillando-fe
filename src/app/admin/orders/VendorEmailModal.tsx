@@ -107,7 +107,7 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 			<DialogTrigger asChild>
 				<Button size='sm' className='bg-primary text-black hover:bg-primary/80'>
 					<Mail className='size-3.5' />
-					Написати вендору
+					<span className='hidden sm:inline'>Написати вендору</span>
 				</Button>
 			</DialogTrigger>
 			<DialogContent>
