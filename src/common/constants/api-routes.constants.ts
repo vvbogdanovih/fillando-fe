@@ -64,7 +64,8 @@ export const API_URLS = {
 		PAYMENT_STATUS: (id: string) => `/orders/${id}/payment-status`, // PATCH — admin change payment status
 		TTN: (id: string) => `/orders/${id}/ttn`, // PATCH — admin change Nova Post TTN
 		INVOICE: (id: string) => `/orders/${id}/invoice`, // POST — admin generate PDF invoice
-		VENDOR_EMAIL: (id: string) => `/orders/${id}/vendor-email` // POST — admin send vendor email
+		VENDOR_EMAIL: (id: string) => `/orders/${id}/vendor-email`, // POST — admin send vendor email
+		REPORT: `/orders/report` // POST — admin generate orders report (blob response)
 	},
 	COUPONS: {
 		BASE: `/discount-coupons`, // GET (list) / POST (create)

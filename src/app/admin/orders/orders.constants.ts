@@ -1,9 +1,4 @@
-import type {
-	DeliveryMethod,
-	OrderStatus,
-	PaymentMethod,
-	PaymentStatus
-} from './orders.schema'
+import type { DeliveryMethod, OrderStatus, PaymentMethod, PaymentStatus } from './orders.schema'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 	NEW: 'Нове',
@@ -36,3 +31,4 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 	MONOPAY: 'MonoPay',
 	IBAN: 'Переказ за IBAN'
 }
+

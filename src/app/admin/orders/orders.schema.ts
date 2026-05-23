@@ -164,3 +164,10 @@ export interface PatchPaymentStatusPayload {
 export interface PatchTtnPayload {
 	nova_post_ttn: string
 }
+
+export interface GenerateReportPayload {
+	date_from: string
+	date_to: string
+	order_status?: OrderStatus
+	payment_status?: PaymentStatus
+}

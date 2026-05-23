@@ -25,6 +25,7 @@ import {
 	type OrderStatus,
 	type PaymentStatus
 } from './orders.schema'
+import { ReportModal } from './ReportModal'
 
 const LIMIT_OPTIONS = [
 	{ value: '10', label: '10 / сторінку' },
@@ -66,8 +67,11 @@ export function Orders() {
 				<CardHeader className='border-b'>
 					<div className='flex items-center justify-between gap-3'>
 						<CardTitle>Замовлення</CardTitle>
-						<div className='text-muted-foreground text-xs'>
-							Всього: {total} {isFetching ? '• Оновлення...' : ''}
+						<div className='flex items-center gap-3'>
+							<ReportModal />
+							<div className='text-muted-foreground text-xs'>
+								Всього: {total} {isFetching ? '• Оновлення...' : ''}
+							</div>
 						</div>
 					</div>
 					<div className='mt-3 grid gap-3 sm:grid-cols-3'>

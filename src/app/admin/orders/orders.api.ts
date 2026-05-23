@@ -11,7 +11,8 @@ import {
 	type PatchOrderPayload,
 	type PatchOrderStatusPayload,
 	type PatchPaymentStatusPayload,
-	type PatchTtnPayload
+	type PatchTtnPayload,
+	type GenerateReportPayload
 } from './orders.schema'
 
 export const ordersApi = {
@@ -86,7 +87,28 @@ export const ordersApi = {
 			attachments?: { filename: string; content: string }[]
 		}
 	): Promise<void> =>
-		httpService.post(API_URLS.ORDERS.VENDOR_EMAIL(id), payload)
+		httpService.post(API_URLS.ORDERS.VENDOR_EMAIL(id), payload),
+
+	downloadReport: async (payload: GenerateReportPayload): Promise<void> => {
+		const response = await axios.post(
+			`${API_BASE_URL}${API_URLS.ORDERS.REPORT}`,
+			payload,
+			{ responseType: 'blob', withCredentials: true }
+		)
+
+		const contentDisposition = response.headers['content-disposition'] as string | undefined
+		const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/)
+		const filename = filenameMatch?.[1] ?? 'report.pdf'
+
+		const url = window.URL.createObjectURL(new Blob([response.data]))
+		const link = document.createElement('a')
+		link.href = url
+		link.download = filename
+		document.body.appendChild(link)
+		link.click()
+		link.remove()
+		window.URL.revokeObjectURL(url)
+	}
 }
 
 export const parsePatchOrderPayload = (payload: PatchOrderPayload): PatchOrderPayload =>
