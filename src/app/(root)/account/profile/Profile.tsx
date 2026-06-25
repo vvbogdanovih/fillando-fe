@@ -182,7 +182,9 @@ export function Profile() {
 							{...register('name')}
 							aria-invalid={!!errors.name}
 						/>
-						{errors.name && <p className='text-destructive text-xs'>{errors.name.message}</p>}
+						{errors.name && (
+							<p className='text-destructive text-xs'>{errors.name.message}</p>
+						)}
 					</div>
 
 					<div className='space-y-1.5'>
@@ -193,7 +195,9 @@ export function Profile() {
 							{...register('phone')}
 							aria-invalid={!!errors.phone}
 						/>
-						{errors.phone && <p className='text-destructive text-xs'>{errors.phone.message}</p>}
+						{errors.phone && (
+							<p className='text-destructive text-xs'>{errors.phone.message}</p>
+						)}
 					</div>
 
 					<div className='space-y-1.5'>

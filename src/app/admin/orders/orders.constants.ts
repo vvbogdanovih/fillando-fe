@@ -31,4 +31,3 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 	MONOPAY: 'MonoPay',
 	IBAN: 'Переказ за IBAN'
 }
-

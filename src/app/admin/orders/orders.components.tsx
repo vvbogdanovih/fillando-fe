@@ -10,7 +10,10 @@ export function OrderItemsList({ items }: { items: OrderItem[] }) {
 	return (
 		<>
 			{items.map(item => (
-				<div key={`${item.variant_id}-${item.sku}-${item.name}`} className='flex items-center gap-2 rounded-md border p-2 sm:gap-3 sm:p-3'>
+				<div
+					key={`${item.variant_id}-${item.sku}-${item.name}`}
+					className='flex items-center gap-2 rounded-md border p-2 sm:gap-3 sm:p-3'
+				>
 					{item.image ? (
 						<Image
 							src={item.image}
@@ -23,7 +26,9 @@ export function OrderItemsList({ items }: { items: OrderItem[] }) {
 						<div className='h-12 w-12 rounded bg-gray-100 sm:h-16 sm:w-16' />
 					)}
 					<div className='min-w-0 flex-1'>
-						<p className='line-clamp-2 text-sm font-medium sm:line-clamp-1 sm:text-base'>{item.name}</p>
+						<p className='line-clamp-2 text-sm font-medium sm:line-clamp-1 sm:text-base'>
+							{item.name}
+						</p>
 						<p className='text-muted-foreground text-xs'>
 							SKU: {item.sku ?? '—'} • Vendor SKU: {item.vendor_sku ?? '—'}
 						</p>

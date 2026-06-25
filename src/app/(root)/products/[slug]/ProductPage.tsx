@@ -143,8 +143,8 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 			price: variant.price,
 			priceCurrency: 'UAH',
 			availability:
-				availableStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-		},
+				availableStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
+		}
 	}
 
 	const breadcrumbSchema = {
@@ -156,21 +156,21 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 				'@type': 'ListItem',
 				position: 2,
 				name: category_slug,
-				item: `${SITE_URL}/${category_slug}`,
+				item: `${SITE_URL}/${category_slug}`
 			},
 			{
 				'@type': 'ListItem',
 				position: 3,
 				name: subcategory_slug,
-				item: `${SITE_URL}/${category_slug}/${subcategory_slug}`,
+				item: `${SITE_URL}/${category_slug}/${subcategory_slug}`
 			},
 			{
 				'@type': 'ListItem',
 				position: 4,
 				name: displayName,
-				item: `${SITE_URL}/products/${variant.slug}`,
-			},
-		],
+				item: `${SITE_URL}/products/${variant.slug}`
+			}
+		]
 	}
 
 	return (
@@ -200,9 +200,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 											fill
 											className={cn(
 												'object-contain transition-opacity duration-300',
-												i === currentIndex
-													? 'opacity-100'
-													: 'opacity-0'
+												i === currentIndex ? 'opacity-100' : 'opacity-0'
 											)}
 											sizes='(max-width: 1024px) 100vw, 50vw'
 											priority={i === 0}
@@ -360,7 +358,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 										? 'bg-muted text-muted-foreground cursor-not-allowed'
 										: isInCart
 											? 'border border-green-500/30 bg-green-500/20 text-black hover:bg-green-500/30'
-											: 'bg-primary text-black hover:bg-primary/90 disabled:opacity-60'
+											: 'bg-primary hover:bg-primary/90 text-black disabled:opacity-60'
 								)}
 							>
 								{isAdding ? (
@@ -399,18 +397,14 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 								>
 									<DropdownMenuRadioGroup
 										value={variant.slug}
-										onValueChange={slug =>
-											router.push(`/products/${slug}`)
-										}
+										onValueChange={slug => router.push(`/products/${slug}`)}
 									>
 										{siblings.map(s => (
 											<DropdownMenuRadioItem
 												key={s.id}
 												value={s.slug}
 												className={
-													s.stock <= 0
-														? 'text-muted-foreground/50'
-														: ''
+													s.stock <= 0 ? 'text-muted-foreground/50' : ''
 												}
 											>
 												{s.v_value ?? s.name}

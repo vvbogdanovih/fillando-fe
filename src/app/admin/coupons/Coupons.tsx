@@ -186,7 +186,9 @@ function CouponForm({
 							aria-invalid={!!errors.discount_percent}
 						/>
 						{errors.discount_percent && (
-							<p className='text-destructive text-sm'>{errors.discount_percent.message}</p>
+							<p className='text-destructive text-sm'>
+								{errors.discount_percent.message}
+							</p>
 						)}
 					</div>
 
@@ -213,7 +215,10 @@ function CouponForm({
 						<Switch
 							checked={isActive}
 							onCheckedChange={checked =>
-								setValue('is_active', checked, { shouldDirty: true, shouldValidate: true })
+								setValue('is_active', checked, {
+									shouldDirty: true,
+									shouldValidate: true
+								})
 							}
 							disabled={pending}
 							aria-label='toggle coupon active'
@@ -229,7 +234,12 @@ function CouponForm({
 									: 'Оновити купон'}
 						</Button>
 						{onCancel && (
-							<Button type='button' variant='outline' onClick={onCancel} disabled={pending}>
+							<Button
+								type='button'
+								variant='outline'
+								onClick={onCancel}
+								disabled={pending}
+							>
 								Скасувати
 							</Button>
 						)}
@@ -398,62 +408,87 @@ export function Coupons() {
 					) : (
 						<div className='space-y-4'>
 							<div className='overflow-x-auto'>
-							<table className='w-full min-w-[720px] text-sm'>
-								<thead>
-									<tr className='border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase'>
-										<th className='px-3 py-2'>Number</th>
-										<th className='px-3 py-2'>Code</th>
-										<th className='px-3 py-2'>Discount %</th>
-										<th className='px-3 py-2'>Valid until</th>
-										<th className='px-3 py-2'>Active</th>
-										<th className='px-3 py-2 text-right'>Дії</th>
-									</tr>
-								</thead>
-								<tbody>
-									{sortedCoupons.map(coupon => (
-										<tr key={coupon.id} className='border-b'>
-											<td className='px-3 py-2 font-medium'>{coupon.number}</td>
-											<td className='px-3 py-2 font-mono'>{coupon.code}</td>
-											<td className='px-3 py-2'>{coupon.discount_percent}%</td>
-											<td className='px-3 py-2'>{formatDateTime(coupon.valid_until)}</td>
-											<td className='px-3 py-2'>
-												<div className='flex items-center gap-2'>
-													<Badge variant={coupon.is_active ? 'default' : 'secondary'}>
-														{coupon.is_active ? 'Активний' : 'Неактивний'}
-													</Badge>
-													<Switch
-														checked={coupon.is_active}
-														disabled={activeToggleMutation.isPending}
-														onCheckedChange={() => activeToggleMutation.mutate(coupon)}
-														aria-label={`toggle coupon ${coupon.code}`}
-													/>
-												</div>
-											</td>
-											<td className='px-3 py-2 text-right'>
-												<div className='flex justify-end gap-1'>
-													<Button
-														variant='ghost'
-														size='sm'
-														onClick={() => setPanel({ mode: 'edit', couponId: coupon.id })}
-													>
-														<PencilIcon className='size-4' />
-														Редагувати
-													</Button>
-													<Button
-														variant='ghost'
-														size='sm'
-														onClick={() => setDeleteTarget(coupon)}
-													>
-														<Trash2Icon className='size-4' />
-														Видалити
-													</Button>
-												</div>
-											</td>
+								<table className='w-full min-w-[720px] text-sm'>
+									<thead>
+										<tr className='border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase'>
+											<th className='px-3 py-2'>Number</th>
+											<th className='px-3 py-2'>Code</th>
+											<th className='px-3 py-2'>Discount %</th>
+											<th className='px-3 py-2'>Valid until</th>
+											<th className='px-3 py-2'>Active</th>
+											<th className='px-3 py-2 text-right'>Дії</th>
 										</tr>
-									))}
-								</tbody>
-							</table>
-						</div>
+									</thead>
+									<tbody>
+										{sortedCoupons.map(coupon => (
+											<tr key={coupon.id} className='border-b'>
+												<td className='px-3 py-2 font-medium'>
+													{coupon.number}
+												</td>
+												<td className='px-3 py-2 font-mono'>
+													{coupon.code}
+												</td>
+												<td className='px-3 py-2'>
+													{coupon.discount_percent}%
+												</td>
+												<td className='px-3 py-2'>
+													{formatDateTime(coupon.valid_until)}
+												</td>
+												<td className='px-3 py-2'>
+													<div className='flex items-center gap-2'>
+														<Badge
+															variant={
+																coupon.is_active
+																	? 'default'
+																	: 'secondary'
+															}
+														>
+															{coupon.is_active
+																? 'Активний'
+																: 'Неактивний'}
+														</Badge>
+														<Switch
+															checked={coupon.is_active}
+															disabled={
+																activeToggleMutation.isPending
+															}
+															onCheckedChange={() =>
+																activeToggleMutation.mutate(coupon)
+															}
+															aria-label={`toggle coupon ${coupon.code}`}
+														/>
+													</div>
+												</td>
+												<td className='px-3 py-2 text-right'>
+													<div className='flex justify-end gap-1'>
+														<Button
+															variant='ghost'
+															size='sm'
+															onClick={() =>
+																setPanel({
+																	mode: 'edit',
+																	couponId: coupon.id
+																})
+															}
+														>
+															<PencilIcon className='size-4' />
+															Редагувати
+														</Button>
+														<Button
+															variant='ghost'
+															size='sm'
+															onClick={() => setDeleteTarget(coupon)}
+														>
+															<Trash2Icon className='size-4' />
+															Видалити
+														</Button>
+													</div>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
 							<div className='flex items-center justify-between'>
 								<p className='text-muted-foreground text-xs'>
 									Всього: {total} • Сторінка {page} з {totalPages}
@@ -507,7 +542,8 @@ export function Coupons() {
 						<DialogTitle>Видалити купон?</DialogTitle>
 						<DialogDescription>
 							Цю дію не можна скасувати. Купон{' '}
-							{deleteTarget ? `#${deleteTarget.number} (${deleteTarget.code})` : ''} буде видалено.
+							{deleteTarget ? `#${deleteTarget.number} (${deleteTarget.code})` : ''}{' '}
+							буде видалено.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

@@ -118,9 +118,7 @@ export const VariantsSection = ({
 						<tbody className='divide-y divide-gray-100'>
 							{variants.map((variant, index) => (
 								<tr key={variant._id} className='hover:bg-gray-50'>
-									<td className='py-3 pr-4 text-xs text-gray-400'>
-										{index + 1}
-									</td>
+									<td className='py-3 pr-4 text-xs text-gray-400'>{index + 1}</td>
 									{hasVariants && (
 										<td className='py-3 pr-4 font-medium text-gray-900'>
 											{variant.v_value ?? '—'}

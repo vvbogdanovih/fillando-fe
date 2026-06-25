@@ -20,7 +20,11 @@ export const PerPageSelector = ({ value, onChange }: PerPageSelectorProps) => {
 		<div className='flex items-center gap-2'>
 			<span className='text-muted-foreground text-sm'>Показати:</span>
 			<Select value={String(value)} onValueChange={v => onChange(Number(v))}>
-				<SelectTrigger size='sm' className='w-[70px] bg-white text-black' aria-label='Кількість товарів на сторінці'>
+				<SelectTrigger
+					size='sm'
+					className='w-[70px] bg-white text-black'
+					aria-label='Кількість товарів на сторінці'
+				>
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>

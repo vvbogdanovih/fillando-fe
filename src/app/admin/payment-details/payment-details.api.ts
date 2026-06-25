@@ -7,7 +7,8 @@ import {
 } from './payment-details.schema'
 
 export const paymentDetailsApi = {
-	getAll: () => httpService.get(API_URLS.PAYMENT_DETAILS.BASE, { schema: paymentDetailsListSchema }),
+	getAll: () =>
+		httpService.get(API_URLS.PAYMENT_DETAILS.BASE, { schema: paymentDetailsListSchema }),
 
 	create: (data: PaymentDetailFormValues) =>
 		httpService.post(API_URLS.PAYMENT_DETAILS.BASE, data, {

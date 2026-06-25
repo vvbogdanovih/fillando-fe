@@ -13,7 +13,13 @@ import {
 	PAYMENT_METHOD_LABELS,
 	PAYMENT_STATUS_LABELS
 } from './orders.constants'
-import { formatDate, formatPrice, getOrderErrorMessage, isNotFoundError, readAddressField } from './orders.utils'
+import {
+	formatDate,
+	formatPrice,
+	getOrderErrorMessage,
+	isNotFoundError,
+	readAddressField
+} from './orders.utils'
 import type { MyOrderItem } from './orders.schema'
 
 function OrderItemsList({ items }: { items: MyOrderItem[] }) {
@@ -24,7 +30,10 @@ function OrderItemsList({ items }: { items: MyOrderItem[] }) {
 	return (
 		<div className='space-y-3'>
 			{items.map(item => (
-				<div key={`${item.variant_id}-${item.sku}-${item.name}`} className='flex items-center gap-3 rounded-md border p-3'>
+				<div
+					key={`${item.variant_id}-${item.sku}-${item.name}`}
+					className='flex items-center gap-3 rounded-md border p-3'
+				>
 					{item.image ? (
 						<Image
 							src={item.image}
@@ -52,7 +61,13 @@ function OrderItemsList({ items }: { items: MyOrderItem[] }) {
 }
 
 export function OrderDetails({ orderId }: { orderId: string }) {
-	const { data: order, isLoading, isError, refetch, error } = useQuery({
+	const {
+		data: order,
+		isLoading,
+		isError,
+		refetch,
+		error
+	} = useQuery({
 		queryKey: ['my-order', orderId],
 		queryFn: () => myOrdersApi.getMyOrderById(orderId),
 		retry: false
@@ -74,15 +89,17 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 				<div className='mx-auto w-full max-w-5xl'>
 					<Card>
 						<CardHeader>
-						<CardTitle>Замовлення не знайдено</CardTitle>
+							<CardTitle>Замовлення не знайдено</CardTitle>
 						</CardHeader>
 						<CardContent className='space-y-3'>
-						<p className='text-muted-foreground text-sm'>
-							Можливо, замовлення не існує або недоступне для вашого акаунта.
-						</p>
-						<Button asChild variant='outline'>
-							<Link href={UI_URLS.PROFILE.ORDERS}>Повернутися до списку замовлень</Link>
-						</Button>
+							<p className='text-muted-foreground text-sm'>
+								Можливо, замовлення не існує або недоступне для вашого акаунта.
+							</p>
+							<Button asChild variant='outline'>
+								<Link href={UI_URLS.PROFILE.ORDERS}>
+									Повернутися до списку замовлень
+								</Link>
+							</Button>
 						</CardContent>
 					</Card>
 				</div>
@@ -93,13 +110,13 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 			<div className='mx-auto w-full max-w-5xl'>
 				<Card>
 					<CardHeader>
-					<CardTitle>Не вдалося завантажити замовлення</CardTitle>
+						<CardTitle>Не вдалося завантажити замовлення</CardTitle>
 					</CardHeader>
 					<CardContent className='space-y-3'>
-					<p className='text-sm text-gray-500'>{getOrderErrorMessage(error)}</p>
-					<Button variant='outline' onClick={() => refetch()}>
-						Спробувати знову
-					</Button>
+						<p className='text-sm text-gray-500'>{getOrderErrorMessage(error)}</p>
+						<Button variant='outline' onClick={() => refetch()}>
+							Спробувати знову
+						</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -113,7 +130,9 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 			<Card>
 				<CardHeader className='border-b'>
 					<CardTitle>Замовлення #{order.order_number}</CardTitle>
-					<p className='text-muted-foreground text-xs'>Створено: {formatDate(order.created_at)}</p>
+					<p className='text-muted-foreground text-xs'>
+						Створено: {formatDate(order.created_at)}
+					</p>
 				</CardHeader>
 				<CardContent className='grid gap-2 pt-4 text-sm sm:grid-cols-2'>
 					<p>Статус: {ORDER_STATUS_LABELS[order.order_status]}</p>

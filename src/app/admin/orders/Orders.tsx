@@ -59,7 +59,8 @@ export function Orders() {
 		orderStatus === 'all' ? 'Всі статуси замовлення' : ORDER_STATUS_LABELS[orderStatus]
 	const paymentStatusLabel =
 		paymentStatus === 'all' ? 'Всі статуси оплати' : PAYMENT_STATUS_LABELS[paymentStatus]
-	const limitLabel = LIMIT_OPTIONS.find(o => o.value === String(limit))?.label ?? `${limit} / сторінку`
+	const limitLabel =
+		LIMIT_OPTIONS.find(o => o.value === String(limit))?.label ?? `${limit} / сторінку`
 
 	return (
 		<div className='p-6'>
@@ -151,7 +152,10 @@ export function Orders() {
 										}}
 									>
 										{LIMIT_OPTIONS.map(option => (
-											<DropdownMenuRadioItem key={option.value} value={option.value}>
+											<DropdownMenuRadioItem
+												key={option.value}
+												value={option.value}
+											>
 												{option.label}
 											</DropdownMenuRadioItem>
 										))}
@@ -165,18 +169,25 @@ export function Orders() {
 					{isLoading ? (
 						<div className='space-y-3'>
 							{Array.from({ length: 6 }).map((_, index) => (
-								<div key={index} className='h-16 animate-pulse rounded-md bg-gray-100' />
+								<div
+									key={index}
+									className='h-16 animate-pulse rounded-md bg-gray-100'
+								/>
 							))}
 						</div>
 					) : isError ? (
 						<div className='space-y-2'>
-							<p className='text-sm text-gray-500'>Не вдалося завантажити список замовлень</p>
+							<p className='text-sm text-gray-500'>
+								Не вдалося завантажити список замовлень
+							</p>
 							<Button variant='outline' size='sm' onClick={() => refetch()}>
 								Спробувати знову
 							</Button>
 						</div>
 					) : orders.length === 0 ? (
-						<p className='text-sm text-gray-500'>Замовлень за обраними фільтрами не знайдено</p>
+						<p className='text-sm text-gray-500'>
+							Замовлень за обраними фільтрами не знайдено
+						</p>
 					) : (
 						<>
 							<div className='overflow-x-auto'>
@@ -199,22 +210,47 @@ export function Orders() {
 												<tr
 													key={order.id}
 													className='cursor-pointer border-b hover:bg-gray-50'
-													onClick={() => router.push(UI_URLS.ADMIN.ORDER_DETAILS(order.id))}
+													onClick={() =>
+														router.push(
+															UI_URLS.ADMIN.ORDER_DETAILS(order.id)
+														)
+													}
 													onKeyDown={event => {
-														if (event.key === 'Enter' || event.key === ' ') {
+														if (
+															event.key === 'Enter' ||
+															event.key === ' '
+														) {
 															event.preventDefault()
-															router.push(UI_URLS.ADMIN.ORDER_DETAILS(order.id))
+															router.push(
+																UI_URLS.ADMIN.ORDER_DETAILS(
+																	order.id
+																)
+															)
 														}
 													}}
 													tabIndex={0}
 												>
-													<td className='px-3 py-3 font-medium'>#{order.order_number}</td>
-													<td className='px-3 py-3'>{formatDate(order.created_at)}</td>
-													<td className='px-3 py-3'>{formatCustomerShort(order)}</td>
-													<td className='px-3 py-3'>{formatPrice(order.total_price)}</td>
-													<td className='px-3 py-3'>{ORDER_STATUS_LABELS[order.order_status]}</td>
+													<td className='px-3 py-3 font-medium'>
+														#{order.order_number}
+													</td>
 													<td className='px-3 py-3'>
-														{PAYMENT_STATUS_LABELS[order.payment_status]}
+														{formatDate(order.created_at)}
+													</td>
+													<td className='px-3 py-3'>
+														{formatCustomerShort(order)}
+													</td>
+													<td className='px-3 py-3'>
+														{formatPrice(order.total_price)}
+													</td>
+													<td className='px-3 py-3'>
+														{ORDER_STATUS_LABELS[order.order_status]}
+													</td>
+													<td className='px-3 py-3'>
+														{
+															PAYMENT_STATUS_LABELS[
+																order.payment_status
+															]
+														}
 													</td>
 													<td className='px-3 py-3'>
 														{firstItem ? (
@@ -230,7 +266,9 @@ export function Orders() {
 																) : (
 																	<div className='h-10 w-10 rounded bg-gray-100' />
 																)}
-																<span className='line-clamp-1 max-w-44'>{firstItem.name}</span>
+																<span className='line-clamp-1 max-w-44'>
+																	{firstItem.name}
+																</span>
 															</div>
 														) : (
 															'—'
@@ -259,7 +297,9 @@ export function Orders() {
 										variant='outline'
 										size='sm'
 										disabled={page >= totalPages || isFetching}
-										onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+										onClick={() =>
+											setPage(prev => Math.min(totalPages, prev + 1))
+										}
 									>
 										Наступна
 									</Button>

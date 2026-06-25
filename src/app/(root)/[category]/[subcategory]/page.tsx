@@ -11,8 +11,7 @@ interface PageProps {
 	searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-const formatSlug = (slug: string) =>
-	slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+const formatSlug = (slug: string) => slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
 	const { category, subcategory } = await params
@@ -25,7 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 		title,
 		description,
 		alternates: { canonical },
-		openGraph: { title, description, url: canonical, type: 'website' },
+		openGraph: { title, description, url: canonical, type: 'website' }
 	}
 }
 

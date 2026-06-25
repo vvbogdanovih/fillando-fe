@@ -151,7 +151,7 @@ export function ReportModal() {
 						Скасувати
 					</Button>
 					<Button
-						className='bg-primary text-black hover:bg-primary/80'
+						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => reportMutation.mutate()}
 						disabled={!isValid || reportMutation.isPending}
 					>

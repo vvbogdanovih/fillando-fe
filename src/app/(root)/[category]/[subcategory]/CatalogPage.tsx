@@ -94,15 +94,15 @@ export const CatalogPage = ({
 				'@type': 'ListItem',
 				position: 2,
 				name: category?.name ?? categorySlug,
-				item: `${SITE_URL}/${categorySlug}`,
+				item: `${SITE_URL}/${categorySlug}`
 			},
 			{
 				'@type': 'ListItem',
 				position: 3,
 				name: subcategory.name,
-				item: `${SITE_URL}/${categorySlug}/${subcategorySlug}`,
-			},
-		],
+				item: `${SITE_URL}/${categorySlug}/${subcategorySlug}`
+			}
+		]
 	}
 
 	return (
@@ -128,10 +128,9 @@ export const CatalogPage = ({
 					onClick={() => setIsFilterOpen(false)}
 				/>
 				<div
-					className={`absolute bottom-0 left-0 top-0 w-80 max-w-[85vw] overflow-y-auto bg-background shadow-2xl transition-transform duration-300 ease-in-out ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
+					className={`bg-background absolute top-0 bottom-0 left-0 w-80 max-w-[85vw] overflow-y-auto shadow-2xl transition-transform duration-300 ease-in-out ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
 				>
 					<div className='border-border/50 flex items-center justify-end border-b px-4 py-3'>
-						
 						<button
 							className='text-muted-foreground hover:text-foreground transition-colors'
 							onClick={() => setIsFilterOpen(false)}
@@ -153,10 +152,7 @@ export const CatalogPage = ({
 				<main className='min-w-0 flex-1'>
 					<div className='mb-4 flex items-center justify-between'>
 						{data && data.pagination.totalPages > 1 ? (
-							<Pagination
-								pagination={data.pagination}
-								onPageChange={setPage}
-							/>
+							<Pagination pagination={data.pagination} onPageChange={setPage} />
 						) : (
 							<div />
 						)}
@@ -182,10 +178,7 @@ export const CatalogPage = ({
 								<PerPageSelector value={currentLimit} onChange={setLimit} />
 							</div>
 							{data.pagination.totalPages > 1 && (
-								<Pagination
-									pagination={data.pagination}
-									onPageChange={setPage}
-								/>
+								<Pagination pagination={data.pagination} onPageChange={setPage} />
 							)}
 						</div>
 					)}

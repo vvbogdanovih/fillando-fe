@@ -221,7 +221,11 @@ export function CartSidebar() {
 													onChange={e => {
 														const next = Number(e.target.value)
 														if (!Number.isFinite(next)) return
-														commitQuantity(item.variant_id, next, item.stock)
+														commitQuantity(
+															item.variant_id,
+															next,
+															item.stock
+														)
 													}}
 													onBlur={e =>
 														commitQuantity(
@@ -235,7 +239,11 @@ export function CartSidebar() {
 															e.preventDefault()
 															commitQuantity(
 																item.variant_id,
-																Number((e.currentTarget as HTMLInputElement).value),
+																Number(
+																	(
+																		e.currentTarget as HTMLInputElement
+																	).value
+																),
 																item.stock
 															)
 														}
@@ -245,7 +253,11 @@ export function CartSidebar() {
 												/>
 												<button
 													onClick={() =>
-														handleIncrease(item.variant_id, item.quantity, item.stock)
+														handleIncrease(
+															item.variant_id,
+															item.quantity,
+															item.stock
+														)
 													}
 													className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors disabled:opacity-40'
 													aria-label='Збільшити'
@@ -285,7 +297,7 @@ export function CartSidebar() {
 							<Dialog.Close asChild>
 								<Link
 									href={UI_URLS.CHECKOUT}
-									className='bg-primary text-black hover:bg-primary/90 flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-colors'
+									className='bg-primary hover:bg-primary/90 flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-black transition-colors'
 								>
 									Оформити замовлення
 								</Link>

@@ -18,13 +18,7 @@ import { Textarea } from '@/common/components/ui/textarea'
 import { Label } from '@/common/components/ui/label'
 import { ordersApi } from './orders.api'
 
-export function InvoiceModal({
-	orderId,
-	orderNumber
-}: {
-	orderId: string
-	orderNumber: string
-}) {
+export function InvoiceModal({ orderId, orderNumber }: { orderId: string; orderNumber: string }) {
 	const [open, setOpen] = useState(false)
 	const [adminComment, setAdminComment] = useState('')
 
@@ -50,7 +44,7 @@ export function InvoiceModal({
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<Button size='sm' className='bg-primary text-black hover:bg-primary/80'>
+				<Button size='sm' className='bg-primary hover:bg-primary/80 text-black'>
 					<FileText className='size-4 sm:mr-2' />
 					<span className='hidden sm:inline'>Завантажити інвойс</span>
 				</Button>
@@ -77,7 +71,7 @@ export function InvoiceModal({
 						Скасувати
 					</Button>
 					<Button
-						className='bg-primary text-black hover:bg-primary/80'
+						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => invoiceMutation.mutate()}
 						disabled={invoiceMutation.isPending}
 					>

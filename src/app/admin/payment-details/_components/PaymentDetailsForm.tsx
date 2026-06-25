@@ -89,7 +89,9 @@ export const PaymentDetailsForm = ({ initial, onClose }: PaymentDetailsFormProps
 								aria-invalid={!!errors.last_name}
 							/>
 							{errors.last_name && (
-								<p className='text-destructive text-xs'>{errors.last_name.message}</p>
+								<p className='text-destructive text-xs'>
+									{errors.last_name.message}
+								</p>
 							)}
 						</div>
 						<div className='flex flex-col gap-1.5 sm:col-span-2'>
@@ -100,7 +102,9 @@ export const PaymentDetailsForm = ({ initial, onClose }: PaymentDetailsFormProps
 								aria-invalid={!!errors.first_name}
 							/>
 							{errors.first_name && (
-								<p className='text-destructive text-xs'>{errors.first_name.message}</p>
+								<p className='text-destructive text-xs'>
+									{errors.first_name.message}
+								</p>
 							)}
 						</div>
 						<div className='flex flex-col gap-1.5 sm:col-span-2'>
@@ -113,7 +117,11 @@ export const PaymentDetailsForm = ({ initial, onClose }: PaymentDetailsFormProps
 						</div>
 						<div className='flex flex-col gap-1.5 sm:col-span-2'>
 							<Label htmlFor='pd-iban'>IBAN</Label>
-							<Input id='pd-iban' {...register('iban')} aria-invalid={!!errors.iban} />
+							<Input
+								id='pd-iban'
+								{...register('iban')}
+								aria-invalid={!!errors.iban}
+							/>
 							{errors.iban && (
 								<p className='text-destructive text-xs'>{errors.iban.message}</p>
 							)}
@@ -137,7 +145,9 @@ export const PaymentDetailsForm = ({ initial, onClose }: PaymentDetailsFormProps
 								aria-invalid={!!errors.bank_name}
 							/>
 							{errors.bank_name && (
-								<p className='text-destructive text-xs'>{errors.bank_name.message}</p>
+								<p className='text-destructive text-xs'>
+									{errors.bank_name.message}
+								</p>
 							)}
 						</div>
 					</div>
@@ -146,7 +156,12 @@ export const PaymentDetailsForm = ({ initial, onClose }: PaymentDetailsFormProps
 						<Button type='submit' disabled={isSaving}>
 							{isSaving ? 'Збереження...' : isEditMode ? 'Зберегти' : 'Створити'}
 						</Button>
-						<Button type='button' variant='outline' onClick={onClose} disabled={isSaving}>
+						<Button
+							type='button'
+							variant='outline'
+							onClick={onClose}
+							disabled={isSaving}
+						>
 							Скасувати
 						</Button>
 					</div>

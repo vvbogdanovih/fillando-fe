@@ -1,6 +1,10 @@
 import { API_URLS } from '@/common/constants'
 import { httpService } from '@/common/services/http.service'
-import { usersListResponseSchema, type UsersListQuery, type UsersListResponse } from './users.schema'
+import {
+	usersListResponseSchema,
+	type UsersListQuery,
+	type UsersListResponse
+} from './users.schema'
 
 export const usersApi = {
 	getAll: (params: UsersListQuery): Promise<UsersListResponse> => {

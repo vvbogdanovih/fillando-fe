@@ -55,9 +55,7 @@ export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
 		<div
 			className={cn(
 				'bg-card border-border/50 flex flex-col overflow-hidden rounded-xl border shadow-lg shadow-black/10',
-				isOutOfStock
-					? 'border-muted bg-muted grayscale'
-					: 'card-hover'
+				isOutOfStock ? 'border-muted bg-muted grayscale' : 'card-hover'
 			)}
 		>
 			<Link href={href} className='block flex-1'>
@@ -100,8 +98,8 @@ export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
 						isOutOfStock
 							? 'bg-muted text-muted-foreground cursor-not-allowed'
 							: isInCart
-								? 'border border-primary bg-primary/20 text-black hover:bg-primary/30'
-								: 'bg-primary text-black hover:bg-primary/80 disabled:opacity-60'
+								? 'border-primary bg-primary/20 hover:bg-primary/30 border text-black'
+								: 'bg-primary hover:bg-primary/80 text-black disabled:opacity-60'
 					)}
 				>
 					{isAdding ? (

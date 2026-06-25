@@ -3,7 +3,6 @@ import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 
-
 const FILAMENT_IMAGE =
 	'https://fillando.s3.eu-north-1.amazonaws.com/categories/69b7c553ff27ba94157052db/bb2bfe7d-cd2d-45fd-8534-0cd888757962.png'
 

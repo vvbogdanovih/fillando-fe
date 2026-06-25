@@ -19,7 +19,9 @@ export default function ProfileLayout({ children }: { children: ReactNode }) {
 
 				<div className='grid gap-6 md:grid-cols-[240px_1fr]'>
 					<AccountSidebar />
-					<section className='bg-card border-border min-h-[420px] rounded-xl border p-5'>{children}</section>
+					<section className='bg-card border-border min-h-[420px] rounded-xl border p-5'>
+						{children}
+					</section>
 				</div>
 			</div>
 		</PrivateRoute>

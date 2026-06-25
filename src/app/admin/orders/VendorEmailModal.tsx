@@ -105,7 +105,7 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<Button size='sm' className='bg-primary text-black hover:bg-primary/80'>
+				<Button size='sm' className='bg-primary hover:bg-primary/80 text-black'>
 					<Mail className='size-3.5' />
 					<span className='hidden sm:inline'>Написати вендору</span>
 				</Button>
@@ -165,13 +165,13 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 								{files.map((file, index) => (
 									<li
 										key={`${file.name}-${index}`}
-										className='flex items-center gap-2 rounded bg-muted px-2 py-1 text-sm'
+										className='bg-muted flex items-center gap-2 rounded px-2 py-1 text-sm'
 									>
 										<span className='truncate'>{file.name}</span>
 										<button
 											type='button'
 											onClick={() => removeFile(index)}
-											className='ml-auto shrink-0 text-muted-foreground hover:text-foreground'
+											className='text-muted-foreground hover:text-foreground ml-auto shrink-0'
 										>
 											<X className='size-3.5' />
 										</button>
@@ -186,7 +186,7 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 						Скасувати
 					</Button>
 					<Button
-						className='bg-primary text-black hover:bg-primary/80'
+						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => sendMutation.mutate()}
 						disabled={!selectedEmail || sendMutation.isPending}
 					>

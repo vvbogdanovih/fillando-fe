@@ -22,9 +22,9 @@ export const metadata: Metadata = {
 	openGraph: {
 		siteName: SITE_NAME,
 		locale: 'uk_UA',
-		type: 'website',
+		type: 'website'
 	},
-	twitter: { card: 'summary_large_image' },
+	twitter: { card: 'summary_large_image' }
 }
 
 export default function RootLayout({

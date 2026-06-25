@@ -77,9 +77,14 @@ export const orderSchema = z
 		created_at: z.string().optional(),
 		createdAt: z.string().optional(),
 		items: z.array(orderItemSchema).default([]),
-		subtotal_price: z.preprocess(value => parseNumberWithDefault(value, 0), z.number()).default(0),
+		subtotal_price: z
+			.preprocess(value => parseNumberWithDefault(value, 0), z.number())
+			.default(0),
 		total_price: z.preprocess(value => parseNumberWithDefault(value, 0), z.number()).default(0),
-		applied_discount: z.preprocess(value => parseOptionalNumber(value), z.number().optional().nullable()),
+		applied_discount: z.preprocess(
+			value => parseOptionalNumber(value),
+			z.number().optional().nullable()
+		),
 		customer: customerSchema.default({ name: '', phone: '', email: '' }),
 		delivery_method: z
 			.preprocess(value => toUpperValue(value), z.enum(deliveryMethodValues))

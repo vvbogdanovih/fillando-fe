@@ -55,7 +55,7 @@ function CopyCell({
 
 	return (
 		<td
-			className={`cursor-pointer select-none px-3 py-3 hover:text-primary ${className ?? ''}`}
+			className={`hover:text-primary cursor-pointer px-3 py-3 select-none ${className ?? ''}`}
 			title={`Натисніть, щоб скопіювати: ${value}`}
 			onClick={copy}
 		>
@@ -135,7 +135,10 @@ export function Users() {
 					{isLoading ? (
 						<div className='space-y-3'>
 							{Array.from({ length: 6 }).map((_, index) => (
-								<div key={index} className='h-16 animate-pulse rounded-md bg-gray-100' />
+								<div
+									key={index}
+									className='h-16 animate-pulse rounded-md bg-gray-100'
+								/>
 							))}
 						</div>
 					) : isError ? (
@@ -168,7 +171,10 @@ export function Users() {
 									<tbody>
 										{users.map(user => (
 											<tr key={user.id} className='border-b hover:bg-gray-50'>
-												<CopyCell value={user.id} className='font-mono text-xs'>
+												<CopyCell
+													value={user.id}
+													className='font-mono text-xs'
+												>
 													{truncateId(user.id)}
 												</CopyCell>
 												<CopyCell value={user.name}>{user.name}</CopyCell>
@@ -176,16 +182,21 @@ export function Users() {
 												<td className='px-3 py-3'>
 													<Badge
 														variant={
-															user.role === 'ADMIN' ? 'default' : 'secondary'
+															user.role === 'ADMIN'
+																? 'default'
+																: 'secondary'
 														}
 													>
 														{ROLE_LABELS[user.role]}
 													</Badge>
 												</td>
 												<td className='px-3 py-3'>
-													{AUTH_METHOD_LABELS[user.authMethod] ?? user.authMethod}
+													{AUTH_METHOD_LABELS[user.authMethod] ??
+														user.authMethod}
 												</td>
-												<td className='px-3 py-3'>{formatDate(user.createdAt)}</td>
+												<td className='px-3 py-3'>
+													{formatDate(user.createdAt)}
+												</td>
 											</tr>
 										))}
 									</tbody>
@@ -208,7 +219,9 @@ export function Users() {
 										variant='outline'
 										size='sm'
 										disabled={page >= totalPages || isFetching}
-										onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+										onClick={() =>
+											setPage(prev => Math.min(totalPages, prev + 1))
+										}
 									>
 										Наступна
 									</Button>

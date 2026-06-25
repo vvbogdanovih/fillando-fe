@@ -6,7 +6,9 @@ import { type Order } from './orders.schema'
 import { buildOrderPatchPayload, mapOrderErrorMessage } from './orders.utils'
 
 vi.mock('next/image', () => ({
-	default: (props: ImgHTMLAttributes<HTMLImageElement>) => <img {...props} alt={props.alt ?? ''} />
+	default: (props: ImgHTMLAttributes<HTMLImageElement>) => (
+		<img {...props} alt={props.alt ?? ''} />
+	)
 }))
 
 const baseOrder: Order = {

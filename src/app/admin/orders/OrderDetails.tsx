@@ -23,7 +23,12 @@ import {
 	PAYMENT_METHOD_LABELS,
 	PAYMENT_STATUS_LABELS
 } from './orders.constants'
-import { buildOrderPatchPayload, formatDate, formatPrice, mapOrderErrorMessage } from './orders.utils'
+import {
+	buildOrderPatchPayload,
+	formatDate,
+	formatPrice,
+	mapOrderErrorMessage
+} from './orders.utils'
 import {
 	deliveryMethodValues,
 	orderStatusValues,
@@ -139,7 +144,12 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 	const [ttnValue, setTtnValue] = useState('')
 	const lastInitIdRef = useRef<string | null>(null)
 
-	const { data: order, isLoading, isError, refetch } = useQuery({
+	const {
+		data: order,
+		isLoading,
+		isError,
+		refetch
+	} = useQuery({
 		queryKey: ['admin-order', orderId],
 		queryFn: () => ordersApi.getById(orderId)
 	})
@@ -342,26 +352,58 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					<p>Метод: {DELIVERY_METHOD_LABELS[order.delivery_method]}</p>
 					{order.delivery_method === 'NOVA_POST' && (
 						<>
-							<p>Місто: {String((order.delivery_address as Record<string, unknown>)?.city_name ?? '—')}</p>
+							<p>
+								Місто:{' '}
+								{String(
+									(order.delivery_address as Record<string, unknown>)
+										?.city_name ?? '—'
+								)}
+							</p>
 							<p>
 								Відділення:{' '}
-								{String((order.delivery_address as Record<string, unknown>)?.warehouse_description ?? '—')}
+								{String(
+									(order.delivery_address as Record<string, unknown>)
+										?.warehouse_description ?? '—'
+								)}
 							</p>
 							<p>
 								Номер відділення:{' '}
-								{String((order.delivery_address as Record<string, unknown>)?.warehouse_number ?? '—')}
+								{String(
+									(order.delivery_address as Record<string, unknown>)
+										?.warehouse_number ?? '—'
+								)}
 							</p>
 						</>
 					)}
 					{order.delivery_method === 'COURIER' && (
 						<>
-							<p>Місто: {String((order.delivery_address as Record<string, unknown>)?.city_name ?? '—')}</p>
-							<p>Вулиця: {String((order.delivery_address as Record<string, unknown>)?.street ?? '—')}</p>
 							<p>
-								Будинок: {String((order.delivery_address as Record<string, unknown>)?.building ?? '—')}
+								Місто:{' '}
+								{String(
+									(order.delivery_address as Record<string, unknown>)
+										?.city_name ?? '—'
+								)}
 							</p>
 							<p>
-								Квартира: {String((order.delivery_address as Record<string, unknown>)?.apartment ?? '—')}
+								Вулиця:{' '}
+								{String(
+									(order.delivery_address as Record<string, unknown>)?.street ??
+										'—'
+								)}
+							</p>
+							<p>
+								Будинок:{' '}
+								{String(
+									(order.delivery_address as Record<string, unknown>)?.building ??
+										'—'
+								)}
+							</p>
+							<p>
+								Квартира:{' '}
+								{String(
+									(order.delivery_address as Record<string, unknown>)
+										?.apartment ?? '—'
+								)}
 							</p>
 						</>
 					)}
@@ -411,7 +453,9 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								<DropdownMenuRadioGroup
 									value={order.payment_status}
 									onValueChange={value =>
-										paymentStatusMutation.mutate(value as Order['payment_status'])
+										paymentStatusMutation.mutate(
+											value as Order['payment_status']
+										)
 									}
 								>
 									{paymentStatusValues.map(status => (
@@ -433,7 +477,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								placeholder='Вкажіть TTN'
 							/>
 							<Button
-								className='bg-primary text-black hover:bg-primary/80'
+								className='bg-primary hover:bg-primary/80 text-black'
 								onClick={() => ttnMutation.mutate(ttnValue.trim())}
 								disabled={ttnMutation.isPending}
 							>
@@ -457,7 +501,13 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								onChange={e =>
 									setEditValues(prev =>
 										prev
-											? { ...prev, customer: { ...prev.customer!, name: e.target.value } }
+											? {
+													...prev,
+													customer: {
+														...prev.customer!,
+														name: e.target.value
+													}
+												}
 											: prev
 									)
 								}
@@ -470,7 +520,13 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								onChange={e =>
 									setEditValues(prev =>
 										prev
-											? { ...prev, customer: { ...prev.customer!, phone: e.target.value } }
+											? {
+													...prev,
+													customer: {
+														...prev.customer!,
+														phone: e.target.value
+													}
+												}
 											: prev
 									)
 								}
@@ -483,7 +539,13 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								onChange={e =>
 									setEditValues(prev =>
 										prev
-											? { ...prev, customer: { ...prev.customer!, email: e.target.value } }
+											? {
+													...prev,
+													customer: {
+														...prev.customer!,
+														email: e.target.value
+													}
+												}
 											: prev
 									)
 								}
@@ -509,7 +571,8 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 												prev
 													? {
 															...prev,
-															delivery_method: value as DeliveryMethod,
+															delivery_method:
+																value as DeliveryMethod,
 															delivery_address: {}
 														}
 													: prev
@@ -539,7 +602,12 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 										value={editValues.payment_method}
 										onValueChange={value =>
 											setEditValues(prev =>
-												prev ? { ...prev, payment_method: value as PaymentMethod } : prev
+												prev
+													? {
+															...prev,
+															payment_method: value as PaymentMethod
+														}
+													: prev
 											)
 										}
 									>
@@ -563,7 +631,10 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 									? {
 											...prev,
 											delivery_address: {
-												...(prev.delivery_address as Record<string, unknown>),
+												...(prev.delivery_address as Record<
+													string,
+													unknown
+												>),
 												[key]: value
 											}
 										}
@@ -576,16 +647,27 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 						<Label>Товари (variant_id + quantity)</Label>
 						<div className='space-y-2'>
 							{(editValues.items ?? []).map((item, index) => (
-								<div key={item.variant_id} className='grid gap-2 sm:grid-cols-[1fr_140px]'>
+								<div
+									key={item.variant_id}
+									className='grid gap-2 sm:grid-cols-[1fr_140px]'
+								>
 									<div className='rounded-md border bg-gray-50 px-3 py-2 text-sm'>
 										{(() => {
 											const originalItem =
-												order.items.find(source => source.variant_id === item.variant_id) ??
-												order.items[index]
-											if (!originalItem) return <span className='text-muted-foreground'>Товар</span>
+												order.items.find(
+													source => source.variant_id === item.variant_id
+												) ?? order.items[index]
+											if (!originalItem)
+												return (
+													<span className='text-muted-foreground'>
+														Товар
+													</span>
+												)
 											return (
 												<>
-													<p className='font-medium'>{originalItem.name}</p>
+													<p className='font-medium'>
+														{originalItem.name}
+													</p>
 													<p className='text-muted-foreground text-xs'>
 														SKU: {originalItem.sku ?? '—'} • Vendor SKU:{' '}
 														{originalItem.vendor_sku ?? '—'}
@@ -621,13 +703,15 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 							id='comment'
 							value={editValues.comment ?? ''}
 							onChange={e =>
-								setEditValues(prev => (prev ? { ...prev, comment: e.target.value } : prev))
+								setEditValues(prev =>
+									prev ? { ...prev, comment: e.target.value } : prev
+								)
 							}
 						/>
 					</div>
 
 					<Button
-						className='bg-primary text-black hover:bg-primary/80'
+						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => fullEditMutation.mutate()}
 						disabled={fullEditMutation.isPending}
 					>

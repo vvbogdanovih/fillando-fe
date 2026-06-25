@@ -55,9 +55,7 @@ export const AdminSidebar = () => {
 	const logOut = useAuthStore(state => state.logOut)
 	const [mobileOpen, setMobileOpen] = useState(false)
 
-	const isPaymentDetailsActive = paymentDetailsItems.some(item =>
-		pathname.startsWith(item.href)
-	)
+	const isPaymentDetailsActive = paymentDetailsItems.some(item => pathname.startsWith(item.href))
 	const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(isPaymentDetailsActive)
 
 	const isCatalogueActive = catalogueItems.some(item => pathname.startsWith(item.href))
@@ -91,7 +89,13 @@ export const AdminSidebar = () => {
 	const sidebarContent = (
 		<>
 			<Link href={UI_URLS.HOME} className='border-b border-gray-200 px-6 py-5'>
-				<Image src='/Fillando.png' alt='Fillando' width={96} height={32} className='h-8 w-auto' />
+				<Image
+					src='/Fillando.png'
+					alt='Fillando'
+					width={96}
+					height={32}
+					className='h-8 w-auto'
+				/>
 				<span className='text-lg font-semibold text-gray-900'>Fillando Admin</span>
 			</Link>
 

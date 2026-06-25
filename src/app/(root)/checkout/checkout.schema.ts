@@ -6,10 +6,7 @@ const couponCodeRegex = /^[A-Z0-9]{10}$/
 
 export const checkoutCustomerSchema = z.object({
 	name: z.string().trim().min(1, "Вкажіть ім'я"),
-	phone: z
-		.string()
-		.trim()
-		.regex(phoneRegex, 'Формат телефону: +380XXXXXXXXX'),
+	phone: z.string().trim().regex(phoneRegex, 'Формат телефону: +380XXXXXXXXX'),
 	email: emailSchema
 })
 
@@ -17,7 +14,7 @@ export const checkoutFormSchema = z
 	.object({
 		customer: checkoutCustomerSchema,
 		delivery_method: z.enum(['NOVA_POST', 'COURIER', 'PICKUP'], {
-			message: "Оберіть спосіб доставки"
+			message: 'Оберіть спосіб доставки'
 		}),
 		payment_method: z.enum(['IBAN', 'CASH'], {
 			message: 'Оберіть спосіб оплати'
@@ -26,7 +23,10 @@ export const checkoutFormSchema = z
 		coupon_code: z
 			.string()
 			.optional()
-			.refine(value => !value || couponCodeRegex.test(value), 'Код купона має містити 10 символів A-Z0-9'),
+			.refine(
+				value => !value || couponCodeRegex.test(value),
+				'Код купона має містити 10 символів A-Z0-9'
+			),
 		city_ref: z.string().optional(),
 		city_name: z.string().optional(),
 		warehouse_type: z.enum(['PARCEL_LOCKER', 'POST', 'CARGO']).optional(),

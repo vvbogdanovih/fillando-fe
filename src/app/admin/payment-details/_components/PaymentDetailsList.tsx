@@ -72,8 +72,8 @@ export const PaymentDetailsList = ({
 				{sorted.length === 0 ? (
 					<div className='flex flex-col items-center justify-center gap-4 px-4 py-16 text-center'>
 						<p className='max-w-sm text-sm text-gray-500'>
-							Поки що немає жодного набору реквізитів. Додайте перший запис, щоб покупці
-							могли бачити актуальні дані для оплати.
+							Поки що немає жодного набору реквізитів. Додайте перший запис, щоб
+							покупці могли бачити актуальні дані для оплати.
 						</p>
 						<Button size='sm' onClick={onCreate}>
 							<PlusIcon className='size-4' />
@@ -84,7 +84,7 @@ export const PaymentDetailsList = ({
 					<div className='overflow-x-auto'>
 						<table className='w-full min-w-[720px] border-collapse text-left text-sm'>
 							<thead>
-								<tr className='border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500'>
+								<tr className='border-b border-gray-200 bg-gray-50 text-xs font-medium tracking-wide text-gray-500 uppercase'>
 									<th className='px-4 py-3 sm:px-6'>ПІБ</th>
 									<th className='px-4 py-3'>IBAN</th>
 									<th className='px-4 py-3'>ЄДРПОУ</th>
@@ -104,7 +104,10 @@ export const PaymentDetailsList = ({
 											}`}
 										>
 											<td className='max-w-[200px] px-4 py-3 font-medium text-gray-900 sm:px-6'>
-												<span className='line-clamp-2' title={formatFullName(row)}>
+												<span
+													className='line-clamp-2'
+													title={formatFullName(row)}
+												>
 													{formatFullName(row)}
 												</span>
 											</td>
@@ -116,13 +119,23 @@ export const PaymentDetailsList = ({
 													{row.iban}
 												</code>
 											</td>
-											<td className='px-4 py-3 text-gray-800'>{row.edrpou}</td>
-											<td className='max-w-[160px] px-4 py-3 text-gray-800' title={row.bank_name}>
-												<span className='line-clamp-2'>{row.bank_name}</span>
+											<td className='px-4 py-3 text-gray-800'>
+												{row.edrpou}
+											</td>
+											<td
+												className='max-w-[160px] px-4 py-3 text-gray-800'
+												title={row.bank_name}
+											>
+												<span className='line-clamp-2'>
+													{row.bank_name}
+												</span>
 											</td>
 											<td className='px-4 py-3'>
 												{active ? (
-													<Badge variant='default' className='shrink-0 gap-1'>
+													<Badge
+														variant='default'
+														className='shrink-0 gap-1'
+													>
 														<CheckCircle2Icon className='size-3' />
 														Активні
 													</Badge>

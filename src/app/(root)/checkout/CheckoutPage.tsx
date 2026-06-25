@@ -8,7 +8,17 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Banknote, Building2, CreditCard, MapPin, Minus, Package, Plus, Store, Truck } from 'lucide-react'
+import {
+	Banknote,
+	Building2,
+	CreditCard,
+	MapPin,
+	Minus,
+	Package,
+	Plus,
+	Store,
+	Truck
+} from 'lucide-react'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
 import { UI_URLS } from '@/common/constants'
@@ -146,7 +156,8 @@ export function CheckoutPage() {
 		}
 	})
 
-	const { register, handleSubmit, watch, setValue, setError, clearErrors, trigger, formState } = form
+	const { register, handleSubmit, watch, setValue, setError, clearErrors, trigger, formState } =
+		form
 	const { errors, isSubmitting, isValid } = formState
 	const deliveryMethod = watch('delivery_method')
 	const paymentMethod = watch('payment_method')
@@ -231,8 +242,7 @@ export function CheckoutPage() {
 		queryKey: ['checkout', 'nova-warehouses', cityRef, warehouseType, debouncedWarehouseQuery],
 		queryFn: () =>
 			fetchNovaPostWarehouses(cityRef!, warehouseType!, debouncedWarehouseQuery || undefined),
-		enabled:
-			deliveryMethod === 'NOVA_POST' && Boolean(cityRef) && Boolean(warehouseType)
+		enabled: deliveryMethod === 'NOVA_POST' && Boolean(cityRef) && Boolean(warehouseType)
 	})
 
 	const shouldValidateCoupon = couponCodeRegex.test(debouncedCouponCode)
@@ -247,7 +257,13 @@ export function CheckoutPage() {
 	})
 
 	useEffect(() => {
-		if (!shouldValidateCoupon || !couponValidation || couponValidationLoading || couponValidationError) return
+		if (
+			!shouldValidateCoupon ||
+			!couponValidation ||
+			couponValidationLoading ||
+			couponValidationError
+		)
+			return
 		if (couponValidation.valid) {
 			clearErrors('coupon_code')
 			return
@@ -272,7 +288,8 @@ export function CheckoutPage() {
 	const applyQuantity = useCallback(
 		(variantId: string, raw: number, stock?: number) => {
 			const normalizedBase = Math.max(1, Math.floor(raw))
-			const normalized = stock !== undefined ? Math.min(normalizedBase, stock) : normalizedBase
+			const normalized =
+				stock !== undefined ? Math.min(normalizedBase, stock) : normalizedBase
 			if (isAuth) {
 				void updateQuantity(variantId, normalized)
 			} else {
@@ -346,16 +363,22 @@ export function CheckoutPage() {
 	const appliedDiscountPercent =
 		couponValidation && couponValidation.valid ? couponValidation.coupon.discount_percent : 0
 	const previewDiscountAmount =
-		appliedDiscountPercent > 0 ? Number(((subtotal * appliedDiscountPercent) / 100).toFixed(2)) : 0
+		appliedDiscountPercent > 0
+			? Number(((subtotal * appliedDiscountPercent) / 100).toFixed(2))
+			: 0
 	const previewTotal = Math.max(0, Number((subtotal - previewDiscountAmount).toFixed(2)))
 	const hasAppliedDiscount = previewDiscountAmount > 0
 	const couponValidationMessage =
-		couponValidation && !couponValidation.valid ? mapCouponReason(couponValidation.reason) : null
+		couponValidation && !couponValidation.valid
+			? mapCouponReason(couponValidation.reason)
+			: null
 
 	return (
 		<div className='mx-auto max-w-3xl px-4 py-8 md:py-12'>
 			<div className='mb-8'>
-				<h1 className='text-2xl font-bold tracking-tight md:text-3xl'>Оформлення замовлення</h1>
+				<h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
+					Оформлення замовлення
+				</h1>
 				<p className='text-muted-foreground mt-1 text-sm'>
 					Перевірте дані та підтвердіть замовлення.
 				</p>
@@ -377,7 +400,9 @@ export function CheckoutPage() {
 								aria-invalid={!!errors.customer?.name}
 							/>
 							{errors.customer?.name && (
-								<p className='text-destructive text-sm'>{errors.customer.name.message}</p>
+								<p className='text-destructive text-sm'>
+									{errors.customer.name.message}
+								</p>
 							)}
 						</div>
 						<div className='space-y-2'>
@@ -391,7 +416,9 @@ export function CheckoutPage() {
 								aria-invalid={!!errors.customer?.phone}
 							/>
 							{errors.customer?.phone && (
-								<p className='text-destructive text-sm'>{errors.customer.phone.message}</p>
+								<p className='text-destructive text-sm'>
+									{errors.customer.phone.message}
+								</p>
 							)}
 						</div>
 						<div className='space-y-2'>
@@ -404,7 +431,9 @@ export function CheckoutPage() {
 								aria-invalid={!!errors.customer?.email}
 							/>
 							{errors.customer?.email && (
-								<p className='text-destructive text-sm'>{errors.customer.email.message}</p>
+								<p className='text-destructive text-sm'>
+									{errors.customer.email.message}
+								</p>
 							)}
 						</div>
 					</CardContent>
@@ -422,7 +451,8 @@ export function CheckoutPage() {
 									key={method}
 									className={cn(
 										'border-border hover:border-primary/40 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
-										deliveryMethod === method && 'border-primary bg-primary/5 ring-primary/20 ring-2'
+										deliveryMethod === method &&
+											'border-primary bg-primary/5 ring-primary/20 ring-2'
 									)}
 								>
 									<input
@@ -449,7 +479,9 @@ export function CheckoutPage() {
 							))}
 						</div>
 						{errors.delivery_method && (
-							<p className='text-destructive text-sm'>{errors.delivery_method.message}</p>
+							<p className='text-destructive text-sm'>
+								{errors.delivery_method.message}
+							</p>
 						)}
 
 						{deliveryMethod === 'NOVA_POST' && (
@@ -491,7 +523,9 @@ export function CheckoutPage() {
 									{cityOpen && debouncedCityQuery.length >= 2 && (
 										<div className='bg-popover text-popover-foreground border-border absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border shadow-md'>
 											{citiesLoading ? (
-												<p className='text-muted-foreground p-3 text-sm'>Пошук…</p>
+												<p className='text-muted-foreground p-3 text-sm'>
+													Пошук…
+												</p>
 											) : cities.length === 0 ? (
 												<p className='text-muted-foreground p-3 text-sm'>
 													Нічого не знайдено
@@ -504,11 +538,25 @@ export function CheckoutPage() {
 																type='button'
 																className='hover:bg-accent block w-full px-3 py-2 text-left text-sm'
 																onClick={() => {
-																	setValue('city_ref', c.ref, { shouldValidate: true })
-																	setValue('city_name', c.description, { shouldValidate: true })
-																	setCitySearchInput(c.description)
-																	setValue('warehouse_number', undefined)
-																	setValue('warehouse_description', '')
+																	setValue('city_ref', c.ref, {
+																		shouldValidate: true
+																	})
+																	setValue(
+																		'city_name',
+																		c.description,
+																		{ shouldValidate: true }
+																	)
+																	setCitySearchInput(
+																		c.description
+																	)
+																	setValue(
+																		'warehouse_number',
+																		undefined
+																	)
+																	setValue(
+																		'warehouse_description',
+																		''
+																	)
 																	setCityOpen(false)
 																}}
 															>
@@ -530,10 +578,15 @@ export function CheckoutPage() {
 												key={t}
 												className={cn(
 													'border-border flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm',
-													warehouseType === t && 'border-primary bg-primary/5'
+													warehouseType === t &&
+														'border-primary bg-primary/5'
 												)}
 											>
-												<input type='radio' value={t} {...register('warehouse_type')} />
+												<input
+													type='radio'
+													value={t}
+													{...register('warehouse_type')}
+												/>
 												{WAREHOUSE_TYPE_LABELS[t]}
 											</label>
 										))}
@@ -576,7 +629,8 @@ export function CheckoutPage() {
 											}}
 											onFocus={() => cityRef && setWarehouseOpen(true)}
 											aria-invalid={
-												!!errors.warehouse_number || !!errors.warehouse_description
+												!!errors.warehouse_number ||
+												!!errors.warehouse_description
 											}
 										/>
 									</div>
@@ -589,7 +643,9 @@ export function CheckoutPage() {
 									{warehouseOpen && cityRef && (
 										<div className='bg-popover text-popover-foreground border-border absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border shadow-md'>
 											{warehousesLoading ? (
-												<p className='text-muted-foreground p-3 text-sm'>Завантаження…</p>
+												<p className='text-muted-foreground p-3 text-sm'>
+													Завантаження…
+												</p>
 											) : warehouses.length === 0 ? (
 												<p className='text-muted-foreground p-3 text-sm'>
 													Відділень не знайдено
@@ -602,9 +658,19 @@ export function CheckoutPage() {
 																type='button'
 																className='hover:bg-accent block w-full px-3 py-2 text-left text-sm'
 																onClick={() => {
-																	setValue('warehouse_number', w.number, { shouldValidate: true })
-																	setValue('warehouse_description', w.description, { shouldValidate: true })
-																	setWarehouseSearchInput(w.description)
+																	setValue(
+																		'warehouse_number',
+																		w.number,
+																		{ shouldValidate: true }
+																	)
+																	setValue(
+																		'warehouse_description',
+																		w.description,
+																		{ shouldValidate: true }
+																	)
+																	setWarehouseSearchInput(
+																		w.description
+																	)
 																	void trigger()
 																	setWarehouseOpen(false)
 																}}
@@ -663,8 +729,13 @@ export function CheckoutPage() {
 									)}
 								</div>
 								<div className='space-y-2'>
-									<Label htmlFor='courier_apartment'>Квартира (необов&apos;язково)</Label>
-									<Input id='courier_apartment' {...register('courier_apartment')} />
+									<Label htmlFor='courier_apartment'>
+										Квартира (необов&apos;язково)
+									</Label>
+									<Input
+										id='courier_apartment'
+										{...register('courier_apartment')}
+									/>
 								</div>
 							</div>
 						)}
@@ -680,16 +751,22 @@ export function CheckoutPage() {
 						<label
 							className={cn(
 								'border-border hover:border-primary/40 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
-								paymentMethod === 'IBAN' && 'border-primary bg-primary/5 ring-primary/20 ring-2'
+								paymentMethod === 'IBAN' &&
+									'border-primary bg-primary/5 ring-primary/20 ring-2'
 							)}
 						>
-							<input type='radio' className='mt-1' value='IBAN' {...register('payment_method')} />
+							<input
+								type='radio'
+								className='mt-1'
+								value='IBAN'
+								{...register('payment_method')}
+							/>
 							<CreditCard className='text-primary mt-0.5 h-5 w-5 shrink-0' />
 							<div className='min-w-0 flex-1'>
 								<div className='font-medium'>Оплата на рахунок (IBAN)</div>
 								<p className='text-muted-foreground mt-1 text-sm'>
-									Реквізити для оплати будуть надіслані на вашу електронну пошту після
-									оформлення замовлення.
+									Реквізити для оплати будуть надіслані на вашу електронну пошту
+									після оформлення замовлення.
 								</p>
 							</div>
 						</label>
@@ -724,7 +801,9 @@ export function CheckoutPage() {
 									) : (
 										<span className='text-muted-foreground'>
 											Доступно тільки при{' '}
-											<span className='font-medium'>«Спосіб доставки — самовивіз»</span>
+											<span className='font-medium'>
+												«Спосіб доставки — самовивіз»
+											</span>
 										</span>
 									)}
 								</p>
@@ -754,7 +833,9 @@ export function CheckoutPage() {
 							<Badge variant='secondary'>Незабаром</Badge>
 						</button>
 						{errors.payment_method && (
-							<p className='text-destructive text-sm'>{errors.payment_method.message}</p>
+							<p className='text-destructive text-sm'>
+								{errors.payment_method.message}
+							</p>
 						)}
 					</CardContent>
 				</Card>
@@ -777,12 +858,17 @@ export function CheckoutPage() {
 									.toUpperCase()
 									.replace(/[^A-Z0-9]/g, '')
 									.slice(0, 10)
-								setValue('coupon_code', sanitized, { shouldValidate: true, shouldDirty: true })
+								setValue('coupon_code', sanitized, {
+									shouldValidate: true,
+									shouldDirty: true
+								})
 								clearErrors('coupon_code')
 							}}
 							aria-invalid={!!errors.coupon_code}
 						/>
-						<p className='text-muted-foreground text-xs'>Дозволені символи: A-Z і 0-9, рівно 10 символів.</p>
+						<p className='text-muted-foreground text-xs'>
+							Дозволені символи: A-Z і 0-9, рівно 10 символів.
+						</p>
 						{hasCouponInput && !couponLooksValid && (
 							<p className='text-xs text-amber-600'>
 								Некоректний формат коду (потрібно рівно 10 символів A-Z0-9).
@@ -791,18 +877,22 @@ export function CheckoutPage() {
 						{hasCouponInput && couponLooksValid && couponValidationLoading && (
 							<p className='text-muted-foreground text-xs'>Перевіряємо купон...</p>
 						)}
-						{hasCouponInput && couponLooksValid && !couponValidationLoading && couponValidationError && (
-							<p className='text-destructive text-xs'>
-								Не вдалося перевірити купон. Спробуйте ще раз.
-							</p>
-						)}
+						{hasCouponInput &&
+							couponLooksValid &&
+							!couponValidationLoading &&
+							couponValidationError && (
+								<p className='text-destructive text-xs'>
+									Не вдалося перевірити купон. Спробуйте ще раз.
+								</p>
+							)}
 						{hasCouponInput &&
 							couponLooksValid &&
 							!couponValidationLoading &&
 							couponValidation &&
 							couponValidation.valid && (
 								<p className='text-xs text-emerald-600'>
-									Купон валідний: -{couponValidation.coupon.discount_percent}% ({couponValidation.coupon.code})
+									Купон валідний: -{couponValidation.coupon.discount_percent}% (
+									{couponValidation.coupon.code})
 								</p>
 							)}
 						{hasCouponInput &&
@@ -859,13 +949,19 @@ export function CheckoutPage() {
 										)}
 									</div>
 									<div className='min-w-0 flex-1'>
-										<p className='line-clamp-2 text-sm font-medium'>{line.name}</p>
+										<p className='line-clamp-2 text-sm font-medium'>
+											{line.name}
+										</p>
 										<div className='mt-1 flex items-center gap-2'>
 											<div className='border-border bg-card flex items-center overflow-hidden rounded-md border shadow-xs'>
 												<button
 													type='button'
 													onClick={() =>
-														applyQuantity(line.variant_id, line.quantity - 1, line.stock)
+														applyQuantity(
+															line.variant_id,
+															line.quantity - 1,
+															line.stock
+														)
 													}
 													disabled={line.quantity <= 1}
 													className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors disabled:opacity-40'
@@ -881,7 +977,11 @@ export function CheckoutPage() {
 													onChange={e => {
 														const next = Number(e.target.value)
 														if (!Number.isFinite(next)) return
-														applyQuantity(line.variant_id, next, line.stock)
+														applyQuantity(
+															line.variant_id,
+															next,
+															line.stock
+														)
 													}}
 													className='w-11 border-x border-zinc-300 bg-white text-center text-xs font-medium text-black outline-none'
 													aria-label='Кількість'
@@ -889,7 +989,11 @@ export function CheckoutPage() {
 												<button
 													type='button'
 													onClick={() =>
-														applyQuantity(line.variant_id, line.quantity + 1, line.stock)
+														applyQuantity(
+															line.variant_id,
+															line.quantity + 1,
+															line.stock
+														)
 													}
 													className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors'
 													aria-label='Збільшити кількість'
@@ -918,7 +1022,8 @@ export function CheckoutPage() {
 									<div className='flex items-center justify-between text-sm'>
 										<span className='text-muted-foreground'>Знижка</span>
 										<span>
-											-{previewDiscountAmount.toLocaleString('uk-UA')} ₴ ({appliedDiscountPercent}%)
+											-{previewDiscountAmount.toLocaleString('uk-UA')} ₴ (
+											{appliedDiscountPercent}%)
 										</span>
 									</div>
 								</>
@@ -930,10 +1035,17 @@ export function CheckoutPage() {
 								)}
 							>
 								<span>Фінальна ціна</span>
-								<span className='text-primary'>{previewTotal.toLocaleString('uk-UA')} ₴</span>
+								<span className='text-primary'>
+									{previewTotal.toLocaleString('uk-UA')} ₴
+								</span>
 							</div>
 						</div>
-						<Button type='submit' className='w-full' size='lg' disabled={pending || !isValid}>
+						<Button
+							type='submit'
+							className='w-full'
+							size='lg'
+							disabled={pending || !isValid}
+						>
 							{pending ? 'Відправка…' : 'Замовити'}
 						</Button>
 						<p className='text-muted-foreground text-center text-xs'>

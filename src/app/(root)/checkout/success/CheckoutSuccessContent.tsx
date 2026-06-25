@@ -36,7 +36,9 @@ export function CheckoutSuccessContent() {
 					{formatted ? (
 						<p className='text-lg'>
 							Номер замовлення:{' '}
-							<span className='text-primary font-bold tabular-nums'>#{formatted}</span>
+							<span className='text-primary font-bold tabular-nums'>
+								#{formatted}
+							</span>
 						</p>
 					) : (
 						<p className='text-muted-foreground text-sm'>
@@ -52,7 +54,9 @@ export function CheckoutSuccessContent() {
 						<div className='rounded-lg border p-3 text-left'>
 							{hasDiscount && hasSubtotal && (
 								<div className='mb-2 flex items-center justify-between text-sm'>
-									<span className='text-muted-foreground'>Підсумок до знижки</span>
+									<span className='text-muted-foreground'>
+										Підсумок до знижки
+									</span>
 									<span>{subtotal.toLocaleString('uk-UA')} ₴</span>
 								</div>
 							)}
@@ -60,14 +64,18 @@ export function CheckoutSuccessContent() {
 								<div className='mb-2 flex items-center justify-between text-sm'>
 									<span className='text-muted-foreground'>
 										Знижка {discountCode ? `(${discountCode})` : ''}
-										{Number.isFinite(discountPercent) ? ` ${discountPercent}%` : ''}
+										{Number.isFinite(discountPercent)
+											? ` ${discountPercent}%`
+											: ''}
 									</span>
 									<span>-{discountAmount.toLocaleString('uk-UA')} ₴</span>
 								</div>
 							)}
 							<div className='flex items-center justify-between text-base font-semibold'>
 								<span>Разом</span>
-								<span className='text-primary'>{total.toLocaleString('uk-UA')} ₴</span>
+								<span className='text-primary'>
+									{total.toLocaleString('uk-UA')} ₴
+								</span>
 							</div>
 						</div>
 					)}

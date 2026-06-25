@@ -45,10 +45,7 @@ export const Products = () => {
 		queryFn: () => categoriesApi.getWithSubcategories()
 	})
 
-	const vendorMap = useMemo(
-		() => new Map(vendors.map(v => [v._id, v.name])),
-		[vendors]
-	)
+	const vendorMap = useMemo(() => new Map(vendors.map(v => [v._id, v.name])), [vendors])
 
 	const categoryMap = useMemo(() => {
 		const map = new Map<string, string>()
@@ -138,13 +135,8 @@ export const Products = () => {
 								</thead>
 								<tbody>
 									{products.map((product, index) => (
-										<tr
-											key={product._id}
-											className='border-b hover:bg-gray-50'
-										>
-											<td className='px-3 py-3 text-gray-400'>
-												{index + 1}
-											</td>
+										<tr key={product._id} className='border-b hover:bg-gray-50'>
+											<td className='px-3 py-3 text-gray-400'>{index + 1}</td>
 											<td className='px-3 py-3 font-medium text-gray-900'>
 												{product.name}
 											</td>
