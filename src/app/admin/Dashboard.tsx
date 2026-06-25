@@ -1,6 +1,7 @@
 'use client'
 
 import { NovaPostSyncSection } from './nova-post/NovaPostSyncSection'
+import { PromSyncSection } from './prom/PromSyncSection'
 
 export const Dashboard = () => {
 	return (
@@ -13,6 +14,7 @@ export const Dashboard = () => {
 					Дані та інтеграції
 				</h2>
 				<NovaPostSyncSection />
+				<PromSyncSection />
 			</section>
 		</div>
 	)

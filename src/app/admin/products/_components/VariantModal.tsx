@@ -82,7 +82,8 @@ export const VariantModal = ({
 				stock: String(variant.stock),
 				v_value: variant.v_value,
 				status: variant.status,
-				vendor_product_sku: variant.vendor_product_sku ?? ''
+				vendor_product_sku: variant.vendor_product_sku ?? '',
+				prom_id: variant.prom_id ?? ''
 			})
 			setImageUploads(
 				variant.images.map(url => ({
@@ -98,7 +99,8 @@ export const VariantModal = ({
 				// Seed v_value from the product attribute when adding the first variant
 				v_value: !hasExistingVariants && variantTypeAttrValue ? variantTypeAttrValue : null,
 				status: 'active',
-				vendor_product_sku: ''
+				vendor_product_sku: '',
+				prom_id: ''
 			})
 			setImageUploads([])
 		}
@@ -141,6 +143,7 @@ export const VariantModal = ({
 				v_value: hasVariants ? (values.v_value ?? null) : null,
 				status: values.status,
 				vendor_product_sku: values.vendor_product_sku || undefined,
+				prom_id: values.prom_id || undefined,
 				images
 			}
 
@@ -263,6 +266,16 @@ export const VariantModal = ({
 							id='vendor_product_sku'
 							placeholder='Артикул у системі вендора'
 							{...register('vendor_product_sku')}
+						/>
+					</div>
+
+					{/* Prom product id */}
+					<div className='flex flex-col gap-1.5'>
+						<Label htmlFor='prom_id'>ID на Промі (необов'язково)</Label>
+						<Input
+							id='prom_id'
+							placeholder='Напр. 3012625429'
+							{...register('prom_id')}
 						/>
 					</div>
 

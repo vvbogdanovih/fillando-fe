@@ -35,6 +35,7 @@ export const API_URLS = {
 		BASE: `/products`, // GET (list) / POST (create)
 		CATALOG: `/products/catalog`, // GET — paginated, filtered catalog for a subcategory
 		SEARCH: `/products/search`, // GET ?q=&page=&limit= — full-text product search
+		PRICE_SHEET: `/products/price-sheet`, // GET ?q=&page=&limit= — public flat variant list (price sheet)
 		BY_SLUG: (slug: string) => `/products/by-slug/${slug}`, // GET — variant detail + product + siblings
 		BY_ID: (id: string) => `/products/${id}`, // GET / PATCH / DELETE
 		VALIDATE: `/products/validate`, // POST — check slug + SKU uniqueness before create
@@ -76,5 +77,8 @@ export const API_URLS = {
 		SYNC: `/nova-post/sync`, // GET — admin SSE stream: cities → warehouses progress, then done | error
 		CITIES: `/nova-post/cities`, // GET ?q=
 		WAREHOUSES: `/nova-post/warehouses` // GET ?cityRef=&type=&q=
+	},
+	PROM: {
+		SYNC_AVAILABILITY: `/prom/sync-availability` // GET — admin SSE stream: per-variant availability sync progress, then done | error
 	}
 }

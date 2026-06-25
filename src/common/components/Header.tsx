@@ -74,6 +74,12 @@ export function Header() {
 							>
 								Матеріали
 							</Link>
+							<Link
+								href={UI_URLS.PRICE_SHEET}
+								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
+							>
+								Прайс-лист
+							</Link>
 						</nav>
 						<DesktopSearchBar />
 					</div>

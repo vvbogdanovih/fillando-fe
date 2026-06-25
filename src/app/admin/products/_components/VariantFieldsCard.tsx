@@ -126,6 +126,15 @@ export const VariantFieldsCard = ({
 						{...register(`variants.${index}.vendor_product_sku`)}
 					/>
 				</div>
+
+				<div className='flex flex-1 flex-col gap-1.5'>
+					<Label htmlFor={`prom_id_${index}`}>ID на Промі</Label>
+					<Input
+						id={`prom_id_${index}`}
+						placeholder="Необов'язково"
+						{...register(`variants.${index}.prom_id`)}
+					/>
+				</div>
 			</div>
 
 			{/* Images */}

@@ -29,6 +29,7 @@ interface CreateProductPayload {
 		stock: number
 		images: string[]
 		vendor_product_sku?: string
+		prom_id?: string
 	}>
 }
 
@@ -58,6 +59,7 @@ interface AddVariantPayload {
 	stock?: number
 	images?: string[]
 	vendor_product_sku?: string
+	prom_id?: string
 	status?: 'draft' | 'active' | 'archived'
 }
 
@@ -69,6 +71,7 @@ interface UpdateVariantPayload {
 	images?: string[]
 	v_value?: string | null
 	vendor_product_sku?: string
+	prom_id?: string
 	status?: 'draft' | 'active' | 'archived'
 }
 

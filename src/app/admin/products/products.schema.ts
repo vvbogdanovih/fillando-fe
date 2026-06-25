@@ -22,7 +22,8 @@ export const variantFormItemSchema = z.object({
 		.min(1, "Кількість є обов'язковою")
 		.refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'Введіть коректну кількість'),
 	images: z.array(z.string()), // public URLs, populated after upload
-	vendor_product_sku: z.string().optional()
+	vendor_product_sku: z.string().optional(),
+	prom_id: z.string().optional()
 })
 
 // --- Main product form schema (create) ---
@@ -83,7 +84,8 @@ export const variantEditFormSchema = z.object({
 		.min(1, "Кількість є обов'язковою")
 		.refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'Введіть коректну кількість'),
 	status: z.enum(['draft', 'active', 'archived']),
-	vendor_product_sku: z.string().optional()
+	vendor_product_sku: z.string().optional(),
+	prom_id: z.string().optional()
 })
 
 // --- API response schemas ---
@@ -110,6 +112,7 @@ export const productVariantFullResponseSchema = z.object({
 	images: z.array(z.string()),
 	v_value: z.string().nullable(),
 	vendor_product_sku: z.string().optional(),
+	prom_id: z.string().optional(),
 	status: z.enum(['draft', 'active', 'archived']),
 	createdAt: z.string(),
 	updatedAt: z.string()
