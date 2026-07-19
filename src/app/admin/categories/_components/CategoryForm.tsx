@@ -1,16 +1,29 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { XIcon, UploadIcon, AlertCircleIcon, RefreshCwIcon } from 'lucide-react'
+import {
+	XIcon,
+	UploadIcon,
+	AlertCircleIcon,
+	RefreshCwIcon,
+	PlusIcon,
+	Trash2Icon
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/common/components/ui/button'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '@/common/components/ui/select'
 import { categoriesApi } from '../categories.api'
-import { SubcategoryList } from './SubcategoryList'
 import { categoryFormSchema, type CategoryFormValues, type Category } from '../categories.schema'
 
 interface CategoryFormProps {
@@ -36,16 +49,34 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 
 	const {
 		register,
+		control,
 		handleSubmit,
 		setError,
+		watch,
+		setValue,
 		formState: { errors }
 	} = useForm<CategoryFormValues>({
 		resolver: zodResolver(categoryFormSchema),
 		defaultValues: {
 			name: initial?.name ?? '',
 			slug: initial?.slug ?? '',
-			order: initial?.order ?? 0
+			order: initial?.order ?? 0,
+			required_attributes:
+				initial?.required_attributes.map(a => ({
+					label: a.label,
+					filter_type: a.filter_type,
+					unit: a.unit
+				})) ?? []
 		}
+	})
+
+	const {
+		fields: attrFields,
+		append: appendAttr,
+		remove: removeAttr
+	} = useFieldArray({
+		control,
+		name: 'required_attributes'
 	})
 
 	// Populate image state for edit mode
@@ -115,6 +146,7 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 			const payload: CategoryFormValues = {
 				name: values.name,
 				slug: values.slug,
+				required_attributes: values.required_attributes,
 				...(values.order !== undefined ? { order: values.order } : {})
 			}
 
@@ -357,6 +389,113 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 						/>
 					</div>
 
+					{/* Required attributes (catalog filters) */}
+					<div className='flex flex-col gap-2'>
+						<div className='flex items-center justify-between'>
+							<Label>Обов'язкові атрибути</Label>
+							<Button
+								type='button'
+								size='xs'
+								variant='outline'
+								onClick={() =>
+									appendAttr({ label: '', filter_type: 'multi-select', unit: null })
+								}
+							>
+								<PlusIcon className='size-3' />
+								Додати
+							</Button>
+						</div>
+
+						{attrFields.length === 0 && (
+							<p className='text-muted-foreground text-xs'>Атрибутів немає</p>
+						)}
+
+						{attrFields.map((field, index) => (
+							<div
+								key={field.id}
+								className='rounded-md border border-gray-200 bg-gray-50 p-3'
+							>
+								<div className='mb-2 flex items-center justify-between'>
+									<span className='text-xs font-medium text-gray-600'>
+										Атрибут {index + 1}
+									</span>
+									<Button
+										type='button'
+										size='icon-xs'
+										variant='ghost'
+										onClick={() => removeAttr(index)}
+									>
+										<Trash2Icon className='text-destructive size-3' />
+									</Button>
+								</div>
+
+								<div className='flex flex-col gap-2'>
+									{/* Label */}
+									<div className='flex flex-col gap-1'>
+										<Label htmlFor={`attr-label-${index}`} className='text-xs'>
+											Label
+										</Label>
+										<Input
+											id={`attr-label-${index}`}
+											placeholder='Наприклад: Виробник'
+											{...register(`required_attributes.${index}.label`)}
+											aria-invalid={
+												!!errors.required_attributes?.[index]?.label
+											}
+										/>
+										{errors.required_attributes?.[index]?.label && (
+											<p className='text-destructive text-xs'>
+												{errors.required_attributes[index].label?.message}
+											</p>
+										)}
+									</div>
+
+									{/* filter_type + unit */}
+									<div className='flex gap-2'>
+										<div className='flex flex-1 flex-col gap-1'>
+											<Label className='text-xs'>Тип фільтру</Label>
+											<Select
+												value={watch(
+													`required_attributes.${index}.filter_type`
+												)}
+												onValueChange={val =>
+													setValue(
+														`required_attributes.${index}.filter_type`,
+														val as 'multi-select' | 'range',
+														{ shouldValidate: true }
+													)
+												}
+											>
+												<SelectTrigger className='w-full'>
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value='multi-select'>
+														multi-select
+													</SelectItem>
+													<SelectItem value='range'>range</SelectItem>
+												</SelectContent>
+											</Select>
+										</div>
+
+										<div className='flex flex-1 flex-col gap-1'>
+											<Label htmlFor={`attr-unit-${index}`} className='text-xs'>
+												Одиниця (optional)
+											</Label>
+											<Input
+												id={`attr-unit-${index}`}
+												placeholder='мм, кг...'
+												{...register(`required_attributes.${index}.unit`, {
+													setValueAs: v => (v === '' ? null : v)
+												})}
+											/>
+										</div>
+									</div>
+								</div>
+							</div>
+						))}
+					</div>
+
 					{/* Submit */}
 					<div className='flex gap-2'>
 						<Button type='submit' disabled={isPending}>
@@ -372,14 +511,6 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 						</Button>
 					</div>
 				</form>
-
-				{/* Subcategory management — only shown in edit mode */}
-				{isEditMode && (
-					<>
-						<hr className='border-gray-200' />
-						<SubcategoryList category={initial} />
-					</>
-				)}
 			</div>
 		</div>
 	)

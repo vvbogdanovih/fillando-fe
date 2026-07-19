@@ -33,7 +33,6 @@ export const productFormSchema = z
 		name: z.string().min(1, "Назва продукту є обов'язковою"),
 		vendor_id: z.string().min(1, 'Оберіть вендора'),
 		category_id: z.string().min(1, 'Оберіть категорію'),
-		subcategory_id: z.string().min(1, 'Оберіть підкатегорію'),
 		attributes: z.array(attributeItemSchema),
 		has_variants: z.boolean(),
 		variant_type_key: z.string().nullable(),
@@ -66,7 +65,6 @@ export const productEditFormSchema = z.object({
 	name: z.string().min(1, "Назва продукту є обов'язковою"),
 	vendor_id: z.string().min(1, 'Оберіть вендора'),
 	category_id: z.string().min(1, 'Оберіть категорію'),
-	subcategory_id: z.string().min(1, 'Оберіть підкатегорію'),
 	attributes: z.array(attributeItemSchema),
 	variant_type_key: z.string().nullable()
 })
@@ -103,7 +101,7 @@ export const productVariantResponseSchema = z.object({
 export const productVariantFullResponseSchema = z.object({
 	_id: z.string(),
 	product_id: z.string(),
-	subcategory_id: z.string(),
+	category_id: z.string(),
 	name: z.string(),
 	slug: z.string(),
 	sku: z.string(),
@@ -125,7 +123,6 @@ export const productResponseSchema = z.object({
 	name: z.string(),
 	vendor_id: z.string().optional(),
 	category_id: z.string(),
-	subcategory_id: z.string(),
 	description: z
 		.object({
 			json: z.record(z.string(), z.unknown()),
@@ -150,7 +147,6 @@ export const productDetailSchema = z.object({
 	name: z.string(),
 	vendor_id: z.string(),
 	category_id: z.string(),
-	subcategory_id: z.string(),
 	description: z
 		.object({
 			json: z.record(z.string(), z.unknown()),
@@ -174,7 +170,6 @@ export const productListItemSchema = z.object({
 	name: z.string(),
 	vendor_id: z.string().optional(),
 	category_id: z.string(),
-	subcategory_id: z.string(),
 	attributes: z.array(attributeItemSchema),
 	variant_type: z
 		.object({

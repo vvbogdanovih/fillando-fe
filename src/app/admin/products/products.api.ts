@@ -19,7 +19,6 @@ interface CreateProductPayload {
 	name: string
 	vendor_id: string
 	category_id: string
-	subcategory_id: string
 	description: { json: object; html: string } | null
 	attributes: Array<{ k: string; l: string; v: string | number | boolean }>
 	variant_type: { key: string; label: string } | null
@@ -47,7 +46,6 @@ interface UpdateProductMetadataPayload {
 	name?: string
 	vendor_id?: string
 	category_id?: string
-	subcategory_id?: string
 	description?: { json: Record<string, unknown>; html: string } | null
 	variant_type?: { key: string; label: string } | null
 	attributes?: Array<{ l: string; v: string | number | boolean }>

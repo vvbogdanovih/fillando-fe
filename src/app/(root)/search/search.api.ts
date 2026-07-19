@@ -1,6 +1,6 @@
 import { httpService } from '@/common/services/http.service'
 import { API_URLS } from '@/common/constants'
-import type { CatalogItem } from '@/app/(root)/[category]/[subcategory]/catalog.api'
+import type { CatalogItem } from '@/app/(root)/[category]/catalog.api'
 
 export interface SearchResponse {
 	items: CatalogItem[]

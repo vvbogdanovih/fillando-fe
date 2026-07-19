@@ -46,7 +46,7 @@ export interface ProductDetailData {
 		images: string[]
 	}[]
 	category_slug: string
-	subcategory_slug: string
+	category_name: string
 }
 
 export interface CatalogResponse {
@@ -61,7 +61,7 @@ export interface CatalogResponse {
 	filter_options: Record<string, string[]>
 }
 
-export type CatalogQueryParams = Record<string, string> & { subcategory_id: string }
+export type CatalogQueryParams = Record<string, string> & { category_id: string }
 
 export const getCatalogProducts = (params: CatalogQueryParams): Promise<CatalogResponse> => {
 	return httpService.get<CatalogResponse, unknown>(API_URLS.PRODUCTS.CATALOG, { params })

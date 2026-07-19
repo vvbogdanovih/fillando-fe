@@ -4,8 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { searchProducts, type SearchResponse } from './search.api'
-import { ProductGrid } from '@/app/(root)/[category]/[subcategory]/components/ProductGrid'
-import { Pagination } from '@/app/(root)/[category]/[subcategory]/components/Pagination'
+import { ProductGrid } from '@/app/(root)/[category]/components/ProductGrid'
+import { Pagination } from '@/app/(root)/[category]/components/Pagination'
 
 interface SearchPageProps {
 	q: string

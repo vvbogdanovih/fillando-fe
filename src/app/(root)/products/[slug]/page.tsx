@@ -4,7 +4,7 @@ import { ProductPage } from './ProductPage'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 import { API_URLS } from '@/common/constants/api-routes.constants'
 import { SITE_URL } from '@/common/constants/seo.constants'
-import type { ProductDetailData } from '@/app/(root)/[category]/[subcategory]/catalog.api'
+import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 
 interface PageProps {
 	params: Promise<{ slug: string }>

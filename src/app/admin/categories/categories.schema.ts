@@ -9,20 +9,13 @@ export const requiredAttributeSchema = z.object({
 	unit: z.string().nullable()
 })
 
-export const subcategorySchema = z.object({
-	_id: z.string(),
-	name: z.string(),
-	slug: z.string(),
-	required_attributes: z.array(requiredAttributeSchema)
-})
-
 export const categorySchema = z.object({
 	_id: z.string(),
 	name: z.string(),
 	slug: z.string(),
 	image: z.string().nullable(),
 	order: z.number().default(0),
-	subcategories: z.array(subcategorySchema),
+	required_attributes: z.array(requiredAttributeSchema).default([]),
 	createdAt: z.string(),
 	updatedAt: z.string()
 })
@@ -37,23 +30,16 @@ export const attributeFormSchema = z.object({
 	unit: z.string().nullable()
 })
 
-export const subcategoryFormSchema = z.object({
-	name: z.string().min(1, "Назва є обов'язковою"),
-	slug: z.string().min(1, "Slug є обов'язковим"),
-	required_attributes: z.array(attributeFormSchema)
-})
-
 export const categoryFormSchema = z.object({
 	name: z.string().min(1, "Назва є обов'язковою"),
 	slug: z.string().min(1, "Slug є обов'язковим"),
-	order: z.number().int().min(0).optional()
+	order: z.number().int().min(0).optional(),
+	required_attributes: z.array(attributeFormSchema)
 })
 
 // --- Types ---
 
 export type Category = z.infer<typeof categorySchema>
-export type Subcategory = z.infer<typeof subcategorySchema>
 export type RequiredAttribute = z.infer<typeof requiredAttributeSchema>
 export type CategoryFormValues = z.infer<typeof categoryFormSchema>
-export type SubcategoryFormValues = z.infer<typeof subcategoryFormSchema>
 export type AttributeFormValues = z.infer<typeof attributeFormSchema>

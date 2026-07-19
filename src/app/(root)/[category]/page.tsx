@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { CatalogPage } from './CatalogPage'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
@@ -7,18 +8,25 @@ import type { Category } from '@/app/admin/categories/categories.schema'
 import type { CatalogResponse } from './catalog.api'
 
 interface PageProps {
-	params: Promise<{ category: string; subcategory: string }>
+	params: Promise<{ category: string }>
 	searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 const formatSlug = (slug: string) => slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-	const { category, subcategory } = await params
-	const label = formatSlug(subcategory)
+	const { category } = await params
+	const categoryData = await serverFetch<Category>(`/categories/slug/${category}`)
+	// This dynamic segment catches every unknown top-level path. The streamed
+	// response is committed with a 200 before notFound() can change the status,
+	// so mark unknown slugs noindex to keep the soft-404 out of the index.
+	if (!categoryData) {
+		return { title: 'Сторінку не знайдено', robots: { index: false, follow: false } }
+	}
+	const label = categoryData.name ?? formatSlug(category)
 	const title = `${label} — купити у Fillando`
 	const description = `Каталог ${label.toLowerCase()}. Широкий вибір філаменту та витратних матеріалів для 3D-друку.`
-	const canonical = `${SITE_URL}/${category}/${subcategory}`
+	const canonical = `${SITE_URL}/${category}`
 
 	return {
 		title,
@@ -28,31 +36,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 	}
 }
 
-export default async function CategorySubcategoryPage({ params, searchParams }: PageProps) {
-	const { category, subcategory } = await params
+export default async function CategoryPage({ params, searchParams }: PageProps) {
+	const { category } = await params
 	const sp = await searchParams
 
 	const categoryData = await serverFetch<Category>(`/categories/slug/${category}`)
-	const sub = categoryData?.subcategories.find(s => s.slug === subcategory)
+	// This dynamic segment catches every unknown top-level path — unknown slugs
+	// must 404, not render an empty page.
+	if (!categoryData) notFound()
 
-	let initialCatalog: CatalogResponse | null = null
-	if (sub) {
-		const query = new URLSearchParams()
-		query.set('subcategory_id', sub._id)
-		query.set('limit', String(sp.limit ?? '12'))
-		for (const [key, value] of Object.entries(sp)) {
-			if (typeof value === 'string' && key !== 'limit') {
-				query.set(key, value)
-			}
+	const query = new URLSearchParams()
+	query.set('category_id', categoryData._id)
+	query.set('limit', String(sp.limit ?? '12'))
+	for (const [key, value] of Object.entries(sp)) {
+		if (typeof value === 'string' && key !== 'limit') {
+			query.set(key, value)
 		}
-		initialCatalog = await serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`)
 	}
+	const initialCatalog = await serverFetch<CatalogResponse>(
+		`/products/catalog?${query.toString()}`
+	)
 
 	return (
 		<Suspense>
 			<CatalogPage
 				categorySlug={category}
-				subcategorySlug={subcategory}
 				initialCategory={categoryData}
 				initialCatalog={initialCatalog}
 			/>

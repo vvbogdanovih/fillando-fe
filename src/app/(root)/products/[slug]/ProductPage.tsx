@@ -19,7 +19,7 @@ import { useCartStore } from '@/common/store/useCartStore'
 import {
 	getVariantBySlug,
 	type ProductDetailData
-} from '@/app/(root)/[category]/[subcategory]/catalog.api'
+} from '@/app/(root)/[category]/catalog.api'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_NAME, SITE_URL } from '@/common/constants/seo.constants'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
@@ -103,9 +103,9 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 		)
 	}
 
-	const { category_slug, subcategory_slug } = data
+	const { category_slug, category_name } = data
 
-	const catalogPath = `/${category_slug}/${subcategory_slug}`
+	const catalogPath = `/${category_slug}`
 	const displayName = variant.v_value ? `${product.name} — ${variant.v_value}` : variant.name
 	const isOutOfStock = availableStock <= 0
 	const isLowStock = availableStock > 0 && availableStock <= 5
@@ -155,18 +155,12 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 			{
 				'@type': 'ListItem',
 				position: 2,
-				name: category_slug,
+				name: category_name,
 				item: `${SITE_URL}/${category_slug}`
 			},
 			{
 				'@type': 'ListItem',
 				position: 3,
-				name: subcategory_slug,
-				item: `${SITE_URL}/${category_slug}/${subcategory_slug}`
-			},
-			{
-				'@type': 'ListItem',
-				position: 4,
 				name: displayName,
 				item: `${SITE_URL}/products/${variant.slug}`
 			}
@@ -179,7 +173,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 			<JsonLd data={breadcrumbSchema} />
 			<nav className='text-muted-foreground mb-6 flex items-center gap-2 text-sm'>
 				<Link href={catalogPath} className='hover:text-foreground transition-colors'>
-					{subcategory_slug}
+					{category_name}
 				</Link>
 				<span>/</span>
 				<span className='text-foreground'>{displayName}</span>

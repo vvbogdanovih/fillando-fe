@@ -29,7 +29,7 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 	const { fields, append, remove, update } = fieldArray
 	const [staging, setStaging] = useState<StagingAttr>(EMPTY_STAGING)
 
-	// Indices that belong to required attributes (pre-populated from subcategory)
+	// Indices that belong to required attributes (pre-populated from category)
 	const requiredCount = requiredAttrs.length
 
 	const handleAddClick = () => {
@@ -57,7 +57,7 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 		<section className='flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6'>
 			<h2 className='text-sm font-semibold text-gray-900'>Атрибути</h2>
 
-			{/* Required attributes from subcategory */}
+			{/* Required attributes from category */}
 			{requiredAttrs.length > 0 && (
 				<div className='flex flex-col gap-3'>
 					<p className='text-xs font-medium text-gray-500'>

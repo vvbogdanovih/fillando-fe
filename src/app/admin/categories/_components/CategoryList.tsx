@@ -80,7 +80,7 @@ export const CategoryList = ({ categories, selectedId, onSelect, onCreate }: Cat
 							<p className='truncate text-xs text-gray-400'>{category.slug}</p>
 							<div className='mt-1 flex items-center gap-2'>
 								<Badge variant='secondary' className='text-xs'>
-									{category.subcategories.length} підкат.
+									{category.required_attributes.length} атр.
 								</Badge>
 								<span className='text-xs text-gray-400'>
 									order: {category.order}

@@ -14,13 +14,9 @@ export const API_URLS = {
 		ME: `/users/me` // GET/PATCH — current user profile
 	},
 	CATEGORIES: {
-		WITH_SUBCATEGORIES: `/categories/with-subcategories`, // GET  — full list with embedded subcategory trees
-		BASE: `/categories`, // POST — create category
+		BASE: `/categories`, // GET — full list / POST — create category
 		BY_ID: (id: string) => `/categories/${id}`, // GET/PATCH/DELETE
-		BY_SLUG: (slug: string) => `/categories/slug/${slug}`, // GET — resolve slug to category doc
-		SUBCATEGORIES: (catId: string) => `/categories/${catId}/subcategories`, // GET/POST
-		SUBCATEGORY_BY_ID: (catId: string, subId: string) =>
-			`/categories/${catId}/subcategories/${subId}` // GET/PATCH/DELETE
+		BY_SLUG: (slug: string) => `/categories/slug/${slug}` // GET — resolve slug to category doc
 	},
 	VENDORS: {
 		BASE: `/vendors`, // GET (list all) / POST (create)
@@ -33,7 +29,7 @@ export const API_URLS = {
 	},
 	PRODUCTS: {
 		BASE: `/products`, // GET (list) / POST (create)
-		CATALOG: `/products/catalog`, // GET — paginated, filtered catalog for a subcategory
+		CATALOG: `/products/catalog`, // GET — paginated, filtered catalog for a category
 		SEARCH: `/products/search`, // GET ?q=&page=&limit= — full-text product search
 		PRICE_SHEET: `/products/price-sheet`, // GET ?q=&page=&limit= — public flat variant list (price sheet)
 		BY_SLUG: (slug: string) => `/products/by-slug/${slug}`, // GET — variant detail + product + siblings

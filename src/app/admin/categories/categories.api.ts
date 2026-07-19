@@ -1,18 +1,12 @@
 import { httpService } from '@/common/services/http.service'
 import { API_URLS } from '@/common/constants'
-import {
-	categorySchema,
-	categoriesListSchema,
-	subcategorySchema,
-	type CategoryFormValues,
-	type SubcategoryFormValues
-} from './categories.schema'
+import { categorySchema, categoriesListSchema, type CategoryFormValues } from './categories.schema'
 
 // --- Category CRUD ---
 
 export const categoriesApi = {
-	getWithSubcategories: () =>
-		httpService.get(API_URLS.CATEGORIES.WITH_SUBCATEGORIES, {
+	getAll: () =>
+		httpService.get(API_URLS.CATEGORIES.BASE, {
 			schema: categoriesListSchema
 		}),
 
@@ -30,25 +24,6 @@ export const categoriesApi = {
 
 	delete: (id: string) =>
 		httpService.delete<{ message: string }, undefined>(API_URLS.CATEGORIES.BY_ID(id)),
-
-	// --- Subcategory CRUD ---
-
-	createSubcategory: (catId: string, data: SubcategoryFormValues) =>
-		httpService.post(API_URLS.CATEGORIES.SUBCATEGORIES(catId), data, {
-			schema: categorySchema,
-			skipErrorToast: true
-		}),
-
-	updateSubcategory: (catId: string, subId: string, data: SubcategoryFormValues) =>
-		httpService.patch(API_URLS.CATEGORIES.SUBCATEGORY_BY_ID(catId, subId), data, {
-			schema: categorySchema,
-			skipErrorToast: true
-		}),
-
-	deleteSubcategory: (catId: string, subId: string) =>
-		httpService.delete<{ message: string }, undefined>(
-			API_URLS.CATEGORIES.SUBCATEGORY_BY_ID(catId, subId)
-		),
 
 	// --- Image upload (S3 presign flow) ---
 

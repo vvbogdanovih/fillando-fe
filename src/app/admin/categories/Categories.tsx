@@ -19,7 +19,7 @@ export const Categories = () => {
 		refetch
 	} = useQuery({
 		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getWithSubcategories()
+		queryFn: () => categoriesApi.getAll()
 	})
 
 	// Keep edit panel category in sync with cache updates

@@ -9,7 +9,7 @@ const fetchSitemapEntries = unstable_cache(
 	async (_count: number): Promise<MetadataRoute.Sitemap> => {
 		const [variantsRes, categoriesRes] = await Promise.allSettled([
 			fetch(`${API}/products/variants/slugs`).then(r => r.json()),
-			fetch(`${API}/categories/with-subcategories`).then(r => r.json())
+			fetch(`${API}/categories`).then(r => r.json())
 		])
 
 		const variants: { slug: string; updatedAt?: string }[] =
@@ -24,14 +24,12 @@ const fetchSitemapEntries = unstable_cache(
 			priority: 0.9
 		}))
 
-		const categoryRoutes = categories.flatMap(cat =>
-			(cat.subcategories ?? []).map((sub: any) => ({
-				url: `${SITE_URL}/${cat.slug}/${sub.slug}`,
-				lastModified: new Date(),
-				changeFrequency: 'daily' as const,
-				priority: 0.8
-			}))
-		)
+		const categoryRoutes = categories.map(cat => ({
+			url: `${SITE_URL}/${cat.slug}`,
+			lastModified: new Date(),
+			changeFrequency: 'daily' as const,
+			priority: 0.8
+		}))
 
 		return [
 			{ url: SITE_URL, lastModified: new Date(), changeFrequency: 'weekly', priority: 1.0 },

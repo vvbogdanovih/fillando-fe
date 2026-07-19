@@ -6,7 +6,7 @@ export const UI_URLS = {
 	CHECKOUT: '/checkout',
 	CHECKOUT_SUCCESS: '/checkout/success',
 	CATALOG: {
-		FILAMENT: '/vytratni-materialy-dlia-3d-druku/filament'
+		FILAMENT: '/filament'
 	},
 	AUTH: {
 		BASE: '/auth',

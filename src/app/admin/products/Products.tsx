@@ -42,21 +42,15 @@ export const Products = () => {
 
 	const { data: categories = [] } = useQuery({
 		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getWithSubcategories()
+		queryFn: () => categoriesApi.getAll()
 	})
 
 	const vendorMap = useMemo(() => new Map(vendors.map(v => [v._id, v.name])), [vendors])
 
-	const categoryMap = useMemo(() => {
-		const map = new Map<string, string>()
-		for (const cat of categories) {
-			map.set(cat._id, cat.name)
-			for (const sub of cat.subcategories) {
-				map.set(sub._id, `${cat.name} / ${sub.name}`)
-			}
-		}
-		return map
-	}, [categories])
+	const categoryMap = useMemo(
+		() => new Map(categories.map(cat => [cat._id, cat.name])),
+		[categories]
+	)
 
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => productsApi.deleteProduct(id),
@@ -141,9 +135,7 @@ export const Products = () => {
 												{product.name}
 											</td>
 											<td className='px-3 py-3 text-gray-500'>
-												{categoryMap.get(product.subcategory_id) ??
-													categoryMap.get(product.category_id) ??
-													'—'}
+												{categoryMap.get(product.category_id) ?? '—'}
 											</td>
 											<td className='px-3 py-3 text-gray-500'>
 												{(product.vendor_id &&

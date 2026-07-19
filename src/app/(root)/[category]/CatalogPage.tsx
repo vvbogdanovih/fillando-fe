@@ -15,17 +15,11 @@ import type { Category } from '@/app/admin/categories/categories.schema'
 
 interface CatalogPageProps {
 	categorySlug: string
-	subcategorySlug: string
 	initialCategory?: Category | null
 	initialCatalog?: CatalogResponse | null
 }
 
-export const CatalogPage = ({
-	categorySlug,
-	subcategorySlug,
-	initialCategory,
-	initialCatalog
-}: CatalogPageProps) => {
+export const CatalogPage = ({ categorySlug, initialCategory, initialCatalog }: CatalogPageProps) => {
 	const [isFilterOpen, setIsFilterOpen] = useState(false)
 	const router = useRouter()
 	const searchParams = useSearchParams()
@@ -40,12 +34,10 @@ export const CatalogPage = ({
 		initialData: initialCategory ?? undefined
 	})
 
-	const subcategory = category?.subcategories.find(s => s.slug === subcategorySlug)
-
 	const { data, isLoading } = useQuery({
-		queryKey: ['catalog', subcategory?._id, params],
-		queryFn: () => getCatalogProducts({ subcategory_id: subcategory!._id, ...params }),
-		enabled: !!subcategory,
+		queryKey: ['catalog', category?._id, params],
+		queryFn: () => getCatalogProducts({ category_id: category!._id, ...params }),
+		enabled: !!category,
 		initialData: initialCatalog ?? undefined
 	})
 
@@ -75,10 +67,10 @@ export const CatalogPage = ({
 		router.replace(`?${next.toString()}`)
 	}
 
-	if (!subcategory) return null
+	if (!category) return null
 
 	const filterSidebarProps = {
-		requiredAttributes: subcategory.required_attributes,
+		requiredAttributes: category.required_attributes,
 		priceRange: data?.price_range ?? { min: 0, max: 0 },
 		filterOptions: data?.filter_options ?? {},
 		searchParams: params,
@@ -93,14 +85,8 @@ export const CatalogPage = ({
 			{
 				'@type': 'ListItem',
 				position: 2,
-				name: category?.name ?? categorySlug,
+				name: category.name,
 				item: `${SITE_URL}/${categorySlug}`
-			},
-			{
-				'@type': 'ListItem',
-				position: 3,
-				name: subcategory.name,
-				item: `${SITE_URL}/${categorySlug}/${subcategorySlug}`
 			}
 		]
 	}
@@ -109,7 +95,7 @@ export const CatalogPage = ({
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
 			<JsonLd data={breadcrumbSchema} />
 			<div className='mb-8 flex items-center justify-between'>
-				<h1 className='text-3xl font-bold'>{subcategory.name}</h1>
+				<h1 className='text-3xl font-bold'>{category.name}</h1>
 				<button
 					className='border-border/50 bg-card hover:bg-muted flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors md:hidden'
 					onClick={() => setIsFilterOpen(true)}

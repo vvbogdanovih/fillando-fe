@@ -35,9 +35,6 @@ export const ProductForm = () => {
 	// Per-variant image upload state (parallel to RHF variants array)
 	const [variantImageUploads, setVariantImageUploads] = useState<ImageUploadItem[][]>([[]])
 
-	// Track the selected subcategory to load required attributes
-	const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>('')
-
 	const {
 		control,
 		register,
@@ -52,7 +49,6 @@ export const ProductForm = () => {
 			name: '',
 			vendor_id: '',
 			category_id: '',
-			subcategory_id: '',
 			attributes: [],
 			has_variants: false,
 			variant_type_key: null,
@@ -97,21 +93,19 @@ export const ProductForm = () => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [variantTypeAttrValue, watchedVariantTypeKey, watchedHasVariants])
 
-	// Fetch categories to resolve required attributes for the selected subcategory
+	// Fetch categories to resolve required attributes for the selected category
 	const { data: categories = [] } = useQuery({
 		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getWithSubcategories()
+		queryFn: () => categoriesApi.getAll()
 	})
 
-	const selectedSubcategory = categories
-		.flatMap(c => c.subcategories)
-		.find(s => s._id === selectedSubcategoryId)
+	const selectedCategory = categories.find(c => c._id === watchedCategoryId)
 
-	const requiredAttrs = selectedSubcategory?.required_attributes ?? []
+	const requiredAttrs = selectedCategory?.required_attributes ?? []
 
-	// When subcategory changes, re-seed required attributes while preserving custom ones
+	// When category changes, re-seed required attributes while preserving custom ones
 	useEffect(() => {
-		if (!selectedSubcategoryId) return
+		if (!watchedCategoryId) return
 
 		const requiredKeys = new Set(requiredAttrs.map(attr => toAttrKey(attr.label)))
 		const currentCustomAttrs = attributesFieldArray.fields
@@ -123,7 +117,7 @@ export const ProductForm = () => {
 			...currentCustomAttrs
 		])
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [selectedSubcategoryId])
+	}, [watchedCategoryId, selectedCategory])
 
 	const handleImagesChange = useCallback((variantIndex: number, images: ImageUploadItem[]) => {
 		setVariantImageUploads(prev => {
@@ -219,7 +213,6 @@ export const ProductForm = () => {
 			name: values.name,
 			vendor_id: values.vendor_id,
 			category_id: values.category_id,
-			subcategory_id: values.subcategory_id,
 			description,
 			attributes: values.attributes,
 			variant_type: variantType,
@@ -252,13 +245,7 @@ export const ProductForm = () => {
 		<form onSubmit={onSubmit} className='flex flex-col gap-6'>
 			<NameBlock control={control} errors={errors} register={register} />
 
-			<CategoryBlock
-				control={control}
-				errors={errors}
-				setValue={setValue}
-				watchCategoryId={watchedCategoryId}
-				onSubcategoryChange={setSelectedSubcategoryId}
-			/>
+			<CategoryBlock control={control} errors={errors} />
 
 			<DescriptionBlock descriptionRef={descriptionRef} />
 

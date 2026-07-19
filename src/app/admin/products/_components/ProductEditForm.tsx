@@ -41,7 +41,6 @@ interface ProductEditFormProps {
 
 export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 	const descriptionRef = useRef<DescriptionValue | null>(null)
-	const [selectedSubcategoryId, setSelectedSubcategoryId] = useState(product.subcategory_id)
 
 	const {
 		control,
@@ -55,7 +54,6 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 			name: product.name,
 			vendor_id: product.vendor_id,
 			category_id: product.category_id,
-			subcategory_id: product.subcategory_id,
 			attributes: product.attributes,
 			variant_type_key: product.variant_type?.key ?? null
 		}
@@ -65,25 +63,23 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 	const watchedCategoryId = useWatch({ control, name: 'category_id' })
 	const watchedAttributes = useWatch({ control, name: 'attributes' })
 
-	// Fetch categories to resolve required attributes for the selected subcategory
+	// Fetch categories to resolve required attributes for the selected category
 	const { data: categories = [] } = useQuery({
 		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getWithSubcategories()
+		queryFn: () => categoriesApi.getAll()
 	})
 
-	const selectedSubcategory = categories
-		.flatMap(c => c.subcategories)
-		.find(s => s._id === selectedSubcategoryId)
+	const selectedCategory = categories.find(c => c._id === watchedCategoryId)
 
-	const requiredAttrs = selectedSubcategory?.required_attributes ?? []
+	const requiredAttrs = selectedCategory?.required_attributes ?? []
 
-	// Re-seed required attributes when subcategory changes (skip initial mount).
+	// Re-seed required attributes when category changes (skip initial mount).
 	// Comparing with the previous value is Strict Mode-safe, unlike a "skip first run" ref.
-	const prevSubcategoryId = useRef(selectedSubcategoryId)
+	const prevCategoryId = useRef(watchedCategoryId)
 	useEffect(() => {
-		if (prevSubcategoryId.current === selectedSubcategoryId) return
-		prevSubcategoryId.current = selectedSubcategoryId
-		if (!selectedSubcategoryId) return
+		if (prevCategoryId.current === watchedCategoryId) return
+		prevCategoryId.current = watchedCategoryId
+		if (!watchedCategoryId) return
 		const requiredKeys = new Set(requiredAttrs.map(attr => toAttrKey(attr.label)))
 		const currentCustomAttrs = attributesFieldArray.fields
 			.filter(f => !requiredKeys.has(f.k))
@@ -93,7 +89,7 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 			...currentCustomAttrs
 		])
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [selectedSubcategoryId])
+	}, [watchedCategoryId])
 
 	const onSubmit = handleSubmit(async values => {
 		const description =
@@ -112,7 +108,6 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 				name: values.name,
 				vendor_id: values.vendor_id,
 				category_id: values.category_id,
-				subcategory_id: values.subcategory_id,
 				description: description
 					? { json: description.json as Record<string, unknown>, html: description.html }
 					: null,
@@ -127,7 +122,7 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 	})
 
 	// Type casts: ProductEditFormValues has the same relevant field names as ProductFormValues.
-	// The overlapping fields (name, vendor_id, category_id, subcategory_id, attributes,
+	// The overlapping fields (name, vendor_id, category_id, attributes,
 	// variant_type_key) are structurally identical, so this is safe at runtime.
 	const controlCast = control as unknown as Control<ProductFormValues>
 	const registerCast = register as unknown as UseFormRegister<ProductFormValues>
@@ -142,13 +137,7 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 		<form onSubmit={onSubmit} className='flex flex-col gap-6'>
 			<NameBlock control={controlCast} errors={errorsCast} register={registerCast} />
 
-			<CategoryBlock
-				control={controlCast}
-				errors={errorsCast}
-				setValue={setValueCast}
-				watchCategoryId={watchedCategoryId}
-				onSubcategoryChange={id => setSelectedSubcategoryId(id)}
-			/>
+			<CategoryBlock control={controlCast} errors={errorsCast} />
 
 			<DescriptionBlock
 				descriptionRef={descriptionRef}
