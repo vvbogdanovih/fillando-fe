@@ -38,7 +38,10 @@ const fetchSitemapEntries = unstable_cache(
 		]
 	},
 	['sitemap-entries'],
-	{ revalidate: false } // invalidated only when count changes (new cache key)
+	// Re-fetched when count (cache key) changes, and at most daily otherwise —
+	// category/slug changes don't affect the count, so a hard `false` here
+	// would keep serving stale URLs forever.
+	{ revalidate: 86400 }
 )
 
 export const revalidate = 86400 // check count once per day
