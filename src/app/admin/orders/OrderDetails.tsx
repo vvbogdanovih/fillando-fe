@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ChevronDown } from 'lucide-react'
+import { Badge } from '@/common/components/ui/badge'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { Input } from '@/common/components/ui/input'
@@ -19,8 +20,10 @@ import { Textarea } from '@/common/components/ui/textarea'
 import { ordersApi, parsePatchOrderPayload } from './orders.api'
 import {
 	DELIVERY_METHOD_LABELS,
+	ORDER_STATUS_CLASSES,
 	ORDER_STATUS_LABELS,
 	PAYMENT_METHOD_LABELS,
+	PAYMENT_STATUS_CLASSES,
 	PAYMENT_STATUS_LABELS
 } from './orders.constants'
 import {
@@ -288,7 +291,21 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 			<Card>
 				<CardHeader className='flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between'>
 					<div>
-						<CardTitle>Замовлення #{order.order_number}</CardTitle>
+						<div className='flex flex-wrap items-center gap-2'>
+							<CardTitle>Замовлення #{order.order_number}</CardTitle>
+							<Badge
+								variant='outline'
+								className={ORDER_STATUS_CLASSES[order.order_status]}
+							>
+								{ORDER_STATUS_LABELS[order.order_status]}
+							</Badge>
+							<Badge
+								variant='outline'
+								className={PAYMENT_STATUS_CLASSES[order.payment_status]}
+							>
+								{PAYMENT_STATUS_LABELS[order.payment_status]}
+							</Badge>
+						</div>
 						<p className='text-muted-foreground text-xs'>
 							Створено: {formatDate(order.created_at)}
 						</p>
@@ -477,7 +494,6 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								placeholder='Вкажіть TTN'
 							/>
 							<Button
-								className='bg-primary hover:bg-primary/80 text-black'
 								onClick={() => ttnMutation.mutate(ttnValue.trim())}
 								disabled={ttnMutation.isPending}
 							>
@@ -711,7 +727,6 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					</div>
 
 					<Button
-						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => fullEditMutation.mutate()}
 						disabled={fullEditMutation.isPending}
 					>

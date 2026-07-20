@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
+import { Badge } from '@/common/components/ui/badge'
 import { Button } from '@/common/components/ui/button'
 import { Label } from '@/common/components/ui/label'
 import {
@@ -17,7 +18,12 @@ import {
 } from '@/common/components/ui/dropdown-menu'
 import { UI_URLS } from '@/common/constants'
 import { ordersApi } from './orders.api'
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from './orders.constants'
+import {
+	ORDER_STATUS_CLASSES,
+	ORDER_STATUS_LABELS,
+	PAYMENT_STATUS_CLASSES,
+	PAYMENT_STATUS_LABELS
+} from './orders.constants'
 import { formatCustomerShort, formatDate, formatPrice } from './orders.utils'
 import {
 	orderStatusValues,
@@ -243,14 +249,32 @@ export function Orders() {
 														{formatPrice(order.total_price)}
 													</td>
 													<td className='px-3 py-3'>
-														{ORDER_STATUS_LABELS[order.order_status]}
+														<Badge
+															variant='outline'
+															className={
+																ORDER_STATUS_CLASSES[
+																	order.order_status
+																]
+															}
+														>
+															{ORDER_STATUS_LABELS[order.order_status]}
+														</Badge>
 													</td>
 													<td className='px-3 py-3'>
-														{
-															PAYMENT_STATUS_LABELS[
-																order.payment_status
-															]
-														}
+														<Badge
+															variant='outline'
+															className={
+																PAYMENT_STATUS_CLASSES[
+																	order.payment_status
+																]
+															}
+														>
+															{
+																PAYMENT_STATUS_LABELS[
+																	order.payment_status
+																]
+															}
+														</Badge>
 													</td>
 													<td className='px-3 py-3'>
 														{firstItem ? (

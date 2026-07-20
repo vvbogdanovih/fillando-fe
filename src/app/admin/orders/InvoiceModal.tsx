@@ -44,7 +44,7 @@ export function InvoiceModal({ orderId, orderNumber }: { orderId: string; orderN
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<Button size='sm' className='bg-primary hover:bg-primary/80 text-black'>
+				<Button size='sm'>
 					<FileText className='size-4 sm:mr-2' />
 					<span className='hidden sm:inline'>Завантажити інвойс</span>
 				</Button>
@@ -71,7 +71,6 @@ export function InvoiceModal({ orderId, orderNumber }: { orderId: string; orderN
 						Скасувати
 					</Button>
 					<Button
-						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => invoiceMutation.mutate()}
 						disabled={invoiceMutation.isPending}
 					>

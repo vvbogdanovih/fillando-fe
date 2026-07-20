@@ -105,7 +105,7 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<Button size='sm' className='bg-primary hover:bg-primary/80 text-black'>
+				<Button size='sm'>
 					<Mail className='size-3.5' />
 					<span className='hidden sm:inline'>Написати вендору</span>
 				</Button>
@@ -186,7 +186,6 @@ export function VendorEmailModal({ orderId }: VendorEmailModalProps) {
 						Скасувати
 					</Button>
 					<Button
-						className='bg-primary hover:bg-primary/80 text-black'
 						onClick={() => sendMutation.mutate()}
 						disabled={!selectedEmail || sendMutation.isPending}
 					>
