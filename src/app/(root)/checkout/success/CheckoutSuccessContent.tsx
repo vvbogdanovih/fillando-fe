@@ -1,12 +1,21 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2 } from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { formatOrderNumber } from '../checkout.schema'
+
+declare global {
+	interface Window {
+		gtag?: (...args: unknown[]) => void
+	}
+}
+
+const GOOGLE_ADS_PURCHASE_CONVERSION = 'AW-18332229942/vho6CLCit9McELbCvqVE'
 
 export function CheckoutSuccessContent() {
 	const searchParams = useSearchParams()
@@ -22,6 +31,17 @@ export function CheckoutSuccessContent() {
 	const hasTotal = Number.isFinite(total)
 	const hasDiscount = Number.isFinite(discountAmount) && discountAmount > 0
 	const paymentMethod = searchParams.get('payment')
+
+	const conversionSent = useRef(false)
+	useEffect(() => {
+		if (conversionSent.current || typeof window.gtag !== 'function') return
+		conversionSent.current = true
+		window.gtag('event', 'conversion', {
+			send_to: GOOGLE_ADS_PURCHASE_CONVERSION,
+			transaction_id: raw ?? '',
+			...(hasTotal ? { value: total, currency: 'UAH' } : {})
+		})
+	}, [raw, hasTotal, total])
 
 	return (
 		<div className='mx-auto max-w-lg px-4 py-12 md:py-20'>
