@@ -80,6 +80,12 @@ export function Header() {
 							>
 								Прайс-лист
 							</Link>
+							<Link
+								href={UI_URLS.WHOLESALE}
+								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
+							>
+								Співпраця
+							</Link>
 						</nav>
 						<DesktopSearchBar />
 					</div>

@@ -3,6 +3,7 @@ export const UI_URLS = {
 	NOT_FOUND: '/404',
 	SEARCH: '/search',
 	PRICE_SHEET: '/price-sheet',
+	WHOLESALE: '/wholesale',
 	CHECKOUT: '/checkout',
 	CHECKOUT_SUCCESS: '/checkout/success',
 	CATALOG: {
@@ -41,6 +42,7 @@ export const UI_URLS = {
 		PAYMENT_DETAILS_LIQPAY: '/admin/payment-details/liqpay',
 		PAYMENT_DETAILS_MONOPAY: '/admin/payment-details/monopay',
 		PAYMENT_DETAILS_CASH: '/admin/payment-details/cash',
+		WHOLESALE: '/admin/wholesale',
 		STYLE_GUIDE: '/admin/style-guide'
 	}
 }

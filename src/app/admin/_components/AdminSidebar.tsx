@@ -19,6 +19,7 @@ import {
 	Landmark,
 	Wallet,
 	Banknote,
+	Handshake,
 	Menu,
 	X
 } from 'lucide-react'
@@ -29,6 +30,7 @@ import { Button } from '@/common/components/ui/button'
 const topNavItems = [
 	{ label: 'Dashboard', href: UI_URLS.ADMIN.BASE, icon: LayoutDashboard },
 	{ label: 'Orders', href: UI_URLS.ADMIN.ORDERS, icon: PackageSearch },
+	{ label: 'Wholesale', href: UI_URLS.ADMIN.WHOLESALE, icon: Handshake },
 	{ label: 'Users', href: UI_URLS.ADMIN.USERS, icon: Users },
 	{ label: 'Coupons', href: UI_URLS.ADMIN.COUPONS, icon: Percent }
 ]

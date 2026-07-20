@@ -5,7 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ShoppingCart, Check, Loader2, Minus, Plus, ChevronDown } from 'lucide-react'
+import { ShoppingCart, Check, Loader2, Minus, Plus, ChevronDown, Handshake } from 'lucide-react'
+import { UI_URLS } from '@/common/constants'
 import { Badge } from '@/common/components/ui/badge'
 import {
 	DropdownMenu,
@@ -414,6 +415,24 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							</DropdownMenu>
 						</div>
 					)}
+
+					{/* Wholesale note */}
+					<Link
+						href={UI_URLS.WHOLESALE}
+						className='border-border bg-card hover:border-primary group flex items-center gap-3 rounded-xl border p-4 transition-colors'
+					>
+						<div className='bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg'>
+							<Handshake className='h-4 w-4' />
+						</div>
+						<div>
+							<p className='text-sm font-medium'>
+								Цікавить оптова закупка чи поставки для бізнесу?
+							</p>
+							<p className='text-muted-foreground group-hover:text-primary text-xs transition-colors'>
+								Дізнатись про умови співпраці →
+							</p>
+						</div>
+					</Link>
 				</div>
 			</div>
 

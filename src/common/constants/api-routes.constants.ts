@@ -76,5 +76,9 @@ export const API_URLS = {
 	},
 	PROM: {
 		SYNC_AVAILABILITY: `/prom/sync-availability` // GET — admin SSE stream: per-variant availability sync progress, then done | error
+	},
+	WHOLESALE: {
+		BASE: `/wholesale-inquiries`, // POST — public inquiry form; GET — admin paginated list
+		STATUS: (id: string) => `/wholesale-inquiries/${id}/status` // PATCH — admin change inquiry status
 	}
 }

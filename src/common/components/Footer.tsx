@@ -1,10 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Phone } from 'lucide-react'
-import { UI_URLS } from '@/common/constants'
-
-const PHONE = '+380986050187'
-const PHONE_DISPLAY = '+38 098 605 01 87'
+import { CONTACTS, UI_URLS } from '@/common/constants'
+import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
 
 export function Footer() {
 	return (
@@ -42,35 +40,43 @@ export function Footer() {
 						>
 							Філамент
 						</Link>
+						<Link
+							href={UI_URLS.WHOLESALE}
+							className='text-muted-foreground hover:text-primary text-sm transition-colors'
+						>
+							Співпраця
+						</Link>
 					</nav>
 
 					{/* Contacts */}
 					<div className='flex flex-col gap-2'>
 						<div className='flex items-center gap-3'>
 							<a
-								href={`tel:${PHONE}`}
+								href={`tel:${CONTACTS.PHONE}`}
 								className='text-muted-foreground hover:text-primary flex items-center gap-1.5 text-sm transition-colors'
 							>
 								<Phone className='size-4' />
-								{PHONE_DISPLAY}
+								{CONTACTS.PHONE_DISPLAY}
 							</a>
 						</div>
 						<div className='flex items-center gap-3'>
 							<a
-								href={`viber://chat?number=${PHONE}`}
-								className='text-muted-foreground hover:text-primary text-sm transition-colors'
+								href={CONTACTS.VIBER_URL}
+								className='text-muted-foreground hover:text-primary flex items-center gap-1.5 text-sm transition-colors'
 								target='_blank'
 								rel='noopener noreferrer'
 							>
+								<ViberIcon className='size-4' />
 								Viber
 							</a>
 							<span className='text-muted-foreground/40'>|</span>
 							<a
-								href='https://t.me/fillando'
-								className='text-muted-foreground hover:text-primary text-sm transition-colors'
+								href={CONTACTS.TELEGRAM_URL}
+								className='text-muted-foreground hover:text-primary flex items-center gap-1.5 text-sm transition-colors'
 								target='_blank'
 								rel='noopener noreferrer'
 							>
+								<TelegramIcon className='size-4' />
 								Telegram
 							</a>
 						</div>
