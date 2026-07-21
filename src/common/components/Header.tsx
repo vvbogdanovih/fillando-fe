@@ -48,8 +48,8 @@ export function Header() {
 						className='flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80'
 					>
 						<Image
-							src='/Fillando-120.png'
-							alt='Fillando'
+							src='/Fillando-120.webp'
+							alt=''
 							width={120}
 							height={40}
 							priority

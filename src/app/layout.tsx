@@ -35,6 +35,7 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang='uk'>
+			<link rel='preconnect' href='https://fillando.s3.eu-north-1.amazonaws.com' />
 			<Script
 				async
 				src='https://www.googletagmanager.com/gtag/js?id=AW-18332229942'

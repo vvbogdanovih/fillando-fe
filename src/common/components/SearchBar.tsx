@@ -45,7 +45,7 @@ export function DesktopSearchBar() {
 			{query && (
 				<button
 					onClick={clear}
-					className='text-muted-foreground hover:text-foreground absolute top-1/2 right-9 -translate-y-1/2 transition-colors'
+					className='text-muted-foreground hover:text-foreground absolute top-1/2 right-8 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors'
 					aria-label='Очистити пошук'
 				>
 					<X className='h-3.5 w-3.5' />
@@ -53,7 +53,7 @@ export function DesktopSearchBar() {
 			)}
 			<button
 				onClick={submit}
-				className='text-muted-foreground hover:text-primary absolute top-1/2 right-2.5 -translate-y-1/2 transition-colors'
+				className='text-muted-foreground hover:text-primary absolute top-1/2 right-1.5 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors'
 				aria-label='Пошук'
 			>
 				<Search className='h-4 w-4' />

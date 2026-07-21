@@ -4,6 +4,7 @@ import { useAuthStore } from '@/common/store/useAuthStore'
 import { useRouter } from 'next/navigation'
 import { UI_URLS, Role, ANY_AUTHENTICATED, type AnyAuthenticated } from '@/common/constants'
 import toast from 'react-hot-toast'
+import { FullScreenLoader } from '@/common/components/FullScreenLoader'
 
 type PrivateRouteProps = {
 	children: ReactNode
@@ -46,6 +47,7 @@ export const PrivateRoute = ({
 }: PrivateRouteProps) => {
 	const router = useRouter()
 	const user = useAuthStore(state => state.getUser())
+	const isAuthChecked = useAuthStore(state => state.isAuthChecked)
 
 	const hasAccess = (): boolean => {
 		if (!user) return false
@@ -58,6 +60,10 @@ export const PrivateRoute = ({
 	}
 
 	useEffect(() => {
+		// Redirect decisions wait for the background /auth/me check to settle,
+		// otherwise a hard reload would bounce logged-in users to /login.
+		if (!isAuthChecked) return
+
 		if (!user) {
 			if (unauthorizedMessage) toast.error(unauthorizedMessage)
 			router.push(UI_URLS.AUTH.LOGIN)
@@ -68,7 +74,11 @@ export const PrivateRoute = ({
 			if (forbiddenMessage) toast.error(forbiddenMessage)
 			router.push(redirectTo)
 		}
-	}, [router, user, allowedRoles, redirectTo, unauthorizedMessage, forbiddenMessage])
+	}, [router, isAuthChecked, user, allowedRoles, redirectTo, unauthorizedMessage, forbiddenMessage])
+
+	if (!isAuthChecked) {
+		return <FullScreenLoader />
+	}
 
 	if (!hasAccess()) {
 		return null

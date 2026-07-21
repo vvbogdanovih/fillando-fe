@@ -33,6 +33,7 @@ export const Home = () => {
 							fill
 							className='object-cover transition-transform duration-500 group-hover:scale-105'
 							priority
+							fetchPriority='high'
 						/>
 						<div className='absolute inset-0 bg-linear-to-t from-black/75 via-black/20 to-transparent' />
 						<div className='absolute right-0 bottom-0 left-0 flex items-end justify-between p-8'>
@@ -40,7 +41,7 @@ export const Home = () => {
 								<span className='text-primary text-xs font-semibold tracking-widest uppercase'>
 									Витратні матеріали
 								</span>
-								<h3 className='mt-1 text-4xl font-bold text-white'>Філамент</h3>
+								<h2 className='mt-1 text-4xl font-bold text-white'>Філамент</h2>
 								<p className='mt-2 text-sm text-white/60'>
 									PLA · PETG · ABS · TPU · Nylon
 								</p>

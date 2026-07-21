@@ -15,8 +15,8 @@ export function Footer() {
 						className='flex items-center gap-2 transition-opacity hover:opacity-80'
 					>
 						<Image
-							src='/Fillando-120.png'
-							alt='Fillando'
+							src='/Fillando-120.webp'
+							alt=''
 							width={108}
 							height={36}
 							className='h-9 w-auto'

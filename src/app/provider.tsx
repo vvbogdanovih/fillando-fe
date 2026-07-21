@@ -5,7 +5,6 @@ import { type PropsWithChildren, useEffect, useState } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
-import { FullScreenLoader } from '@/common/components'
 
 export const Providers = ({ children }: PropsWithChildren) => {
 	const [client] = useState(
@@ -14,8 +13,9 @@ export const Providers = ({ children }: PropsWithChildren) => {
 				defaultOptions: { queries: { refetchOnWindowFocus: false } }
 			})
 	)
-	const [ready, setReady] = useState(false)
 
+	// Auth check runs in the background so the server-rendered HTML stays
+	// visible to crawlers; routes that need the result wait on isAuthChecked.
 	useEffect(() => {
 		useAuthStore
 			.getState()
@@ -25,13 +25,12 @@ export const Providers = ({ children }: PropsWithChildren) => {
 					useCartStore.getState().fetchCart()
 				}
 			})
-			.finally(() => setReady(true))
 	}, [])
 
 	return (
 		<QueryClientProvider client={client}>
 			<Toaster />
-			{ready ? children : <FullScreenLoader />}
+			{children}
 		</QueryClientProvider>
 	)
 }
