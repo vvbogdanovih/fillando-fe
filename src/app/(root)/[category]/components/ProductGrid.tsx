@@ -8,10 +8,10 @@ interface ProductGridProps {
 
 const SkeletonCard = () => (
 	<div className='bg-card border-border/50 animate-pulse overflow-hidden rounded-xl border'>
-		<div className='bg-muted aspect-square' />
+		<div className='bg-foreground/10 aspect-square' />
 		<div className='space-y-2 p-3'>
-			<div className='bg-muted h-4 w-3/4 rounded' />
-			<div className='bg-muted h-4 w-1/3 rounded' />
+			<div className='bg-foreground/10 h-4 w-3/4 rounded' />
+			<div className='bg-foreground/10 h-4 w-1/3 rounded' />
 		</div>
 	</div>
 )

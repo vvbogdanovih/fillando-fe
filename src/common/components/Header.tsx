@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation'
 import { LayoutDashboard, LogOut, ChevronDown, ShoppingCart, UserRound } from 'lucide-react'
 import { DesktopSearchBar, MobileSearchToggle } from '@/common/components/SearchBar'
 import { DropdownMenu } from 'radix-ui'
-import { UI_URLS, Role } from '@/common/constants'
+import { UI_URLS, NAV_LINKS, Role } from '@/common/constants'
+import { MobileMenu } from '@/common/components/MobileMenu'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
 import { CartSidebar } from '@/common/components/CartSidebar'
@@ -43,6 +44,7 @@ export function Header() {
 		<>
 			<header className='border-border bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg'>
 				<div className='container mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4'>
+					<MobileMenu />
 					<Link
 						href='/'
 						className='flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80'
@@ -62,30 +64,15 @@ export function Header() {
 
 					<div className='hidden min-w-0 flex-1 items-center justify-center gap-6 md:flex'>
 						<nav className='flex shrink-0 items-center gap-6'>
-							<Link
-								href={UI_URLS.HOME}
-								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
-							>
-								Головна
-							</Link>
-							<Link
-								href={UI_URLS.CATALOG.FILAMENT}
-								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
-							>
-								Матеріали
-							</Link>
-							<Link
-								href={UI_URLS.PRICE_SHEET}
-								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
-							>
-								Прайс-лист
-							</Link>
-							<Link
-								href={UI_URLS.WHOLESALE}
-								className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
-							>
-								Співпраця
-							</Link>
+							{NAV_LINKS.map(({ href, label }) => (
+								<Link
+									key={href}
+									href={href}
+									className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
+								>
+									{label}
+								</Link>
+							))}
 						</nav>
 						<DesktopSearchBar />
 					</div>

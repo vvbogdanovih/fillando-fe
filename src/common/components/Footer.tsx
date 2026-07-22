@@ -46,6 +46,12 @@ export function Footer() {
 						>
 							Співпраця
 						</Link>
+						<Link
+							href={UI_URLS.FAQ}
+							className='text-muted-foreground hover:text-primary text-sm transition-colors'
+						>
+							FAQ
+						</Link>
 					</nav>
 
 					{/* Contacts */}

@@ -33,6 +33,18 @@ const fetchSitemapEntries = unstable_cache(
 
 		return [
 			{ url: SITE_URL, lastModified: new Date(), changeFrequency: 'weekly', priority: 1.0 },
+			{
+				url: `${SITE_URL}/faq`,
+				lastModified: new Date(),
+				changeFrequency: 'monthly',
+				priority: 0.5
+			},
+			{
+				url: `${SITE_URL}/wholesale`,
+				lastModified: new Date(),
+				changeFrequency: 'monthly',
+				priority: 0.5
+			},
 			...categoryRoutes,
 			...productRoutes
 		]
