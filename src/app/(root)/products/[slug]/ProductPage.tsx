@@ -198,7 +198,8 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 												i === currentIndex ? 'opacity-100' : 'opacity-0'
 											)}
 											sizes='(max-width: 1024px) 100vw, 50vw'
-											priority={i === 0}
+											preload={i === 0}
+											fetchPriority={i === 0 ? 'high' : undefined}
 										/>
 									))
 								) : (
@@ -226,18 +227,27 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 								>
 									›
 								</button>
-								<div className='absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5'>
+								{/* 24x24 hit areas (target-size) wrapping the smaller visible dots.
+								    bottom-0 keeps the dots optically where bottom-2 put them. */}
+								<div className='absolute bottom-0 left-1/2 flex -translate-x-1/2'>
 									{images.map((_, i) => (
 										<button
 											key={i}
+											type='button'
 											onClick={() => setCurrentIndex(i)}
-											className={cn(
-												'h-1.5 rounded-full transition-all',
-												i === currentIndex
-													? 'w-4 bg-white'
-													: 'w-1.5 bg-white/50'
-											)}
-										/>
+											aria-label={`Перейти до фото ${i + 1}`}
+											aria-current={i === currentIndex ? 'true' : undefined}
+											className='flex h-6 w-6 items-center justify-center'
+										>
+											<span
+												className={cn(
+													'block h-1.5 rounded-full transition-all',
+													i === currentIndex
+														? 'w-4 bg-white'
+														: 'w-1.5 bg-white/50'
+												)}
+											/>
+										</button>
 									))}
 								</div>
 							</>
@@ -277,7 +287,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 						className={cn(
 							'w-fit px-3 py-1 text-sm',
 							availableStock > 0
-								? 'border-green-600 bg-green-600 text-white'
+								? 'border-green-700 bg-green-700 text-white'
 								: 'border-border bg-muted text-muted-foreground'
 						)}
 						variant='outline'
@@ -286,7 +296,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					</Badge>
 
 					<div>
-						<p className='text-primary text-3xl font-bold'>
+						<p className='text-primary-strong text-3xl font-bold'>
 							{variant.price.toLocaleString('uk-UA')} ₴
 						</p>
 						<span className='text-muted-foreground text-sm'>Арт. {variant.sku}</span>
@@ -295,7 +305,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					{/* Add to cart */}
 					<div className='flex flex-col gap-3'>
 						{isLowStock && (
-							<div className='w-fit rounded-md bg-amber-600 px-3 py-1 text-sm font-medium text-white'>
+							<div className='w-fit rounded-md bg-amber-700 px-3 py-1 text-sm font-medium text-white'>
 								Залишилось лише {availableStock} шт.
 							</div>
 						)}
@@ -370,7 +380,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 										: 'Додати в кошик'}
 							</button>
 						</div>
-						{stockHint && <p className='text-xs text-amber-500'>{stockHint}</p>}
+						{stockHint && <p className='text-xs text-amber-700'>{stockHint}</p>}
 						{addError && <p className='text-destructive text-sm'>{addError}</p>}
 					</div>
 

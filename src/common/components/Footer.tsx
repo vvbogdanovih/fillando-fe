@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Phone } from 'lucide-react'
 import { CONTACTS, UI_URLS } from '@/common/constants'
 import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
+import { CookieSettingsButton } from '@/common/components/CookieSettingsButton'
 
 export function Footer() {
 	return (
@@ -118,6 +119,7 @@ export function Footer() {
 						>
 							Політика конфіденційності
 						</Link>
+						<CookieSettingsButton />
 					</nav>
 				</div>
 			</div>

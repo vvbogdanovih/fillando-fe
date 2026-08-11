@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import '@/common/lib/zod-locale'
+import * as z from 'zod'
 
 const promSyncProgressSchema = z.object({
 	type: z.literal('progress'),

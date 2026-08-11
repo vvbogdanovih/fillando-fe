@@ -13,9 +13,11 @@ import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 interface CatalogProductCardProps {
 	item: CatalogItem
 	href: string
+	/** Above-the-fold card: skip lazy-load and bump network priority. */
+	priority?: boolean
 }
 
-export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
+export const CatalogProductCard = ({ item, href, priority = false }: CatalogProductCardProps) => {
 	const addItem = useCartStore(s => s.addItem)
 	const openCart = useCartStore(s => s.openCart)
 	const inAuthCart = useCartStore(s => s.items.some(i => i.variant_id === item.id))
@@ -68,6 +70,8 @@ export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
 								fill
 								className={cn('object-cover', isOutOfStock && 'grayscale')}
 								sizes='(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
+								preload={priority}
+								fetchPriority={priority ? 'high' : undefined}
 							/>
 						) : (
 							<div className='flex h-full w-full items-center justify-center'>

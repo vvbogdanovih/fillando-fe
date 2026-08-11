@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Geist_Mono, Inter } from 'next/font/google'
-import Script from 'next/script'
 import './globals.css'
 import { Providers } from './provider'
+import { Analytics } from '@/common/components/Analytics'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/common/constants/seo.constants'
 
 const inter = Inter({
@@ -36,25 +36,14 @@ export default function RootLayout({
 	return (
 		<html lang='uk'>
 			<link rel='preconnect' href='https://fillando.s3.eu-north-1.amazonaws.com' />
-			<Script
-				async
-				src='https://www.googletagmanager.com/gtag/js?id=AW-18332229942'
-				strategy='afterInteractive'
-			/>
-			<Script id='google-gtag' strategy='afterInteractive'>
-				{`
-					window.dataLayer = window.dataLayer || [];
-					function gtag(){dataLayer.push(arguments);}
-					gtag('js', new Date());
-					gtag('config', 'AW-18332229942');
-				`}
-			</Script>
 			<body
 				className={`${inter.variable} ${geistMono.variable} flex flex-col items-center antialiased`}
 				suppressHydrationWarning={true}
 			>
 				<Providers>
 					<main className='flex w-full items-center justify-center'>{children}</main>
+					{/* Renders the Google Ads tag only once consent is granted. */}
+					<Analytics />
 				</Providers>
 			</body>
 		</html>

@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import '@/common/lib/zod-locale'
+import * as z from 'zod'
 import { httpService } from '@/common/services/http.service'
 import { API_URLS } from '@/common/constants'
 import type { CreateOrderPayload } from './checkout.schema'

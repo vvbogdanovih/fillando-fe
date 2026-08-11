@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import '@/common/lib/zod-locale'
+import * as z from 'zod'
 
 export const wholesaleInquiryStatusSchema = z.enum(['NEW', 'PROCESSED'])
 export type WholesaleInquiryStatus = z.infer<typeof wholesaleInquiryStatusSchema>

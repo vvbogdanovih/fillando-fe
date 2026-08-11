@@ -5,6 +5,7 @@ import { type PropsWithChildren, useEffect, useState } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
+import { useConsentStore } from '@/common/store/useConsentStore'
 
 export const Providers = ({ children }: PropsWithChildren) => {
 	const [client] = useState(
@@ -21,6 +22,9 @@ export const Providers = ({ children }: PropsWithChildren) => {
 		// server HTML; apply the persisted state now that we're mounted.
 		useAuthStore.persist.rehydrate()
 		useCartStore.persist.rehydrate()
+		// Without this the consent status stays 'unknown' forever, so the banner
+		// never closes for returning visitors and the ads tag never mounts.
+		useConsentStore.persist.rehydrate()
 
 		useAuthStore
 			.getState()

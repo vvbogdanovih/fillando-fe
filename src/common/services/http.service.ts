@@ -1,6 +1,7 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { API_BASE_URL, API_URLS } from '@/common/constants/api-routes.constants'
-import { z } from 'zod'
+import '@/common/lib/zod-locale'
+import * as z from 'zod'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import toast from 'react-hot-toast'
 

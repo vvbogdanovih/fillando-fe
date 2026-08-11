@@ -8,14 +8,8 @@ import { UI_URLS } from '@/common/constants'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { formatOrderNumber } from '../checkout.schema'
-
-declare global {
-	interface Window {
-		gtag?: (...args: unknown[]) => void
-	}
-}
-
-const GOOGLE_ADS_PURCHASE_CONVERSION = 'AW-18332229942/vho6CLCit9McELbCvqVE'
+import { gtag } from '@/common/lib/gtag'
+import { GOOGLE_ADS_PURCHASE_CONVERSION } from '@/common/constants/analytics.constants'
 
 export function CheckoutSuccessContent() {
 	const searchParams = useSearchParams()
@@ -34,9 +28,15 @@ export function CheckoutSuccessContent() {
 
 	const conversionSent = useRef(false)
 	useEffect(() => {
-		if (conversionSent.current || typeof window.gtag !== 'function') return
+		if (conversionSent.current) return
 		conversionSent.current = true
-		window.gtag('event', 'conversion', {
+		// Queued onto window.dataLayer rather than called through window.gtag: the tag
+		// is consent-gated and may not have loaded (or may load minutes later, when the
+		// visitor accepts). gtag.js drains the queue on startup, so the conversion
+		// survives. The previous `typeof window.gtag !== 'function'` guard returned
+		// without setting the ref, and with stable deps the effect never re-ran —
+		// silently dropping the conversion whenever the tag was slow.
+		gtag('event', 'conversion', {
 			send_to: GOOGLE_ADS_PURCHASE_CONVERSION,
 			transaction_id: raw ?? '',
 			...(hasTotal ? { value: total, currency: 'UAH' } : {})

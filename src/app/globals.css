@@ -32,6 +32,7 @@
 	--color-secondary: var(--secondary);
 	--color-primary-foreground: var(--primary-foreground);
 	--color-primary: var(--primary);
+	--color-primary-strong: var(--primary-strong);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-popover: var(--popover);
 	--color-card-foreground: var(--card-foreground);
@@ -64,6 +65,9 @@
 	/* --primary: ##19e6b3 */
 	--primary: #19e6b3;
 	--primary-foreground: #000000;
+	/* --primary is a surface colour (OKLCH L=0.82) — only 1.49:1 as text on
+	   --background. Use --primary-strong for brand-coloured text and icons. */
+	--primary-strong: #008062;
 
 	--secondary: #f1f5f9;
 	--secondary-foreground: #0f172a;

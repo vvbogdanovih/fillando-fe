@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import '@/common/lib/zod-locale'
+import * as z from 'zod'
 import { FORM_ERRORS } from '@/common/constants'
 import { emailSchema, nameSchema, passwordSchema, userSchema } from '@/common/schemas'
 

@@ -31,9 +31,9 @@ export function ValueProps() {
 
 	return (
 		<section className='py-8 md:py-12'>
-			<p className='text-muted-foreground mb-6 text-xs font-semibold tracking-widest uppercase'>
+			<h2 className='text-muted-foreground mb-6 text-xs font-semibold tracking-widest uppercase'>
 				Чому Fillando
-			</p>
+			</h2>
 			<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
 				{VALUE_PROPS.map(({ icon: Icon, title, text }, i) => (
 					<motion.div

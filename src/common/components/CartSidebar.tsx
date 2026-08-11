@@ -282,7 +282,7 @@ export function CartSidebar() {
 											</button>
 										</div>
 										{stockHints[item.variant_id] && (
-											<p className='text-xs text-amber-500'>
+											<p className='text-xs text-amber-700'>
 												{stockHints[item.variant_id]}
 											</p>
 										)}

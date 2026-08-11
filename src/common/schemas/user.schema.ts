@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import '@/common/lib/zod-locale'
+import * as z from 'zod'
 import { Role } from '@/common/constants'
 
 // Role is the authoritative enum from role.constants.ts
