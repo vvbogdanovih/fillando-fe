@@ -1,15 +1,22 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Menu, X, Phone } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { CONTACTS, NAV_LINKS } from '@/common/constants'
 import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
+import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
 import { cn } from '@/common/utils/shad-cn.utils'
 
 export function MobileMenu() {
+	const [open, setOpen] = useState(false)
+
+	// Pause Lenis while the menu is open so the background doesn't creep.
+	useLenisModalLock(open)
+
 	return (
-		<Dialog.Root>
+		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Trigger asChild>
 				<button
 					aria-label='Меню'
@@ -23,6 +30,7 @@ export function MobileMenu() {
 				<Dialog.Overlay className='data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/60 duration-300' />
 				<Dialog.Content
 					aria-describedby={undefined}
+					data-lenis-prevent
 					className={cn(
 						'bg-background fixed top-0 left-0 z-50 flex h-full w-full max-w-xs flex-col shadow-2xl outline-none',
 						'data-[state=open]:animate-in data-[state=closed]:animate-out duration-300',

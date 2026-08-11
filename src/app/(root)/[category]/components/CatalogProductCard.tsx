@@ -54,7 +54,7 @@ export const CatalogProductCard = ({ item, href }: CatalogProductCardProps) => {
 	return (
 		<div
 			className={cn(
-				'bg-card border-border/50 flex flex-col overflow-hidden rounded-xl border shadow-lg shadow-black/10',
+				'bg-card border-border/50 flex h-full flex-col overflow-hidden rounded-xl border shadow-lg shadow-black/10',
 				isOutOfStock ? 'border-muted bg-muted grayscale' : 'card-hover'
 			)}
 		>

@@ -6,6 +6,8 @@ import { ArrowRight, Phone, Send } from 'lucide-react'
 import { CONTACTS, UI_URLS } from '@/common/constants'
 import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
 import { Button } from '@/common/components/ui/button'
+import { ScrollReveal, MagneticButton } from '@/common/components/motion'
+import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
 import {
 	Dialog,
 	DialogContent,
@@ -18,12 +20,15 @@ import { WholesaleInquiryForm } from './WholesaleInquiryForm'
 export function WholesaleBlock() {
 	const [formOpen, setFormOpen] = useState(false)
 
+	// Pause Lenis while the inquiry dialog is open.
+	useLenisModalLock(formOpen)
+
 	return (
-		<section className='mt-16'>
+		<section className='py-8 md:py-12'>
 			<p className='text-muted-foreground mb-6 text-xs font-semibold tracking-widest uppercase'>
 				Співпраця
 			</p>
-			<div className='border-border bg-card relative overflow-hidden rounded-2xl border'>
+			<ScrollReveal className='border-border bg-card relative overflow-hidden rounded-2xl border'>
 				<div className='from-primary/10 absolute inset-0 bg-linear-to-br via-transparent to-transparent' />
 				<div className='relative flex flex-col gap-8 p-8 md:flex-row md:items-center md:justify-between md:p-12'>
 					<div className='max-w-xl'>
@@ -44,10 +49,12 @@ export function WholesaleBlock() {
 						</Link>
 					</div>
 					<div className='flex shrink-0 flex-col gap-3'>
-						<Button size='lg' onClick={() => setFormOpen(true)}>
-							<Send className='size-4' />
-							Заповнити форму
-						</Button>
+						<MagneticButton className='w-fit self-center'>
+							<Button size='lg' onClick={() => setFormOpen(true)}>
+								<Send className='size-4' />
+								Заповнити форму
+							</Button>
+						</MagneticButton>
 						<div className='flex items-center justify-center gap-3'>
 							<a
 								href={`tel:${CONTACTS.PHONE}`}
@@ -80,7 +87,7 @@ export function WholesaleBlock() {
 						</div>
 					</div>
 				</div>
-			</div>
+			</ScrollReveal>
 
 			<Dialog open={formOpen} onOpenChange={setFormOpen}>
 				<DialogContent>

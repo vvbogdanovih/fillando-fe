@@ -313,3 +313,38 @@
 ::-webkit-scrollbar-thumb:hover {
 	background: #94a3b8;
 }
+
+/* Lenis smooth scroll (see SmoothScrollProvider) */
+html.lenis,
+html.lenis body {
+	height: auto;
+}
+.lenis.lenis-smooth {
+	scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+	overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+	overflow: hidden;
+}
+.lenis.lenis-smooth iframe {
+	pointer-events: none;
+}
+
+/* Respect users who prefer reduced motion — neutralize animations/transitions
+   site-wide (Lenis itself is skipped in SmoothScrollProvider). */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+	.animate-float,
+	.animate-pulse-glow {
+		animation: none !important;
+	}
+}

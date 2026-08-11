@@ -7,6 +7,7 @@ import { X, ShoppingCart, Minus, Plus, Trash2, Package } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
+import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
 import { UI_URLS } from '@/common/constants'
 import { cn } from '@/common/utils/shad-cn.utils'
 
@@ -24,6 +25,9 @@ export function CartSidebar() {
 	const stockHintTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
 	const isAuth = !!user
+
+	// Pause Lenis while the drawer is open so the background doesn't creep.
+	useLenisModalLock(isOpen)
 
 	const displayItems = isAuth
 		? items.map(i => ({
@@ -154,7 +158,10 @@ export function CartSidebar() {
 							</Dialog.Close>
 						</div>
 					) : (
-						<div className='flex-1 space-y-2 overflow-y-auto px-4 py-3'>
+						<div
+						data-lenis-prevent
+						className='flex-1 space-y-2 overflow-y-auto px-4 py-3'
+					>
 							{displayItems.map(item => (
 								<div
 									key={item.variant_id}

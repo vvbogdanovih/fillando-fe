@@ -10,15 +10,11 @@ import { Input } from '@/common/components/ui/input'
 import { useCartStore } from '@/common/store/useCartStore'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 import { cn } from '@/common/utils/shad-cn.utils'
+import { MANUFACTURERS } from '@/common/constants'
 import { priceSheetApi } from './price-sheet.api'
 import type { AdminVariant } from './price-sheet.schema'
 
 const LIMIT = 50
-const MANUFACTURERS = [
-	{ name: 'Kingroon', logo: '/brands/kingroon.png' },
-	{ name: 'Sunlu', logo: '/brands/sunlu.png' },
-	{ name: 'Bambu Lab', logo: '/brands/bambu-lab.png' }
-]
 
 function formatDate(iso: string | null): string {
 	if (!iso) return '—'

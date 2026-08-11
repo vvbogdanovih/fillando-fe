@@ -30,7 +30,7 @@ src/
 │   │   ├── auth.schema.ts
 │   │   └── error.tsx     # Auth-segment error boundary
 │   ├── error.tsx         # Root error boundary
-│   ├── layout.tsx        # Root layout (dark mode hardcoded)
+│   ├── layout.tsx        # Root layout (light theme; Inter + Geist fonts)
 │   └── provider.tsx      # Client providers (React Query, Toast) + auth init gate
 ├── env.ts                # Zod-validated env vars (throws on missing/invalid)
 └── common/
@@ -62,7 +62,9 @@ src/
 
 **Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`.
 
-**Styling:** Tailwind CSS 4 with `@theme` inline tokens in `globals.css` (no `tailwind.config.*`). Dark mode is forced via `className='dark'` on `<html>`. Custom design tokens include filament-type colors (PLA, PETG, ABS, TPU, Nylon) and utilities like `gradient-text`, `card-hover`, `glow-primary`.
+**Styling:** Tailwind CSS 4 with `@theme` inline tokens in `globals.css` (no `tailwind.config.*`). The site renders in a **single light theme** (`:root` tokens; there is no `.dark` block and `<html>` carries no theme class). Custom design tokens include filament-type colors (PLA, PETG, ABS, TPU, Nylon), gradients (`--gradient-primary/accent/border`), glow shadows, and utilities like `gradient-text`, `card-hover`, `glow-primary`, `animate-float`, `gradient-border`.
+
+**Motion / smooth scroll:** `motion` (Framer, `motion/react`) + `lenis` power storefront animations. Reusable primitives live in `common/components/motion/` (`SmoothScrollProvider`, `ScrollReveal`, `StaggerGroup`/`StaggerItem`, `Parallax`, `MagneticButton`) — all `'use client'`. `SmoothScrollProvider` is mounted in `(root)/layout.tsx` only (admin/auth keep native scroll) and wraps the tree in `<MotionConfig reducedMotion='user'>`; under `prefers-reduced-motion` Lenis is skipped entirely. Radix dialogs/drawers pause Lenis via the `useLenisModalLock` hook (`common/hooks/`) plus `data-lenis-prevent` on their inner scroll containers. Guardrails: never parallax large rasters or the LCP hero; keep GPU-only transforms (translate/scale/opacity).
 
 **Formatting:** Prettier with tabs (width 4), single quotes, no trailing commas, print width 100, Tailwind class sorting.
 
