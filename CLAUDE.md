@@ -81,7 +81,11 @@ Never `import { z } from 'zod'` — that pulls zod's namespace object, which no 
 
 **Images:** the built-in Next optimizer is **off** — it downloads and decodes the full S3 object per request and can exhaust a 1–2 GB VPS. Instead the backend writes fixed width derivatives (`128/320/640/1280`) at upload time, and `image-loader.ts` rewrites each URL to the right tier.
 
-`NEXT_PUBLIC_USE_IMAGE_DERIVATIVES` switches the two modes. It defaults to **off**, in which mode `unoptimized: true` applies and every `sizes=` prop in the app is inert (Next nulls out `srcSet`/`sizes`). Before flipping it on, the S3 backfill must be run and verified — a missing derivative is a hard 404 with no fallback:
+`NEXT_PUBLIC_USE_IMAGE_DERIVATIVES` switches the two modes. It defaults to **off**, in which mode `unoptimized: true` applies and every `sizes=` prop in the app is inert (Next nulls out `srcSet`/`sizes`).
+
+> Like every `NEXT_PUBLIC_*` var it is inlined at **build** time, so it must be a Docker **build arg** — declared in `Dockerfile.prod` and passed from `docker-compose.prod.yml`. Putting it in `.env.prod` does nothing: that `env_file` is only applied to the runtime container, and the value is already baked into the bundle by then. The failure is silent.
+
+Before flipping it on, the S3 backfill must be run and verified — a missing derivative is a hard 404 with no fallback:
 
 In `fillando-be`, edit the `MODE` constant at the top of
 `scripts/migrations/generate-image-derivatives.js` and re-run it for each step —
