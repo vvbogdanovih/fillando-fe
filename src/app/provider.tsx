@@ -17,6 +17,11 @@ export const Providers = ({ children }: PropsWithChildren) => {
 	// Auth check runs in the background so the server-rendered HTML stays
 	// visible to crawlers; routes that need the result wait on isAuthChecked.
 	useEffect(() => {
+		// Stores use skipHydration so the first client render matches the
+		// server HTML; apply the persisted state now that we're mounted.
+		useAuthStore.persist.rehydrate()
+		useCartStore.persist.rehydrate()
+
 		useAuthStore
 			.getState()
 			.checkAuth()

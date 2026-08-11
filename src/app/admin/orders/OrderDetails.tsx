@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Trash2Icon } from 'lucide-react'
 import { Badge } from '@/common/components/ui/badge'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
@@ -262,6 +262,19 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 			toast.success('Замовлення успішно оновлено')
 		}
 	})
+
+	/** Removes an item from the local edit state; persisted on "Зберегти зміни". */
+	const removeItem = (index: number) => {
+		const items = editValues?.items
+		if (!items) return
+		if (items.length <= 1) {
+			toast.error('Замовлення повинно містити щонайменше один товар')
+			return
+		}
+		setEditValues(prev =>
+			prev?.items ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev
+		)
+	}
 
 	if (isLoading) {
 		return (
@@ -661,18 +674,21 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 
 					<div className='space-y-2'>
 						<Label>Товари (variant_id + quantity)</Label>
+						<p className='text-muted-foreground text-xs'>
+							Змінюйте кількість або видаляйте товари — зміни застосуються після
+							«Зберегти зміни». Замовлення не може залишитись без товарів.
+						</p>
 						<div className='space-y-2'>
 							{(editValues.items ?? []).map((item, index) => (
 								<div
 									key={item.variant_id}
-									className='grid gap-2 sm:grid-cols-[1fr_140px]'
+									className='grid gap-2 sm:grid-cols-[1fr_140px_auto]'
 								>
 									<div className='rounded-md border bg-gray-50 px-3 py-2 text-sm'>
 										{(() => {
-											const originalItem =
-												order.items.find(
-													source => source.variant_id === item.variant_id
-												) ?? order.items[index]
+											const originalItem = order.items.find(
+												source => source.variant_id === item.variant_id
+											)
 											if (!originalItem)
 												return (
 													<span className='text-muted-foreground'>
@@ -708,6 +724,16 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 											})
 										}
 									/>
+									<Button
+										type='button'
+										variant='ghost'
+										className='justify-self-start text-red-500 hover:text-red-700 sm:justify-self-auto'
+										title='Видалити товар із замовлення'
+										disabled={(editValues.items ?? []).length <= 1}
+										onClick={() => removeItem(index)}
+									>
+										<Trash2Icon className='size-4' />
+									</Button>
 								</div>
 							))}
 						</div>

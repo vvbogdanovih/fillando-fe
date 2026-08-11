@@ -52,6 +52,12 @@ export function Footer() {
 						>
 							FAQ
 						</Link>
+						<Link
+							href={UI_URLS.CONTACTS}
+							className='text-muted-foreground hover:text-primary text-sm transition-colors'
+						>
+							Контакти
+						</Link>
 					</nav>
 
 					{/* Contacts */}
@@ -89,10 +95,30 @@ export function Footer() {
 					</div>
 				</div>
 
-				<div className='border-border mt-8 border-t pt-6'>
+				<div className='border-border mt-8 flex flex-col gap-4 border-t pt-6 md:flex-row md:items-center md:justify-between'>
 					<p className='text-muted-foreground text-xs'>
-						© {new Date().getFullYear()} Fillando. Всі права захищені.
+						© {new Date().getFullYear()} Fillando
 					</p>
+					<nav className='flex flex-wrap gap-x-5 gap-y-2'>
+						<Link
+							href={UI_URLS.OFFER}
+							className='text-muted-foreground hover:text-primary text-xs transition-colors'
+						>
+							Публічна оферта
+						</Link>
+						<Link
+							href={UI_URLS.RETURNS}
+							className='text-muted-foreground hover:text-primary text-xs transition-colors'
+						>
+							Умови повернення
+						</Link>
+						<Link
+							href={UI_URLS.PRIVACY}
+							className='text-muted-foreground hover:text-primary text-xs transition-colors'
+						>
+							Політика конфіденційності
+						</Link>
+					</nav>
 				</div>
 			</div>
 		</footer>

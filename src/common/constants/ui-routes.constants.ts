@@ -5,6 +5,10 @@ export const UI_URLS = {
 	PRICE_SHEET: '/price-sheet',
 	WHOLESALE: '/wholesale',
 	FAQ: '/faq',
+	CONTACTS: '/contacts',
+	OFFER: '/offer',
+	RETURNS: '/returns',
+	PRIVACY: '/privacy',
 	CHECKOUT: '/checkout',
 	CHECKOUT_SUCCESS: '/checkout/success',
 	CATALOG: {

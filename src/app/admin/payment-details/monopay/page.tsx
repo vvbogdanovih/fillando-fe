@@ -1,3 +1,5 @@
+import { PaymentProviders } from '../PaymentProviders'
+
 export default function MonoPayPaymentDetailsPage() {
-	return null
+	return <PaymentProviders provider='MONOPAY' />
 }

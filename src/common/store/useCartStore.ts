@@ -202,7 +202,10 @@ export const useCartStore = create<CartStore>()(
 		}),
 		{
 			name: 'fillando-cart',
-			partialize: state => ({ guestItems: state.guestItems })
+			partialize: state => ({ guestItems: state.guestItems }),
+			// Rehydrate manually after mount (see Providers) so the first client
+			// render matches the server HTML and avoids hydration mismatches.
+			skipHydration: true
 		}
 	)
 )

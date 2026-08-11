@@ -64,6 +64,34 @@ export async function createOrder(body: CreateOrderPayload) {
 	})
 }
 
+const liqpayCheckoutSchema = z.object({
+	data: z.string(),
+	signature: z.string(),
+	action_url: z.string()
+})
+
+export type LiqpayCheckout = z.infer<typeof liqpayCheckoutSchema>
+
+/** Builds the signed LiqPay payload the browser auto-submits to the LiqPay page. */
+export async function initLiqpayCheckout(orderNumber: string | number): Promise<LiqpayCheckout> {
+	return httpService.post<LiqpayCheckout, { order_number: string }>(
+		API_URLS.LIQPAY.CHECKOUT,
+		{ order_number: String(orderNumber) },
+		{ schema: liqpayCheckoutSchema, skipErrorToast: true }
+	)
+}
+
+/** Public: returns the active provider record (no secrets) or null when unavailable. */
+export async function fetchActivePaymentProvider(
+	provider: 'LIQPAY' | 'MONOPAY'
+): Promise<{ provider: string } | null> {
+	return httpService
+		.get<{ provider: string } | null, unknown>(API_URLS.PAYMENT_PROVIDERS.ACTIVE(provider), {
+			skipErrorToast: true
+		})
+		.catch(() => null)
+}
+
 export async function validateCouponCode(code: string): Promise<ValidateCouponResponse> {
 	return httpService.post<ValidateCouponResponse, { code: string }>(
 		API_URLS.COUPONS.VALIDATE,

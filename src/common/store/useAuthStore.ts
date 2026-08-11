@@ -48,7 +48,10 @@ export const useAuthStore = create<AuthState>()(
 		}),
 		{
 			name: 'auth-storage',
-			partialize: state => ({ user: state.user })
+			partialize: state => ({ user: state.user }),
+			// Rehydrate manually after mount (see Providers) so the first client
+			// render matches the server HTML and avoids hydration mismatches.
+			skipHydration: true
 		}
 	)
 )

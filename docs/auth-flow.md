@@ -9,15 +9,25 @@ End-to-end documentation of all authentication paths in the app.
 ```
 Browser loads app
   → Providers mounts (src/app/provider.tsx)
-  → useEffect calls useAuthStore.getState().checkAuth()
-  → checkAuth() hits GET /auth/me with current cookies
-      ├─ 200: sets user in Zustand store
-      └─ any error: sets user = null
-  → setReady(true) fires (finally block — always runs)
-  → <FullScreenLoader> unmounts, children render
+  → useEffect (runs once, after mount):
+      → useAuthStore.persist.rehydrate()  ← apply persisted user now
+      → useCartStore.persist.rehydrate()  ← apply persisted guest cart now
+      → useAuthStore.getState().checkAuth()
+          → hits GET /auth/me with current cookies
+              ├─ 200: sets user (+ isAuthChecked=true) in Zustand store
+              └─ any error: sets user = null (+ isAuthChecked=true)
+          → on logged-in: useCartStore.fetchCart()
 ```
 
-`ready` is local component state, not read from the store, to avoid Zustand hydration timing issues where `isAuthChecked` from the persisted store could be stale on first render.
+Children render immediately (no boot-time loader gate) so the server-rendered HTML stays visible to crawlers; routes that need the auth result wait on `isAuthChecked`.
+
+### Why rehydrate manually (skipHydration)
+
+Both persisted stores set `skipHydration: true`, so on the **first** client render they hold their initial (empty) state — matching the server-rendered HTML. The persisted values are applied only after mount, via the `persist.rehydrate()` calls above.
+
+Without this, Zustand's default synchronous `localStorage` rehydration made the first client render diverge from the server (the Header flipping between the "Увійти" link and the account dropdown, the cart badge appearing). That structural difference also shifted Radix's `useId` sequence and produced `aria-controls` hydration mismatches. Any new `persist` store must follow the same pattern: `skipHydration: true` + a `rehydrate()` call in `Providers`.
+
+> Note: `bis_skin_checked="1"` attribute diffs in hydration warnings come from the Bitdefender browser extension, not the app — verify real fixes in an incognito window.
 
 ---
 
@@ -97,3 +107,5 @@ Any API call returns 401
 ## Store persistence
 
 `useAuthStore` persists only `user` to `localStorage` under the key `auth-storage`. `isAuthChecked` is intentionally not persisted — it resets to `false` on every page load and is only set to `true` after `checkAuth()` completes.
+
+Both `useAuthStore` (`auth-storage`) and `useCartStore` (`fillando-cart`) use `skipHydration: true` and are rehydrated manually from `Providers` on mount — see [Why rehydrate manually](#why-rehydrate-manually-skiphydration) under App boot.

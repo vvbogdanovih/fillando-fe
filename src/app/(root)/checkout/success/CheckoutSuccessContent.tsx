@@ -68,7 +68,9 @@ export function CheckoutSuccessContent() {
 					<p className='text-muted-foreground text-sm leading-relaxed'>
 						{paymentMethod === 'CASH'
 							? 'Оплата готівкою при отриманні. Деталі замовлення надіслані на вашу електронну пошту.'
-							: 'Реквізити для оплати будуть надіслані на вашу електронну пошту.'}
+							: paymentMethod === 'LIQPAY'
+								? 'Оплату отримуємо через LiqPay. Щойно платіж підтвердиться, ми надішлемо підтвердження на вашу електронну пошту.'
+								: 'Реквізити для оплати будуть надіслані на вашу електронну пошту.'}
 					</p>
 					{hasTotal && (
 						<div className='rounded-lg border p-3 text-left'>

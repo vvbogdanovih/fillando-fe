@@ -52,6 +52,15 @@ export const API_URLS = {
 		ACTIVATE: (id: string) => `/payment-details/${id}/activate`, // PATCH — set active (deactivates others)
 		ACTIVE: `/payment-details/active` // GET — public active record
 	},
+	PAYMENT_PROVIDERS: {
+		BASE: `/payment-providers`, // GET (admin list) / POST (create)
+		BY_ID: (id: string) => `/payment-providers/${id}`, // PATCH / DELETE
+		ACTIVATE: (id: string) => `/payment-providers/${id}/activate`, // PATCH — set active (deactivates others of same provider)
+		ACTIVE: (provider: string) => `/payment-providers/active/${provider}` // GET — public active provider (no secrets)
+	},
+	LIQPAY: {
+		CHECKOUT: `/liqpay/checkout` // POST — build signed checkout payload for an order
+	},
 	ORDERS: {
 		BASE: `/orders`, // POST — create order (guest or authenticated); GET — admin list
 		BY_ID: (id: string) => `/orders/${id}`, // GET — admin detail; PATCH — admin update

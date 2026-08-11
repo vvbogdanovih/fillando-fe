@@ -36,8 +36,10 @@ import {
 } from './checkout.schema'
 import {
 	createOrder,
+	fetchActivePaymentProvider,
 	fetchNovaPostCities,
 	fetchNovaPostWarehouses,
+	initLiqpayCheckout,
 	validateCouponCode
 } from './checkout.api'
 import { DELIVERY_METHOD_LABELS, WAREHOUSE_TYPE_LABELS } from './checkout.constants'
@@ -53,6 +55,26 @@ type DisplayLine = {
 
 const DEBOUNCE_MS = 320
 const couponCodeRegex = /^[A-Z0-9]{10}$/
+
+/** Builds a transient hidden form and POSTs it to LiqPay, redirecting the browser. */
+function submitLiqpayForm(actionUrl: string, data: string, signature: string) {
+	const form = document.createElement('form')
+	form.method = 'POST'
+	form.action = actionUrl
+	form.acceptCharset = 'utf-8'
+	for (const [name, value] of [
+		['data', data],
+		['signature', signature]
+	]) {
+		const input = document.createElement('input')
+		input.type = 'hidden'
+		input.name = name
+		input.value = value
+		form.appendChild(input)
+	}
+	document.body.appendChild(form)
+	form.submit()
+}
 
 function mapCouponReason(reason: 'NOT_FOUND' | 'INACTIVE' | 'EXPIRED') {
 	switch (reason) {
@@ -299,6 +321,13 @@ export function CheckoutPage() {
 		[isAuth, setGuestItemQuantity, updateQuantity]
 	)
 
+	const { data: liqpayProvider } = useQuery({
+		queryKey: ['payment-provider', 'LIQPAY'],
+		queryFn: () => fetchActivePaymentProvider('LIQPAY'),
+		staleTime: 5 * 60 * 1000
+	})
+	const isLiqpayAvailable = Boolean(liqpayProvider)
+
 	const orderMutation = useMutation({
 		mutationFn: async (values: CheckoutFormValues) => {
 			const body = buildCreateOrderPayload(values, getOrderItems())
@@ -306,6 +335,15 @@ export function CheckoutPage() {
 		},
 		onSuccess: async (data, values) => {
 			await clearAfterOrder()
+
+			// LiqPay: redirect the browser to the hosted checkout page. The order is
+			// already created as PENDING; the server callback flips it to PAID.
+			if (values.payment_method === 'LIQPAY') {
+				const checkout = await initLiqpayCheckout(data.order_number)
+				submitLiqpayForm(checkout.action_url, checkout.data, checkout.signature)
+				return
+			}
+
 			const params = new URLSearchParams()
 			params.set('order', String(data.order_number))
 			params.set('payment', values.payment_method)
@@ -810,17 +848,42 @@ export function CheckoutPage() {
 							</div>
 						</label>
 
-						<button
-							type='button'
-							disabled
-							className='border-border text-muted-foreground flex w-full cursor-not-allowed items-center justify-between rounded-xl border border-dashed p-4 opacity-60'
-						>
-							<span className='flex items-center gap-2 font-medium'>
-								<CreditCard className='h-4 w-4' />
-								LiqPay
-							</span>
-							<Badge variant='secondary'>Незабаром</Badge>
-						</button>
+						{isLiqpayAvailable ? (
+							<label
+								className={cn(
+									'border-border hover:border-primary/40 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
+									paymentMethod === 'LIQPAY' &&
+										'border-primary bg-primary/5 ring-primary/20 ring-2'
+								)}
+							>
+								<input
+									type='radio'
+									className='mt-1'
+									value='LIQPAY'
+									{...register('payment_method')}
+								/>
+								<CreditCard className='text-primary mt-0.5 h-5 w-5 shrink-0' />
+								<div className='min-w-0 flex-1'>
+									<div className='font-medium'>Оплата карткою (LiqPay)</div>
+									<p className='text-muted-foreground mt-1 text-sm'>
+										Оплата карткою онлайн через LiqPay (ПриватБанк). Після
+										оформлення ви перейдете на захищену сторінку оплати.
+									</p>
+								</div>
+							</label>
+						) : (
+							<button
+								type='button'
+								disabled
+								className='border-border text-muted-foreground flex w-full cursor-not-allowed items-center justify-between rounded-xl border border-dashed p-4 opacity-60'
+							>
+								<span className='flex items-center gap-2 font-medium'>
+									<CreditCard className='h-4 w-4' />
+									LiqPay
+								</span>
+								<Badge variant='secondary'>Незабаром</Badge>
+							</button>
+						)}
 						<button
 							type='button'
 							disabled
@@ -1049,7 +1112,15 @@ export function CheckoutPage() {
 							{pending ? 'Відправка…' : 'Замовити'}
 						</Button>
 						<p className='text-muted-foreground text-center text-xs'>
-							Продовжуючи, ви підтверджуєте коректність введених даних.
+							Оформлюючи замовлення, ви підтверджуєте коректність введених даних та
+							погоджуєтесь з умовами{' '}
+							<Link
+								href={UI_URLS.OFFER}
+								className='hover:text-foreground underline underline-offset-4'
+							>
+								Публічної оферти
+							</Link>
+							.
 						</p>
 					</CardContent>
 				</Card>

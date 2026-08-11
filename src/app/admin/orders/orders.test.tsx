@@ -15,7 +15,7 @@ const baseOrder: Order = {
 	id: 'order-id',
 	_id: 'order-id',
 	number: 11,
-	order_number: 11,
+	order_number: '11',
 	created_at: '2026-04-10T12:00:00.000Z',
 	createdAt: '2026-04-10T12:00:00.000Z',
 	items: [
@@ -46,7 +46,7 @@ const baseOrder: Order = {
 	},
 	payment_method: 'CARD',
 	payment_status: 'PENDING',
-	order_status: 'PENDING',
+	order_status: 'NEW',
 	comment: '',
 	nova_post_ttn: ''
 }
@@ -98,6 +98,36 @@ describe('orders UI critical flows', () => {
 				}
 			]
 		})
+	})
+
+	it('builds PATCH payload with the remaining items when one is removed', () => {
+		const twoItemOrder: Order = {
+			...baseOrder,
+			items: [
+				...baseOrder.items,
+				{
+					variant_id: 'v2',
+					image: null,
+					name: 'PETG 1kg',
+					sku: 'SKU-2',
+					vendor_sku: 'VSKU-2',
+					quantity: 1,
+					price: 400,
+					line_total: 400
+				}
+			]
+		}
+
+		const payload = buildOrderPatchPayload(twoItemOrder, {
+			customer: twoItemOrder.customer,
+			delivery_method: twoItemOrder.delivery_method,
+			delivery_address: twoItemOrder.delivery_address as Record<string, unknown>,
+			payment_method: twoItemOrder.payment_method,
+			comment: twoItemOrder.comment,
+			items: [{ variant_id: 'v2', quantity: 1 }]
+		})
+
+		expect(payload).toEqual({ items: [{ variant_id: 'v2', quantity: 1 }] })
 	})
 
 	it('maps backend errors to user-friendly messages', () => {

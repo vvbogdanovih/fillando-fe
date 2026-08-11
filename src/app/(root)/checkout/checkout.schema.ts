@@ -16,7 +16,7 @@ export const checkoutFormSchema = z
 		delivery_method: z.enum(['NOVA_POST', 'COURIER', 'PICKUP'], {
 			message: 'Оберіть спосіб доставки'
 		}),
-		payment_method: z.enum(['IBAN', 'CASH'], {
+		payment_method: z.enum(['IBAN', 'CASH', 'LIQPAY'], {
 			message: 'Оберіть спосіб оплати'
 		}),
 		comment: z.string().optional(),
@@ -112,7 +112,7 @@ export type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
 export type CreateOrderPayload = {
 	items: { variant_id: string; quantity: number }[]
 	customer: CheckoutFormValues['customer']
-	payment_method: 'IBAN' | 'CASH'
+	payment_method: 'IBAN' | 'CASH' | 'LIQPAY'
 	delivery_method: CheckoutFormValues['delivery_method']
 	delivery_address?: {
 		city_name: string

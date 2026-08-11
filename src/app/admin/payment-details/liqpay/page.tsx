@@ -1,3 +1,5 @@
+import { PaymentProviders } from '../PaymentProviders'
+
 export default function LiqPayPaymentDetailsPage() {
-	return null
+	return <PaymentProviders provider='LIQPAY' />
 }
