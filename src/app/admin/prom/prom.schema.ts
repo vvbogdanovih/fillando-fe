@@ -6,6 +6,7 @@ const promSyncProgressSchema = z.object({
 	total: z.number(),
 	processed: z.number(),
 	updated: z.number(),
+	pricesUpdated: z.number(),
 	skipped: z.number(),
 	errors: z.number()
 })
@@ -15,6 +16,7 @@ const promSyncDoneSchema = z.object({
 	total: z.number(),
 	processed: z.number(),
 	updated: z.number(),
+	pricesUpdated: z.number(),
 	skipped: z.number(),
 	errors: z.number()
 })

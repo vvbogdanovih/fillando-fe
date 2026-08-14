@@ -22,6 +22,7 @@ export const PromSyncSection = () => {
 	const [total, setTotal] = useState(0)
 	const [processed, setProcessed] = useState(0)
 	const [updated, setUpdated] = useState(0)
+	const [pricesUpdated, setPricesUpdated] = useState(0)
 	const [skipped, setSkipped] = useState(0)
 	const [errors, setErrors] = useState(0)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -43,6 +44,7 @@ export const PromSyncSection = () => {
 		setTotal(0)
 		setProcessed(0)
 		setUpdated(0)
+		setPricesUpdated(0)
 		setSkipped(0)
 		setErrors(0)
 		setIsSyncing(true)
@@ -80,6 +82,7 @@ export const PromSyncSection = () => {
 				setTotal(data.total)
 				setProcessed(data.processed)
 				setUpdated(data.updated)
+				setPricesUpdated(data.pricesUpdated)
 				setSkipped(data.skipped)
 				setErrors(data.errors)
 				return
@@ -92,9 +95,10 @@ export const PromSyncSection = () => {
 				setTotal(data.total)
 				setProcessed(data.processed)
 				setUpdated(data.updated)
+				setPricesUpdated(data.pricesUpdated)
 				setSkipped(data.skipped)
 				setErrors(data.errors)
-				const msg = `Готово: оновлено ${data.updated}, пропущено ${data.skipped}, помилок ${data.errors} (усього ${data.total})`
+				const msg = `Готово: оновлено ${data.updated}, з них цін ${data.pricesUpdated}, пропущено ${data.skipped}, помилок ${data.errors} (усього ${data.total})`
 				setSuccessMessage(msg)
 				toast.success(msg)
 				return
@@ -116,11 +120,13 @@ export const PromSyncSection = () => {
 	return (
 		<Card className='max-w-xl'>
 			<CardHeader>
-				<CardTitle className='text-lg'>Наявність (Prom)</CardTitle>
+				<CardTitle className='text-lg'>Наявність і ціни (Prom)</CardTitle>
 				<CardDescription>
-					Синхронізація наявності товарів із Prom за їхнім Prom ID. Для кожного варіанта з
-					prom_id оновлюється залишок. Прогрес оновлюється в реальному часі; операція може
-					зайняти кілька хвилин.
+					Синхронізація товарів із Prom за їхнім Prom ID. Для кожного варіанта з prom_id
+					оновлюється залишок, а для тих, що є в наявності — ще й ціна: ціна Prom зі
+					знижкою плюс фіксована націнка за діапазоном. Товари без наявності зберігають
+					поточну ціну. Прогрес оновлюється в реальному часі; операція може зайняти кілька
+					хвилин.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className='space-y-4'>
@@ -130,7 +136,7 @@ export const PromSyncSection = () => {
 					onClick={startSync}
 					className='min-w-[220px]'
 				>
-					Синхронізувати наявність
+					Синхронізувати наявність і ціни
 				</Button>
 
 				{isSyncing && (
@@ -147,6 +153,7 @@ export const PromSyncSection = () => {
 						</p>
 						<div className='space-y-1 text-gray-700'>
 							<p>Оновлено: {updated}</p>
+							<p>Змінено цін: {pricesUpdated}</p>
 							<p>Пропущено: {skipped}</p>
 							<p>Помилок: {errors}</p>
 						</div>
