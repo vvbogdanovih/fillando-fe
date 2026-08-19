@@ -26,14 +26,16 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 	PENDING: 'Очікує оплату',
 	PAID: 'Оплачено',
 	FAILED: 'Помилка оплати',
-	REFUNDED: 'Повернено'
+	REFUNDED: 'Повернено',
+	VOIDED: 'Скасовано'
 }
 
 export const PAYMENT_STATUS_CLASSES: Record<PaymentStatus, string> = {
 	PENDING: 'border-amber-200 bg-amber-50 text-amber-700',
 	PAID: 'border-green-200 bg-green-50 text-green-700',
 	FAILED: 'border-red-200 bg-red-50 text-red-700',
-	REFUNDED: 'border-gray-200 bg-gray-50 text-gray-600'
+	REFUNDED: 'border-gray-200 bg-gray-50 text-gray-600',
+	VOIDED: 'border-gray-200 bg-gray-50 text-gray-600'
 }
 
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {

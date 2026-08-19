@@ -15,7 +15,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 	PENDING: 'Очікує оплату',
 	PAID: 'Оплачено',
 	FAILED: 'Помилка оплати',
-	REFUNDED: 'Повернено'
+	REFUNDED: 'Повернено',
+	VOIDED: 'Скасовано'
 }
 
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
