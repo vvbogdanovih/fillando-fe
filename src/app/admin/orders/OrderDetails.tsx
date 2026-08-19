@@ -496,6 +496,12 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								</DropdownMenuRadioGroup>
 							</DropdownMenuContent>
 						</DropdownMenu>
+						{order.order_status === 'CANCELLED' && order.payment_status === 'PAID' && (
+							<p className='text-xs text-amber-700'>
+								Замовлення скасоване, кошти оплачені — виконайте повернення і
+								встановіть «Повернено».
+							</p>
+						)}
 					</div>
 					<div className='space-y-2'>
 						<Label htmlFor='ttn'>TTN Нова Пошта</Label>

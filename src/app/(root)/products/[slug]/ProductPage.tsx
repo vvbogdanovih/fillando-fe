@@ -16,6 +16,7 @@ import {
 	DropdownMenuTrigger
 } from '@/common/components/ui/dropdown-menu'
 import { cn } from '@/common/utils/shad-cn.utils'
+import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
 import { useCartStore } from '@/common/store/useCartStore'
 import {
 	getVariantBySlug,
@@ -110,6 +111,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	const displayName = variant.v_value ? `${product.name} — ${variant.v_value}` : variant.name
 	const isOutOfStock = availableStock <= 0
 	const isLowStock = availableStock > 0 && availableStock <= 5
+	const priceAsOf = isOutOfStock ? formatPriceAsOf(variant.price_updated_at) : null
 
 	const handleAddToCart = async () => {
 		if (isInCart) {
@@ -296,9 +298,15 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					</Badge>
 
 					<div>
-						<p className='text-primary-strong text-3xl font-bold'>
-							{variant.price.toLocaleString('uk-UA')} ₴
+						<p
+							className={cn(
+								'text-3xl font-bold',
+								isOutOfStock ? 'text-muted-foreground' : 'text-primary-strong'
+							)}
+						>
+							{formatUah(variant.price)}
 						</p>
+						{priceAsOf && <p className='text-muted-foreground text-sm'>{priceAsOf}</p>}
 						<span className='text-muted-foreground text-sm'>Арт. {variant.sku}</span>
 					</div>
 

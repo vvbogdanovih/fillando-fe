@@ -12,7 +12,7 @@ export const orderStatusValues = [
 	'RETURNED'
 ] as const
 
-export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const
+export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'VOIDED'] as const
 export const deliveryMethodValues = ['NOVA_POST', 'COURIER', 'PICKUP'] as const
 export const paymentMethodValues = ['CASH', 'CARD', 'LIQPAY', 'MONOPAY', 'IBAN'] as const
 
