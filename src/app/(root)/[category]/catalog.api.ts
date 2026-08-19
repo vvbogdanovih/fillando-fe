@@ -8,6 +8,8 @@ export interface CatalogItem {
 	slug: string
 	sku: string
 	price: number
+	/** When `price` was last confirmed against the vendor. Shown for out-of-stock items. */
+	price_updated_at: string | null
 	stock: number
 	quantity?: number
 	v_value: string | null
@@ -22,6 +24,7 @@ export interface ProductDetailData {
 		slug: string
 		sku: string
 		price: number
+		price_updated_at: string | null
 		stock: number
 		quantity?: number
 		images: string[]
@@ -41,6 +44,7 @@ export interface ProductDetailData {
 		name: string
 		slug: string
 		price: number
+		price_updated_at: string | null
 		stock: number
 		v_value: string | null
 		images: string[]

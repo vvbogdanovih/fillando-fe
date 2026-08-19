@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { CatalogItem } from '../catalog.api'
 import { useCartStore } from '@/common/store/useCartStore'
 import { cn } from '@/common/utils/shad-cn.utils'
+import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 
 interface CatalogProductCardProps {
@@ -27,6 +28,7 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 
 	const availableQuantity = item.quantity ?? item.stock
 	const isOutOfStock = availableQuantity <= 0
+	const priceAsOf = isOutOfStock ? formatPriceAsOf(item.price_updated_at) : null
 
 	const handleCartButton = async (e: React.MouseEvent) => {
 		e.preventDefault()
@@ -89,8 +91,9 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 							isOutOfStock ? 'text-muted-foreground' : 'text-foreground'
 						)}
 					>
-						{item.price.toLocaleString('uk-UA')} ₴
+						{formatUah(item.price)}
 					</p>
+					{priceAsOf && <p className='text-muted-foreground text-xs'>{priceAsOf}</p>}
 				</div>
 			</Link>
 			<div className='px-3 pb-3'>
