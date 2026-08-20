@@ -13,6 +13,7 @@ import { productsApi } from './products.api'
 import { vendorsApi } from '../vendors/vendors.api'
 import { categoriesApi } from '../categories/categories.api'
 import { DeleteConfirmDialog } from './_components/DeleteConfirmDialog'
+import { PriceListModal } from './PriceListModal'
 
 function formatDate(value: string): string {
 	const date = new Date(value)
@@ -75,6 +76,7 @@ export const Products = () => {
 								Всього: {products.length}
 								{isFetching && !isLoading ? ' • Оновлення...' : ''}
 							</span>
+							<PriceListModal categories={categories} />
 							<Button asChild size='sm'>
 								<Link href={UI_URLS.ADMIN.CREATE_PRODUCT}>
 									<PlusIcon className='size-4' />

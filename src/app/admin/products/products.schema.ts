@@ -200,3 +200,14 @@ export type ProductListItem = z.infer<typeof productListItemSchema>
 export type ProductVariant = z.infer<typeof productVariantResponseSchema>
 export type ProductVariantFull = z.infer<typeof productVariantFullResponseSchema>
 export type ValidateResponse = z.infer<typeof validateResponseSchema>
+
+export type PageOrientation = 'portrait' | 'landscape'
+
+/** Request body for POST /products/price-list/pdf (no response schema — it is a blob). */
+export interface PriceListPayload {
+	category_ids?: string[]
+	in_stock_only?: boolean
+	tier1_percent?: number
+	tier2_percent?: number
+	orientation?: PageOrientation
+}

@@ -1,5 +1,6 @@
+import axios from 'axios'
 import { httpService } from '@/common/services/http.service'
-import { API_URLS } from '@/common/constants'
+import { API_BASE_URL, API_URLS } from '@/common/constants'
 import {
 	productResponseSchema,
 	productDetailSchema,
@@ -9,10 +10,28 @@ import {
 	type Product,
 	type ProductDetail,
 	type ProductListItem,
-	type ProductVariantFull
+	type ProductVariantFull,
+	type PriceListPayload
 } from './products.schema'
+import { parseAttachmentFilename } from './products.utils'
 import '@/common/lib/zod-locale'
 import * as z from 'zod'
+
+const PRICE_LIST_FALLBACK_ERROR = 'Не вдалося сформувати прайс-лист'
+
+/**
+ * A failed blob request still carries a JSON error body. Bare axios skips the
+ * httpService interceptor, so there is no auto-toast — the caller surfaces this.
+ */
+const readErrorBlob = async (blob: Blob): Promise<string> => {
+	try {
+		const parsed = JSON.parse(await blob.text()) as { message?: string | string[] }
+		const message = Array.isArray(parsed.message) ? parsed.message[0] : parsed.message
+		return message ?? PRICE_LIST_FALLBACK_ERROR
+	} catch {
+		return PRICE_LIST_FALLBACK_ERROR
+	}
+}
 
 // --- Payload types ---
 
@@ -226,5 +245,38 @@ export const productsApi = {
 		)
 
 		return product
+	},
+
+	/**
+	 * Bare axios on purpose: httpService pipes every response through Zod
+	 * (handleAxiosResponse), which would destroy a blob body.
+	 */
+	downloadPriceList: async (payload: PriceListPayload): Promise<void> => {
+		const response = await axios.post(
+			`${API_BASE_URL}${API_URLS.PRODUCTS.PRICE_LIST_PDF}`,
+			payload,
+			{ responseType: 'blob', withCredentials: true }
+		)
+
+		// Not `new Blob([response.data])` — that drops the MIME type, and keeping
+		// 'application/pdf' is what makes this guard (and the browser preview) work.
+		const blob = response.data as Blob
+		if (blob.type && !blob.type.includes('pdf')) {
+			throw new Error(await readErrorBlob(blob))
+		}
+
+		const filename = parseAttachmentFilename(
+			response.headers['content-disposition'] as string | undefined,
+			'price-list.pdf'
+		)
+
+		const url = window.URL.createObjectURL(blob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = filename
+		document.body.appendChild(link)
+		link.click()
+		link.remove()
+		window.URL.revokeObjectURL(url)
 	}
 }
