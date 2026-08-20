@@ -74,3 +74,42 @@ This means a schema mismatch between frontend and backend is surfaced immediatel
 ## Query parameter serialisation
 
 The `get()` method serialises non-primitive query param values (objects, arrays) as JSON strings via `encodeURIComponent(JSON.stringify(value))`. The backend must expect this format.
+
+---
+
+## Blob / file downloads
+
+Endpoints that return a binary body (PDF price list, order report, invoice) **must not** go through
+`httpService`. Every `httpService` verb pipes the response through `handleAxiosResponse`, which runs
+Zod `parseAsync` over the body — that destroys a blob.
+
+Use bare `axios` with the base URL and credentials supplied explicitly:
+
+```ts
+const response = await axios.post(`${API_BASE_URL}${API_URLS.PRODUCTS.PRICE_LIST_PDF}`, payload, {
+	responseType: 'blob',
+	withCredentials: true
+})
+```
+
+Two consequences of bypassing the interceptor, both of which the caller must handle:
+
+1. **No automatic error toast.** `skipErrorToast` is irrelevant here — nothing toasts at all. Handle
+   errors explicitly in the mutation's `onError`. A failed request still returns a JSON body, so read
+   it off the blob (`await blob.text()` → `JSON.parse`) to surface the real server message; guard on
+   `blob.type` not containing `pdf` to detect that case.
+2. **No 401 → `/auth/refresh` → retry.** If the access token expired since the last `httpService`
+   call the download simply fails and the user must retry. A shared `downloadBlob` helper that
+   refreshes once on 401 would fix this for all three call sites — not done yet.
+
+Do **not** wrap the response in `new Blob([response.data])`. `response.data` is already a `Blob`, and
+re-wrapping drops its MIME type, which breaks both the content-type guard above and the browser's
+preview handling.
+
+### Reading the server filename requires CORS
+
+The frontend and API are different origins, so the browser hides every non-safelisted response header
+from JS. `Content-Disposition` is only readable because the backend sends
+`Access-Control-Expose-Headers: Content-Disposition` (`fillando-be/src/main.ts`). Without it the
+filename parse silently falls back to a generic name — the download still works, it is just named
+wrong, which makes this an easy regression to miss.

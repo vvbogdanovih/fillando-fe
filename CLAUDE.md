@@ -10,7 +10,7 @@ yarn build      # Build for production
 yarn start      # Start production server
 ```
 
-Use **Yarn** (not npm or bun). No test runner is configured yet.
+Use **Yarn** (not npm or bun). Tests run on **Vitest** (`yarn test` / `yarn test:watch`, config in `vitest.config.ts`); coverage is limited to pure utility modules so far.
 
 ## Architecture
 
@@ -69,13 +69,15 @@ Never `import { z } from 'zod'` — that pulls zod's namespace object, which no 
 
 **Routing constants:** All frontend routes are in `common/constants/ui-routes.constants.ts`. All API endpoint paths are in `common/constants/api-routes.constants.ts`. Always use these rather than hardcoding strings.
 
+**Products admin flow:** `/admin/products` lists products via `GET /products` and offers a wholesale price list export — `POST /products/price-list/pdf` (admin-only) returns a PDF **blob**, so `productsApi.downloadPriceList` uses bare `axios` rather than `httpService`. See [docs/http-service.md](./docs/http-service.md#blob--file-downloads).
+
 **Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`.
 
 **Styling:** Tailwind CSS 4 with `@theme` inline tokens in `globals.css` (no `tailwind.config.*`). The site renders in a **single light theme** (`:root` tokens; there is no `.dark` block and `<html>` carries no theme class). Custom design tokens include filament-type colors (PLA, PETG, ABS, TPU, Nylon), gradients (`--gradient-primary/accent/border`), glow shadows, and utilities like `gradient-text`, `card-hover`, `glow-primary`, `animate-float`, `gradient-border`.
 
 **Motion / smooth scroll:** `motion` (Framer, `motion/react`) + `lenis` power storefront animations. Reusable primitives live in `common/components/motion/` (`SmoothScrollProvider`, `ScrollReveal`, `StaggerGroup`/`StaggerItem`, `Parallax`, `MagneticButton`) — all `'use client'`. `SmoothScrollProvider` is mounted in `(root)/layout.tsx` only (admin/auth keep native scroll); under `prefers-reduced-motion` Lenis is skipped entirely. Radix dialogs/drawers pause Lenis via the `useLenisModalLock` hook (`common/hooks/`) plus `data-lenis-prevent` on their inner scroll containers. Guardrails: never parallax large rasters or the LCP hero; keep GPU-only transforms (translate/scale/opacity).
 
-> **Import `SmoothScrollProvider` by its deep path, never from `components/motion`.** The barrel re-exports the animated primitives, so importing the provider through it drags `motion/react` into the shared layout chunk on *every* storefront page (~50 KB gz on `/filament` and `/products`, which use no animation at all). For the same reason the provider reads `prefers-reduced-motion` via a local `useSyncExternalStore` rather than `useReducedMotion` from `motion/react`, and there is no `<MotionConfig>` wrapper — every consumer already calls `useReducedMotion()` and branches on it itself.
+> **Import `SmoothScrollProvider` by its deep path, never from `components/motion`.** The barrel re-exports the animated primitives, so importing the provider through it drags `motion/react` into the shared layout chunk on _every_ storefront page (~50 KB gz on `/filament` and `/products`, which use no animation at all). For the same reason the provider reads `prefers-reduced-motion` via a local `useSyncExternalStore` rather than `useReducedMotion` from `motion/react`, and there is no `<MotionConfig>` wrapper — every consumer already calls `useReducedMotion()` and branches on it itself.
 
 **Formatting:** Prettier with tabs (width 4), single quotes, no trailing commas, print width 100, Tailwind class sorting.
 
