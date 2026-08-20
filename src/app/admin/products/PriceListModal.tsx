@@ -17,12 +17,26 @@ import {
 } from '@/common/components/ui/dialog'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '@/common/components/ui/select'
 import type { Category } from '../categories/categories.schema'
 import { productsApi } from './products.api'
+import type { PageOrientation } from './products.schema'
 import { buildPriceListPayload } from './products.utils'
 
 const DEFAULT_TIER1 = '10'
 const DEFAULT_TIER2 = '15'
+const DEFAULT_ORIENTATION: PageOrientation = 'portrait'
+
+const ORIENTATION_LABELS: Record<PageOrientation, string> = {
+	portrait: 'Вертикальна (книжкова)',
+	landscape: 'Горизонтальна (альбомна)'
+}
 
 interface PriceListModalProps {
 	categories: Category[]
@@ -36,6 +50,7 @@ export const PriceListModal = ({ categories }: PriceListModalProps) => {
 	// NaN and the controlled value fights the user mid-typing.
 	const [tier1, setTier1] = useState(DEFAULT_TIER1)
 	const [tier2, setTier2] = useState(DEFAULT_TIER2)
+	const [orientation, setOrientation] = useState<PageOrientation>(DEFAULT_ORIENTATION)
 
 	// An empty selection means "all", so unchecking the last category collapses back to
 	// all rather than becoming an invalid empty filter.
@@ -65,7 +80,8 @@ export const PriceListModal = ({ categories }: PriceListModalProps) => {
 					allCategories,
 					inStockOnly,
 					tier1Percent: tier1,
-					tier2Percent: tier2
+					tier2Percent: tier2,
+					orientation
 				})
 			),
 		onSuccess: () => {
@@ -89,6 +105,7 @@ export const PriceListModal = ({ categories }: PriceListModalProps) => {
 			setInStockOnly(false)
 			setTier1(DEFAULT_TIER1)
 			setTier2(DEFAULT_TIER2)
+			setOrientation(DEFAULT_ORIENTATION)
 		}
 	}
 
@@ -181,6 +198,26 @@ export const PriceListModal = ({ categories }: PriceListModalProps) => {
 								onChange={e => setTier2(e.target.value)}
 							/>
 						</div>
+					</div>
+					<div className='space-y-2'>
+						<Label htmlFor='price-list-orientation'>Орієнтація сторінки</Label>
+						<Select
+							value={orientation}
+							onValueChange={value => setOrientation(value as PageOrientation)}
+						>
+							<SelectTrigger id='price-list-orientation' className='w-full'>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{(Object.keys(ORIENTATION_LABELS) as PageOrientation[]).map(
+									value => (
+										<SelectItem key={value} value={value}>
+											{ORIENTATION_LABELS[value]}
+										</SelectItem>
+									)
+								)}
+							</SelectContent>
+						</Select>
 					</div>
 					{percentsFilled && !percentsInRange && (
 						<p className='text-destructive text-sm'>Знижка має бути в межах 0–100%</p>

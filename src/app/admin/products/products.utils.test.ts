@@ -10,14 +10,20 @@ const baseState: PriceListFormState = {
 	allCategories: true,
 	inStockOnly: false,
 	tier1Percent: '10',
-	tier2Percent: '15'
+	tier2Percent: '15',
+	orientation: 'portrait'
 }
 
 describe('buildPriceListPayload', () => {
 	it('omits category_ids entirely when all categories are selected', () => {
 		const payload = buildPriceListPayload({ ...baseState, categoryIds: ['a', 'b'] })
 
-		expect(payload).toEqual({ in_stock_only: false, tier1_percent: 10, tier2_percent: 15 })
+		expect(payload).toEqual({
+			in_stock_only: false,
+			tier1_percent: 10,
+			tier2_percent: 15,
+			orientation: 'portrait'
+		})
 		expect('category_ids' in payload).toBe(false)
 	})
 
@@ -33,8 +39,15 @@ describe('buildPriceListPayload', () => {
 			in_stock_only: true,
 			tier1_percent: 10,
 			tier2_percent: 15,
+			orientation: 'portrait',
 			category_ids: ['cat-1', 'cat-2']
 		})
+	})
+
+	it('passes the chosen page orientation through', () => {
+		expect(buildPriceListPayload({ ...baseState, orientation: 'landscape' }).orientation).toBe(
+			'landscape'
+		)
 	})
 
 	it('converts the percent strings to numbers', () => {
