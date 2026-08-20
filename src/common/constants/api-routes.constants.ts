@@ -32,6 +32,7 @@ export const API_URLS = {
 		CATALOG: `/products/catalog`, // GET — paginated, filtered catalog for a category
 		SEARCH: `/products/search`, // GET ?q=&page=&limit= — full-text product search
 		PRICE_SHEET: `/products/price-sheet`, // GET ?q=&page=&limit= — public flat variant list (price sheet)
+		PRICE_LIST_PDF: `/products/price-list/pdf`, // POST — admin wholesale price list PDF (blob response)
 		BY_SLUG: (slug: string) => `/products/by-slug/${slug}`, // GET — variant detail + product + siblings
 		BY_ID: (id: string) => `/products/${id}`, // GET / PATCH / DELETE
 		VALIDATE: `/products/validate`, // POST — check slug + SKU uniqueness before create
