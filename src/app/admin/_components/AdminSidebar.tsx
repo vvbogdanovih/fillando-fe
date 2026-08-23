@@ -20,6 +20,7 @@ import {
 	Wallet,
 	Banknote,
 	Handshake,
+	Truck,
 	Menu,
 	X
 } from 'lucide-react'
@@ -39,7 +40,8 @@ const paymentDetailsItems = [
 	{ label: 'IBAN', href: UI_URLS.ADMIN.PAYMENT_DETAILS_IBAN, icon: Landmark },
 	{ label: 'LiqPay', href: UI_URLS.ADMIN.PAYMENT_DETAILS_LIQPAY, icon: Wallet },
 	{ label: 'MonoPay', href: UI_URLS.ADMIN.PAYMENT_DETAILS_MONOPAY, icon: Wallet },
-	{ label: 'Готівка', href: UI_URLS.ADMIN.PAYMENT_DETAILS_CASH, icon: Banknote }
+	{ label: 'Готівка', href: UI_URLS.ADMIN.PAYMENT_DETAILS_CASH, icon: Banknote },
+	{ label: 'Накладний платіж', href: UI_URLS.ADMIN.PAYMENT_DETAILS_COD, icon: Truck }
 ]
 
 const catalogueItems = [

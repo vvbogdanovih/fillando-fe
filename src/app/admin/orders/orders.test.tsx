@@ -3,7 +3,11 @@ import type { ImgHTMLAttributes } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { OrderItemsList } from './orders.components'
 import { type Order } from './orders.schema'
-import { buildOrderPatchPayload, mapOrderErrorMessage } from './orders.utils'
+import {
+	buildOrderPatchPayload,
+	isPaymentMethodAllowed,
+	mapOrderErrorMessage
+} from './orders.utils'
 
 vi.mock('next/image', () => ({
 	default: (props: ImgHTMLAttributes<HTMLImageElement>) => (
@@ -133,5 +137,21 @@ describe('orders UI critical flows', () => {
 	it('maps backend errors to user-friendly messages', () => {
 		expect(mapOrderErrorMessage('404 order not found')).toContain('(404)')
 		expect(mapOrderErrorMessage('400 validation failed')).toContain('(400)')
+	})
+})
+
+describe('isPaymentMethodAllowed', () => {
+	it('allows накладний платіж for Nova Post deliveries', () => {
+		expect(isPaymentMethodAllowed('COD', 'NOVA_POST')).toBe(true)
+		expect(isPaymentMethodAllowed('COD', 'COURIER')).toBe(true)
+	})
+
+	it('blocks накладний платіж for self-pickup', () => {
+		expect(isPaymentMethodAllowed('COD', 'PICKUP')).toBe(false)
+	})
+
+	it('leaves the other payment methods unrestricted', () => {
+		expect(isPaymentMethodAllowed('IBAN', 'PICKUP')).toBe(true)
+		expect(isPaymentMethodAllowed('LIQPAY', 'NOVA_POST')).toBe(true)
 	})
 })

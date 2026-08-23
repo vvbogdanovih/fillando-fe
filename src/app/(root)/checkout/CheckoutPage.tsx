@@ -30,6 +30,15 @@ import { Label } from '@/common/components/ui/label'
 import { Textarea } from '@/common/components/ui/textarea'
 import { Badge } from '@/common/components/ui/badge'
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle
+} from '@/common/components/ui/dialog'
+import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
+import {
 	buildCreateOrderPayload,
 	checkoutFormSchema,
 	type CheckoutFormValues
@@ -42,7 +51,13 @@ import {
 	initLiqpayCheckout,
 	validateCouponCode
 } from './checkout.api'
-import { DELIVERY_METHOD_LABELS, WAREHOUSE_TYPE_LABELS } from './checkout.constants'
+import {
+	COD_ALLOWED_DELIVERY,
+	COD_MODAL,
+	DELIVERY_METHOD_LABELS,
+	isPaymentMethodAllowed,
+	WAREHOUSE_TYPE_LABELS
+} from './checkout.constants'
 
 type DisplayLine = {
 	variant_id: string
@@ -133,6 +148,9 @@ export function CheckoutPage() {
 	const [warehouseSearchInput, setWarehouseSearchInput] = useState('')
 	const [debouncedWarehouseQuery, setDebouncedWarehouseQuery] = useState('')
 	const [debouncedCouponCode, setDebouncedCouponCode] = useState('')
+	const [codModalOpen, setCodModalOpen] = useState(false)
+	/** Payment method to restore if the customer declines the COD conditions. */
+	const codFallbackMethod = useRef<CheckoutFormValues['payment_method']>('IBAN')
 	const cityWrapRef = useRef<HTMLDivElement>(null)
 	const warehouseWrapRef = useRef<HTMLDivElement>(null)
 	const warehouseInputRef = useRef<HTMLInputElement>(null)
@@ -178,14 +196,35 @@ export function CheckoutPage() {
 		}
 	})
 
-	const { register, handleSubmit, watch, setValue, setError, clearErrors, trigger, formState } =
-		form
+	const {
+		register,
+		handleSubmit,
+		watch,
+		setValue,
+		getValues,
+		setError,
+		clearErrors,
+		trigger,
+		formState
+	} = form
 	const { errors, isSubmitting, isValid } = formState
 	const deliveryMethod = watch('delivery_method')
 	const paymentMethod = watch('payment_method')
+	const isCodAvailable = COD_ALLOWED_DELIVERY.includes(deliveryMethod)
+	const codField = register('payment_method')
 	const cityRef = watch('city_ref')
 	const warehouseType = watch('warehouse_type')
 	const couponCode = watch('coupon_code')
+
+	useLenisModalLock(codModalOpen)
+
+	/** Closing the dialog without agreeing undoes the COD selection. */
+	const declineCod = useCallback(() => {
+		setCodModalOpen(false)
+		if (getValues('payment_method') === 'COD') {
+			setValue('payment_method', codFallbackMethod.current, { shouldValidate: true })
+		}
+	}, [getValues, setValue])
 
 	useEffect(() => {
 		const t = setTimeout(() => {
@@ -198,7 +237,7 @@ export function CheckoutPage() {
 	useEffect(() => {
 		if (prevDelivery.current === deliveryMethod) return
 		prevDelivery.current = deliveryMethod
-		if (deliveryMethod !== 'PICKUP') {
+		if (!isPaymentMethodAllowed(getValues('payment_method'), deliveryMethod)) {
 			setValue('payment_method', 'IBAN', { shouldValidate: true })
 		}
 		if (deliveryMethod !== 'NOVA_POST') {
@@ -218,7 +257,7 @@ export function CheckoutPage() {
 			setValue('courier_building', '')
 			setValue('courier_apartment', '')
 		}
-	}, [deliveryMethod, setValue])
+	}, [deliveryMethod, getValues, setValue])
 
 	const prevWarehouseType = useRef(warehouseType)
 	useEffect(() => {
@@ -848,6 +887,54 @@ export function CheckoutPage() {
 							</div>
 						</label>
 
+						<label
+							className={cn(
+								'flex items-start gap-3 rounded-xl border p-4 transition-colors',
+								isCodAvailable
+									? cn(
+											'border-border hover:border-primary/40 cursor-pointer',
+											paymentMethod === 'COD' &&
+												'border-primary bg-primary/5 ring-primary/20 ring-2'
+										)
+									: 'border-border/50 text-muted-foreground cursor-not-allowed opacity-50'
+							)}
+						>
+							<input
+								type='radio'
+								className='mt-1'
+								value='COD'
+								disabled={!isCodAvailable}
+								{...codField}
+								onChange={event => {
+									// Remember what to fall back to before RHF stores COD,
+									// so declining the dialog restores the previous choice.
+									const previous = getValues('payment_method')
+									codFallbackMethod.current =
+										previous === 'COD' ? 'IBAN' : previous
+									void codField.onChange(event)
+									setCodModalOpen(true)
+								}}
+							/>
+							<Truck className='mt-0.5 h-5 w-5 shrink-0' />
+							<div className='min-w-0 flex-1'>
+								<div className='font-medium'>Накладний платіж</div>
+								<p className='mt-1 text-sm'>
+									{isCodAvailable ? (
+										<span className='text-muted-foreground'>
+											Оплата при отриманні у відділенні Нової Пошти. Потрібна
+											часткова передоплата — менеджер зв'яжеться з вами й
+											уточнить суму.
+										</span>
+									) : (
+										<span className='text-muted-foreground'>
+											Доступно тільки при доставці{' '}
+											<span className='font-medium'>Новою Поштою</span>
+										</span>
+									)}
+								</p>
+							</div>
+						</label>
+
 						{isLiqpayAvailable ? (
 							<label
 								className={cn(
@@ -1134,6 +1221,36 @@ export function CheckoutPage() {
 					Повернутися до каталогу
 				</Link>
 			</div>
+
+			<Dialog
+				open={codModalOpen}
+				onOpenChange={open => (open ? setCodModalOpen(true) : declineCod())}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>{COD_MODAL.title}</DialogTitle>
+						<DialogDescription>{COD_MODAL.description}</DialogDescription>
+					</DialogHeader>
+					<ul className='text-muted-foreground space-y-2 text-sm'>
+						{COD_MODAL.details.map(detail => (
+							<li key={detail} className='flex gap-2'>
+								<span aria-hidden className='text-primary'>
+									•
+								</span>
+								<span>{detail}</span>
+							</li>
+						))}
+					</ul>
+					<DialogFooter>
+						<Button type='button' variant='outline' onClick={declineCod}>
+							{COD_MODAL.cancel}
+						</Button>
+						<Button type='button' onClick={() => setCodModalOpen(false)}>
+							{COD_MODAL.confirm}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

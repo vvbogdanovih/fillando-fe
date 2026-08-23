@@ -1,4 +1,23 @@
-import type { Order, PatchOrderPayload } from './orders.schema'
+import type { DeliveryMethod, Order, PatchOrderPayload, PaymentMethod } from './orders.schema'
+
+/**
+ * Delivery methods each payment method is limited to. A method absent from this
+ * map is unrestricted — mirrors `ALLOWED_DELIVERY_BY_PAYMENT` on the backend,
+ * which is what actually rejects a broken pair with a 400. `CASH` is deliberately
+ * absent: the storefront limits it to self-pickup, but the backend does not, so
+ * the admin can still fix an existing order.
+ */
+const ALLOWED_DELIVERY_BY_PAYMENT: Partial<Record<PaymentMethod, DeliveryMethod[]>> = {
+	COD: ['NOVA_POST', 'COURIER']
+}
+
+export const isPaymentMethodAllowed = (
+	paymentMethod: PaymentMethod,
+	deliveryMethod: DeliveryMethod
+): boolean => {
+	const allowed = ALLOWED_DELIVERY_BY_PAYMENT[paymentMethod]
+	return !allowed || allowed.includes(deliveryMethod)
+}
 
 export const formatPrice = (value: number): string =>
 	new Intl.NumberFormat('uk-UA', {
