@@ -49,5 +49,6 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 	CARD: 'Картка',
 	LIQPAY: 'LiqPay',
 	MONOPAY: 'MonoPay',
-	IBAN: 'Переказ за IBAN'
+	IBAN: 'Переказ за IBAN',
+	COD: 'Накладний платіж'
 }

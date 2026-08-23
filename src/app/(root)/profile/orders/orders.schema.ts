@@ -14,7 +14,7 @@ export const orderStatusValues = [
 
 export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'VOIDED'] as const
 export const deliveryMethodValues = ['NOVA_POST', 'COURIER', 'PICKUP'] as const
-export const paymentMethodValues = ['CASH', 'CARD', 'LIQPAY', 'MONOPAY', 'IBAN'] as const
+export const paymentMethodValues = ['CASH', 'CARD', 'LIQPAY', 'MONOPAY', 'IBAN', 'COD'] as const
 
 const parseOptionalNumber = (value: unknown): number | undefined => {
 	if (value === null || value === undefined || value === '') return undefined
@@ -68,7 +68,9 @@ export const myOrderSchema = z
 		customer: customerSchema.default({ name: '', phone: '', email: '' }),
 		delivery_method: z.preprocess(value => toUpperValue(value), z.enum(deliveryMethodValues)),
 		delivery_address: deliveryAddressSchema,
-		payment_method: z.preprocess(value => toUpperValue(value), z.enum(paymentMethodValues)),
+		payment_method: z
+			.preprocess(value => toUpperValue(value), z.enum(paymentMethodValues))
+			.catch('CASH'),
 		payment_status: z.preprocess(value => toUpperValue(value), z.enum(paymentStatusValues)),
 		order_status: z.preprocess(value => toUpperValue(value), z.enum(orderStatusValues)),
 		comment: z.string().nullable().optional()

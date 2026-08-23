@@ -17,7 +17,7 @@ export const checkoutFormSchema = z
 		delivery_method: z.enum(['NOVA_POST', 'COURIER', 'PICKUP'], {
 			message: 'Оберіть спосіб доставки'
 		}),
-		payment_method: z.enum(['IBAN', 'CASH', 'LIQPAY'], {
+		payment_method: z.enum(['IBAN', 'CASH', 'LIQPAY', 'COD'], {
 			message: 'Оберіть спосіб оплати'
 		}),
 		comment: z.string().optional(),
@@ -83,6 +83,13 @@ export const checkoutFormSchema = z
 				message: 'Готівка доступна тільки при самовивозі'
 			})
 		}
+		if (data.payment_method === 'COD' && data.delivery_method === 'PICKUP') {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['payment_method'],
+				message: 'Накладний платіж доступний лише при доставці Новою Поштою'
+			})
+		}
 		if (data.delivery_method === 'COURIER') {
 			if (!data.courier_city_name?.trim()) {
 				ctx.addIssue({
@@ -113,7 +120,7 @@ export type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
 export type CreateOrderPayload = {
 	items: { variant_id: string; quantity: number }[]
 	customer: CheckoutFormValues['customer']
-	payment_method: 'IBAN' | 'CASH' | 'LIQPAY'
+	payment_method: 'IBAN' | 'CASH' | 'LIQPAY' | 'COD'
 	delivery_method: CheckoutFormValues['delivery_method']
 	delivery_address?: {
 		city_name: string
