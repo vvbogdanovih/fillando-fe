@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui
 import { formatOrderNumber } from '../checkout.schema'
 import { gtag } from '@/common/lib/gtag'
 import { GOOGLE_ADS_PURCHASE_CONVERSION } from '@/common/constants/analytics.constants'
+import { COD_MIN_PREPAYMENT_UAH } from '../checkout.constants'
 
 export function CheckoutSuccessContent() {
 	const searchParams = useSearchParams()
@@ -68,9 +69,11 @@ export function CheckoutSuccessContent() {
 					<p className='text-muted-foreground text-sm leading-relaxed'>
 						{paymentMethod === 'CASH'
 							? 'Оплата готівкою при отриманні. Деталі замовлення надіслані на вашу електронну пошту.'
-							: paymentMethod === 'LIQPAY'
-								? 'Оплату отримуємо через LiqPay. Щойно платіж підтвердиться, ми надішлемо підтвердження на вашу електронну пошту.'
-								: 'Реквізити для оплати будуть надіслані на вашу електронну пошту.'}
+							: paymentMethod === 'COD'
+								? `Відправка накладним платежем — з частковою передоплатою від ${COD_MIN_PREPAYMENT_UAH} ₴. Наш менеджер зв'яжеться з вами й уточнить суму. Деталі замовлення надіслані на вашу електронну пошту.`
+								: paymentMethod === 'LIQPAY'
+									? 'Оплату отримуємо через LiqPay. Щойно платіж підтвердиться, ми надішлемо підтвердження на вашу електронну пошту.'
+									: 'Реквізити для оплати будуть надіслані на вашу електронну пошту.'}
 					</p>
 					{hasTotal && (
 						<div className='rounded-lg border p-3 text-left'>

@@ -16,7 +16,7 @@ export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'VO
 
 export const deliveryMethodValues = ['NOVA_POST', 'COURIER', 'PICKUP'] as const
 
-export const paymentMethodValues = ['CASH', 'CARD', 'LIQPAY', 'MONOPAY', 'IBAN'] as const
+export const paymentMethodValues = ['CASH', 'CARD', 'LIQPAY', 'MONOPAY', 'IBAN', 'COD'] as const
 
 const parseOptionalNumber = (value: unknown): number | undefined => {
 	if (value === null || value === undefined || value === '') return undefined

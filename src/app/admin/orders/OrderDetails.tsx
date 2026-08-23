@@ -30,6 +30,7 @@ import {
 	buildOrderPatchPayload,
 	formatDate,
 	formatPrice,
+	isPaymentMethodAllowed,
 	mapOrderErrorMessage
 } from './orders.utils'
 import {
@@ -602,16 +603,23 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 									<DropdownMenuRadioGroup
 										value={editValues.delivery_method}
 										onValueChange={value =>
-											setEditValues(prev =>
-												prev
-													? {
-															...prev,
-															delivery_method:
-																value as DeliveryMethod,
-															delivery_address: {}
-														}
-													: prev
-											)
+											setEditValues(prev => {
+												if (!prev) return prev
+												const delivery_method = value as DeliveryMethod
+												return {
+													...prev,
+													delivery_method,
+													delivery_address: {},
+													payment_method:
+														prev.payment_method &&
+														!isPaymentMethodAllowed(
+															prev.payment_method,
+															delivery_method
+														)
+															? 'IBAN'
+															: prev.payment_method
+												}
+											})
 										}
 									>
 										{deliveryMethodValues.map(method => (
@@ -647,7 +655,17 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 										}
 									>
 										{paymentMethodValues.map(method => (
-											<DropdownMenuRadioItem key={method} value={method}>
+											<DropdownMenuRadioItem
+												key={method}
+												value={method}
+												disabled={
+													!!editValues.delivery_method &&
+													!isPaymentMethodAllowed(
+														method,
+														editValues.delivery_method
+													)
+												}
+											>
 												{PAYMENT_METHOD_LABELS[method]}
 											</DropdownMenuRadioItem>
 										))}

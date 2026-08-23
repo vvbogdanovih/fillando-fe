@@ -47,6 +47,7 @@ export const UI_URLS = {
 		PAYMENT_DETAILS_LIQPAY: '/admin/payment-details/liqpay',
 		PAYMENT_DETAILS_MONOPAY: '/admin/payment-details/monopay',
 		PAYMENT_DETAILS_CASH: '/admin/payment-details/cash',
+		PAYMENT_DETAILS_COD: '/admin/payment-details/cod',
 		WHOLESALE: '/admin/wholesale',
 		STYLE_GUIDE: '/admin/style-guide'
 	}
