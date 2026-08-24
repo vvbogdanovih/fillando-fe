@@ -23,7 +23,12 @@ import {
 	type ProductDetailData
 } from '@/app/(root)/[category]/catalog.api'
 import { JsonLd } from '@/common/components/JsonLd'
-import { SITE_NAME, SITE_URL } from '@/common/constants/seo.constants'
+import {
+	MERCHANT_RETURN_POLICY,
+	OFFER_SHIPPING_DETAILS,
+	SITE_NAME,
+	SITE_URL
+} from '@/common/constants/seo.constants'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 
 interface ProductPageProps {
@@ -146,7 +151,9 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 			price: variant.price,
 			priceCurrency: 'UAH',
 			availability:
-				availableStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
+				availableStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+			shippingDetails: OFFER_SHIPPING_DETAILS,
+			hasMerchantReturnPolicy: MERCHANT_RETURN_POLICY
 		}
 	}
 
