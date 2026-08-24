@@ -12,6 +12,9 @@ export const couponSchema = z
 		discount_percent: z.coerce.number().min(0).max(100),
 		valid_until: z.string(),
 		is_active: z.boolean(),
+		// old documents created before the reusable feature lack these fields (lean reads skip defaults)
+		is_reusable: z.boolean().optional().default(false),
+		used_count: z.coerce.number().min(0).optional().default(0),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
 	})
@@ -39,7 +42,8 @@ export const couponFormSchema = z.object({
 		.string()
 		.min(1, 'Дата завершення обовʼязкова')
 		.refine(value => !Number.isNaN(new Date(value).getTime()), validDateTimeMessage),
-	is_active: z.boolean()
+	is_active: z.boolean(),
+	is_reusable: z.boolean()
 })
 
 export type Coupon = z.infer<typeof couponSchema>
@@ -57,10 +61,12 @@ export type CreateCouponPayload = {
 	discount_percent: number
 	valid_until: string
 	is_active?: boolean
+	is_reusable?: boolean
 }
 
 export type UpdateCouponPayload = {
 	discount_percent?: number
 	valid_until?: string
 	is_active?: boolean
+	is_reusable?: boolean
 }

@@ -84,7 +84,8 @@ function CouponForm({
 		defaultValues: {
 			discount_percent: initial?.discount_percent ?? 10,
 			valid_until: initial ? toDateTimeLocal(initial.valid_until) : '',
-			is_active: initial?.is_active ?? true
+			is_active: initial?.is_active ?? true,
+			is_reusable: initial?.is_reusable ?? false
 		}
 	})
 
@@ -96,13 +97,15 @@ function CouponForm({
 		watch
 	} = form
 	const isActive = watch('is_active')
+	const isReusable = watch('is_reusable')
 
 	useEffect(() => {
 		if (!initial) return
 		form.reset({
 			discount_percent: initial.discount_percent,
 			valid_until: toDateTimeLocal(initial.valid_until),
-			is_active: initial.is_active
+			is_active: initial.is_active,
+			is_reusable: initial.is_reusable
 		})
 	}, [initial, form])
 
@@ -111,7 +114,8 @@ function CouponForm({
 			couponsApi.create({
 				discount_percent: values.discount_percent,
 				valid_until: toApiDate(values.valid_until),
-				is_active: values.is_active
+				is_active: values.is_active,
+				is_reusable: values.is_reusable
 			}),
 		onSuccess: async created => {
 			await queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
@@ -130,7 +134,8 @@ function CouponForm({
 			return couponsApi.update(initial.id, {
 				discount_percent: values.discount_percent,
 				valid_until: toApiDate(values.valid_until),
-				is_active: values.is_active
+				is_active: values.is_active,
+				is_reusable: values.is_reusable
 			})
 		},
 		onSuccess: async updated => {
@@ -222,6 +227,26 @@ function CouponForm({
 							}
 							disabled={pending}
 							aria-label='toggle coupon active'
+						/>
+					</div>
+
+					<div className='flex items-center justify-between rounded-lg border p-3'>
+						<div>
+							<p className='text-sm font-medium'>Багаторазовий купон</p>
+							<p className='text-muted-foreground text-xs'>
+								Не деактивується після замовлення — діє до дати завершення.
+							</p>
+						</div>
+						<Switch
+							checked={isReusable}
+							onCheckedChange={checked =>
+								setValue('is_reusable', checked, {
+									shouldDirty: true,
+									shouldValidate: true
+								})
+							}
+							disabled={pending}
+							aria-label='toggle coupon reusable'
 						/>
 					</div>
 
@@ -408,13 +433,14 @@ export function Coupons() {
 					) : (
 						<div className='space-y-4'>
 							<div className='overflow-x-auto'>
-								<table className='w-full min-w-[720px] text-sm'>
+								<table className='w-full min-w-[860px] text-sm'>
 									<thead>
 										<tr className='border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase'>
 											<th className='px-3 py-2'>Number</th>
 											<th className='px-3 py-2'>Code</th>
 											<th className='px-3 py-2'>Discount %</th>
 											<th className='px-3 py-2'>Valid until</th>
+											<th className='px-3 py-2'>Тип</th>
 											<th className='px-3 py-2'>Active</th>
 											<th className='px-3 py-2 text-right'>Дії</th>
 										</tr>
@@ -433,6 +459,19 @@ export function Coupons() {
 												</td>
 												<td className='px-3 py-2'>
 													{formatDateTime(coupon.valid_until)}
+												</td>
+												<td className='px-3 py-2'>
+													<Badge
+														variant={
+															coupon.is_reusable
+																? 'default'
+																: 'outline'
+														}
+													>
+														{coupon.is_reusable
+															? `Багаторазовий (${coupon.used_count})`
+															: 'Одноразовий'}
+													</Badge>
 												</td>
 												<td className='px-3 py-2'>
 													<div className='flex items-center gap-2'>
