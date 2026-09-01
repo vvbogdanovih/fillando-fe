@@ -52,7 +52,7 @@ src/
 
 **HTTP Service:** `httpService` is an Axios singleton. Every call accepts an optional Zod schema to validate the response. 401s trigger automatic token refresh with promise deduplication.
 
-**Auth Flow:** App boot → `checkAuth()` hits `/auth/me` → Zustand hydrates → `<FullScreenLoader>` unmounts → render. Login/register → Zod validates response → Zustand store updates → cookie-based session. `PrivateRoute` wraps protected pages and checks `useAuthStore`. See `docs/auth-flow.md` for the full breakdown.
+**Auth Flow:** App boot → children render immediately (no boot-time loader gate) → `Providers` rehydrates persisted stores, then `checkAuth()` hits `/auth/me` → Zustand updates (`isAuthChecked=true`) once the result is known. Login/register → Zod validates response → Zustand store updates → cookie-based session. `PrivateRoute` wraps protected pages and checks `useAuthStore`. See `docs/auth-flow.md` for the full breakdown.
 
 **Forms:** React Hook Form + `zodResolver`. Schemas live in feature-level `*.schema.ts` files and reuse primitives from `common/schemas/`.
 
