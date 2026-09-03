@@ -1,23 +1,27 @@
 const API = process.env.NEXT_PUBLIC_API_BASE_URL!
 
-export async function serverFetch<T>(path: string): Promise<T | null> {
-	try {
-		const res = await fetch(`${API}${path}`, { next: { revalidate: 3600 } })
-		if (!res.ok) return null
-		return res.json() as Promise<T>
-	} catch {
-		return null
-	}
+type ServerFetchInit = RequestInit & {
+	next?: { revalidate?: number | false; tags?: string[] }
 }
 
 /**
- * Like `serverFetch`, but distinguishes "genuinely absent" (null) from "upstream
- * failed" (throws). Routes rendered through the full route cache must use this:
- * `serverFetch` collapses an outage into `null`, which renders a 200 "not found"
- * page that ISR then caches for the whole revalidate window.
+ * Server-side fetch against the backend for RSC pages and metadata routes.
+ *
+ * Resolves to `null` **only** when upstream answers 404 — the resource is
+ * genuinely absent and the caller may `notFound()` / render an empty state.
+ * Anything else (429, 5xx, network error) throws, so the route's error boundary
+ * renders instead of a 200 "not found" page that ISR would then cache for the
+ * whole revalidate window. Don't catch-and-null the throw at a call site unless
+ * that page really should render (and be cached) without the data.
+ *
+ * Defaults to `next: { revalidate: 3600 }`; `init.next` is merged over that and
+ * the rest of `init` is passed through untouched.
  */
-export async function serverFetchOrThrow<T>(path: string): Promise<T | null> {
-	const res = await fetch(`${API}${path}`, { next: { revalidate: 3600 } })
+export async function serverFetch<T>(path: string, init?: ServerFetchInit): Promise<T | null> {
+	const res = await fetch(`${API}${path}`, {
+		...init,
+		next: { revalidate: 3600, ...init?.next }
+	})
 	if (res.status === 404) return null
 	if (!res.ok) throw new Error(`Upstream ${res.status} for ${path}`)
 	return res.json() as Promise<T>

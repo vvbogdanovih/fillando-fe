@@ -49,7 +49,8 @@ import {
 	fetchNovaPostCities,
 	fetchNovaPostWarehouses,
 	initLiqpayCheckout,
-	validateCouponCode
+	validateCouponCode,
+	type LiqpayCheckout
 } from './checkout.api'
 import {
 	COD_ALLOWED_DELIVERY,
@@ -58,6 +59,7 @@ import {
 	isPaymentMethodAllowed,
 	WAREHOUSE_TYPE_LABELS
 } from './checkout.constants'
+import { submitLiqpayForm } from './liqpay.utils'
 
 type DisplayLine = {
 	variant_id: string
@@ -71,24 +73,35 @@ type DisplayLine = {
 const DEBOUNCE_MS = 320
 const couponCodeRegex = /^[A-Z0-9]{10}$/
 
-/** Builds a transient hidden form and POSTs it to LiqPay, redirecting the browser. */
-function submitLiqpayForm(actionUrl: string, data: string, signature: string) {
-	const form = document.createElement('form')
-	form.method = 'POST'
-	form.action = actionUrl
-	form.acceptCharset = 'utf-8'
-	for (const [name, value] of [
-		['data', data],
-		['signature', signature]
-	]) {
-		const input = document.createElement('input')
-		input.type = 'hidden'
-		input.name = name
-		input.value = value
-		form.appendChild(input)
+type OrderError = Error & { status?: number }
+
+/** `httpService` surfaces backend errors as `Error { message, status }`; coupon failures at
+ *  order creation arrive as these two English strings from the backend's order.service. */
+function mapServerCouponError(message: string) {
+	switch (message) {
+		case 'Invalid coupon code':
+			return 'Купон не знайдено або він неактивний'
+		case 'Coupon is expired':
+			return 'Термін дії купона минув'
+		default:
+			return message
 	}
-	document.body.appendChild(form)
-	form.submit()
+}
+
+function humanizeOrderError(err: OrderError) {
+	if (err.status === 429) return 'Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.'
+	if (err.message && err.message !== 'Unknown error') return err.message
+	return 'Не вдалося оформити замовлення. Спробуйте ще раз.'
+}
+
+/** RHF's `shouldFocusError` only reaches registered native inputs; the Nova Post
+ *  city/warehouse fields are set via `setValue` and have no ref, so bring the first
+ *  invalid control into view ourselves. Deferred so the error state has been painted. */
+function scrollFirstInvalidIntoView() {
+	window.setTimeout(() => {
+		const el = document.querySelector<HTMLElement>('[aria-invalid="true"], [data-invalid]')
+		el?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+	}, 0)
 }
 
 function mapCouponReason(reason: 'NOT_FOUND' | 'INACTIVE' | 'EXPIRED') {
@@ -149,6 +162,11 @@ export function CheckoutPage() {
 	const [debouncedWarehouseQuery, setDebouncedWarehouseQuery] = useState('')
 	const [debouncedCouponCode, setDebouncedCouponCode] = useState('')
 	const [codModalOpen, setCodModalOpen] = useState(false)
+	/** Keeps the submit button busy between order creation and leaving the page. */
+	const [isRedirecting, setIsRedirecting] = useState(false)
+	/** Set once the order exists: clearing the cart afterwards must not bounce the
+	 *  customer to the catalog while we are redirecting to the success page / LiqPay. */
+	const orderPlacedRef = useRef(false)
 	/** Payment method to restore if the customer declines the COD conditions. */
 	const codFallbackMethod = useRef<CheckoutFormValues['payment_method']>('IBAN')
 	const cityWrapRef = useRef<HTMLDivElement>(null)
@@ -169,11 +187,29 @@ export function CheckoutPage() {
 		return () => clearTimeout(t)
 	}, [warehouseSearchInput])
 
+	// The cart store uses skipHydration and is rehydrated by <Providers> after mount. Child
+	// effects run first, so on a hard load guestItems is still [] here — without this gate a
+	// guest with a full cart was bounced to the catalogue. `persist` is optional on purpose:
+	// zustand skips the middleware on the server (no localStorage), so during SSR the API is
+	// undefined and we simply render the loading state.
+	const [cartHydrated, setCartHydrated] = useState(
+		() => useCartStore.persist?.hasHydrated() ?? false
+	)
 	useEffect(() => {
-		if (!isLoadingCart && displayItems.length === 0) {
+		const persistApi = useCartStore.persist
+		if (!persistApi || persistApi.hasHydrated()) {
+			setCartHydrated(true)
+			return
+		}
+		return persistApi.onFinishHydration(() => setCartHydrated(true))
+	}, [])
+
+	useEffect(() => {
+		if (!cartHydrated) return
+		if (!isLoadingCart && displayItems.length === 0 && !orderPlacedRef.current) {
 			router.replace(UI_URLS.CATALOG.FILAMENT)
 		}
-	}, [displayItems.length, isLoadingCart, router])
+	}, [cartHydrated, displayItems.length, isLoadingCart, router])
 
 	const form = useForm<CheckoutFormValues>({
 		resolver: zodResolver(checkoutFormSchema),
@@ -203,6 +239,7 @@ export function CheckoutPage() {
 		setValue,
 		getValues,
 		setError,
+		setFocus,
 		clearErrors,
 		trigger,
 		formState
@@ -373,15 +410,36 @@ export function CheckoutPage() {
 			return createOrder(body)
 		},
 		onSuccess: async (data, values) => {
-			await clearAfterOrder()
+			orderPlacedRef.current = true
+			setIsRedirecting(true)
 
 			// LiqPay: redirect the browser to the hosted checkout page. The order is
 			// already created as PENDING; the server callback flips it to PAID.
 			if (values.payment_method === 'LIQPAY') {
-				const checkout = await initLiqpayCheckout(data.order_number)
+				let checkout: LiqpayCheckout
+				try {
+					checkout = await initLiqpayCheckout(String(data.order_number))
+				} catch {
+					// The order exists but the payment page could not be opened. Send the
+					// customer to the success page, which can still start the payment.
+					toast.error(
+						'Замовлення створено, але не вдалося відкрити сторінку оплати. Ви можете оплатити його зі сторінки замовлення.'
+					)
+					await clearAfterOrder()
+					const params = new URLSearchParams({
+						order: String(data.order_number),
+						payment: 'LIQPAY'
+					})
+					if (data.payment_access_token) params.set('token', data.payment_access_token)
+					router.push(`${UI_URLS.CHECKOUT_SUCCESS}?${params.toString()}`)
+					return
+				}
+				await clearAfterOrder()
 				submitLiqpayForm(checkout.action_url, checkout.data, checkout.signature)
 				return
 			}
+
+			await clearAfterOrder()
 
 			const params = new URLSearchParams()
 			params.set('order', String(data.order_number))
@@ -399,17 +457,27 @@ export function CheckoutPage() {
 			}
 			router.push(`${UI_URLS.CHECKOUT_SUCCESS}?${params.toString()}`)
 		},
-		onError: (err: Error) => {
-			setError('coupon_code', {
-				type: 'server',
-				message: err.message || 'Не вдалося застосувати купон'
-			})
-			toast.error(err.message || 'Не вдалося оформити замовлення. Спробуйте ще раз.')
+		onError: (err: OrderError) => {
+			// Only coupon failures belong on the coupon field; stock/validation errors
+			// (e.g. "Only 3 units available for SKU …") must not be pinned to it.
+			const isCouponError = /coupon/i.test(err.message)
+			if (isCouponError) {
+				setError('coupon_code', {
+					type: 'server',
+					message: mapServerCouponError(err.message)
+				})
+				setFocus('coupon_code')
+			}
+			toast.error(isCouponError ? mapServerCouponError(err.message) : humanizeOrderError(err))
 		}
 	})
 
 	const onSubmit = (values: CheckoutFormValues) => {
 		orderMutation.mutate(values)
+	}
+
+	const onInvalid = () => {
+		scrollFirstInvalidIntoView()
 	}
 
 	useEffect(() => {
@@ -424,7 +492,9 @@ export function CheckoutPage() {
 		return () => document.removeEventListener('mousedown', onDocClick)
 	}, [])
 
-	if (isLoadingCart || displayItems.length === 0) {
+	// Once the order is placed the cart is emptied on purpose — keep the form mounted
+	// (in its busy state) instead of flashing the loader while we leave the page.
+	if (!orderPlacedRef.current && (isLoadingCart || displayItems.length === 0)) {
 		return (
 			<div className='text-muted-foreground flex min-h-[40vh] items-center justify-center text-sm'>
 				Завантаження…
@@ -432,7 +502,7 @@ export function CheckoutPage() {
 		)
 	}
 
-	const pending = isSubmitting || orderMutation.isPending
+	const pending = isSubmitting || orderMutation.isPending || isRedirecting
 	const normalizedCoupon = couponCode?.trim().toUpperCase() ?? ''
 	const hasCouponInput = normalizedCoupon.length > 0
 	const couponLooksValid = couponCodeRegex.test(normalizedCoupon)
@@ -461,7 +531,7 @@ export function CheckoutPage() {
 				</p>
 			</div>
 
-			<form onSubmit={handleSubmit(onSubmit)} className='space-y-8'>
+			<form onSubmit={handleSubmit(onSubmit, onInvalid)} className='space-y-8'>
 				{/* Контактні дані */}
 				<Card>
 					<CardHeader>
@@ -1015,6 +1085,7 @@ export function CheckoutPage() {
 								clearErrors('coupon_code')
 							}}
 							aria-invalid={!!errors.coupon_code}
+							aria-describedby={errors.coupon_code ? 'coupon_code-error' : undefined}
 						/>
 						<p className='text-muted-foreground text-xs'>
 							Дозволені символи: A-Z і 0-9, рівно 10 символів.
@@ -1052,7 +1123,9 @@ export function CheckoutPage() {
 								<p className='text-xs text-amber-600'>{couponValidationMessage}</p>
 							)}
 						{errors.coupon_code && (
-							<p className='text-destructive text-sm'>{errors.coupon_code.message}</p>
+							<p id='coupon_code-error' className='text-destructive text-sm'>
+								{errors.coupon_code.message}
+							</p>
 						)}
 					</CardContent>
 				</Card>

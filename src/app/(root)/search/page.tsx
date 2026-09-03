@@ -24,6 +24,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
 	let initialData: SearchResponse | null = null
 	if (q.length >= 2) {
 		const query = new URLSearchParams({ q, page, limit })
+		// serverFetch throws on non-404 upstream failures (→ error boundary); null means 404 only.
 		initialData = await serverFetch<SearchResponse>(`/products/search?${query.toString()}`)
 	}
 

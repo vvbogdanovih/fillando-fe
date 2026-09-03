@@ -5,8 +5,10 @@ import { API_URLS } from '@/common/constants'
 import type { CreateOrderPayload } from './checkout.schema'
 import {
 	createOrderResponseSchema,
+	orderPaymentStatusSchema,
 	validateCouponResponseSchema,
 	type CreateOrderResponse,
+	type OrderPaymentStatus,
 	type ValidateCouponResponse
 } from './checkout.api.schemas'
 
@@ -102,4 +104,20 @@ export async function validateCouponCode(code: string): Promise<ValidateCouponRe
 			skipErrorToast: true
 		}
 	)
+}
+
+/**
+ * Public: payment status of an order, authorised by the per-order access token that
+ * LiqPay's result_url carries back. Unknown order or wrong token → 404 (thrown as
+ * `Error { status: 404 }`), so callers decide how to render the miss.
+ */
+export async function fetchOrderPaymentStatus(
+	orderNumber: string,
+	token: string
+): Promise<OrderPaymentStatus> {
+	return httpService.get<OrderPaymentStatus, unknown>(API_URLS.ORDERS.LOOKUP(orderNumber), {
+		params: { token },
+		schema: orderPaymentStatusSchema,
+		skipErrorToast: true
+	})
 }

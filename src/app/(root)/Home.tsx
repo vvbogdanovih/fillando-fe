@@ -12,6 +12,7 @@ const FILAMENT_FALLBACK =
 	'https://fillando.s3.eu-north-1.amazonaws.com/categories/69b7c553ff27ba94157052db/bb2bfe7d-cd2d-45fd-8534-0cd888757962.png'
 
 export const Home = async () => {
+	// serverFetch throws on non-404 upstream failures (→ root error boundary); null means 404 only.
 	const categories = (await serverFetch<Category[]>('/categories')) ?? []
 	const featuredCategory = categories.find(c => c.slug === 'filament') ?? categories[0] ?? null
 	const heroImage = featuredCategory?.image ?? FILAMENT_FALLBACK

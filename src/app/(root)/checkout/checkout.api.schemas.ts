@@ -1,5 +1,6 @@
 import '@/common/lib/zod-locale'
 import * as z from 'zod'
+import { paymentMethodValues, paymentStatusValues } from '@/app/(root)/profile/orders/orders.schema'
 
 const validatedCouponSchema = z.object({
 	id: z.string(),
@@ -31,8 +32,19 @@ export const createOrderResponseSchema = z.object({
 			discount_amount: z.coerce.number()
 		})
 		.nullable()
-		.optional()
+		.optional(),
+	/** Present only for LIQPAY orders — authorises the public payment-status lookup. */
+	payment_access_token: z.string().optional()
+})
+
+/** `GET /orders/lookup/:orderNumber?token=` — public, token-scoped payment status. */
+export const orderPaymentStatusSchema = z.object({
+	order_number: z.string(),
+	payment_method: z.enum(paymentMethodValues),
+	payment_status: z.enum(paymentStatusValues),
+	total_price: z.number()
 })
 
 export type ValidateCouponResponse = z.infer<typeof validateCouponResponseSchema>
 export type CreateOrderResponse = z.infer<typeof createOrderResponseSchema>
+export type OrderPaymentStatus = z.infer<typeof orderPaymentStatusSchema>

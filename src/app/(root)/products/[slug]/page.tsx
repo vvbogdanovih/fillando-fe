@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ProductPage } from './ProductPage'
-import { serverFetchOrThrow } from '@/common/utils/server-fetch.utils'
+import { serverFetch } from '@/common/utils/server-fetch.utils'
 import { API_URLS } from '@/common/constants/api-routes.constants'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
@@ -20,7 +20,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
 	const { slug } = await params
-	const data = await serverFetchOrThrow<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
+	const data = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
 	// Streamed responses commit a 200 before notFound() can set the status, so keep
 	// soft-404s out of the index explicitly.
 	if (!data) return { title: 'Товар не знайдено', robots: { index: false, follow: false } }
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductDetailPage({ params }: PageProps) {
 	const { slug } = await params
-	const initialData = await serverFetchOrThrow<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
+	const initialData = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
 	if (!initialData) notFound()
 
 	return (
