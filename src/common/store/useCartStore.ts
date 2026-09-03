@@ -42,6 +42,8 @@ export interface GuestItem {
 interface CartStore {
 	items: CartItem[]
 	isLoading: boolean
+	/** True once the server cart has been read at least once (any cart response). */
+	hasFetched: boolean
 	guestItems: GuestItem[]
 	isOpen: boolean
 
@@ -64,7 +66,7 @@ const applyCartResponse = (response: CartResponse, set: (partial: Partial<CartSt
 	if (response.removed_items.length > 0) {
 		toast.error('Деякі товари видалено з кошика, бо їх більше немає в наявності.')
 	}
-	set({ items: response.items })
+	set({ items: response.items, hasFetched: true })
 }
 
 export const useCartStore = create<CartStore>()(
@@ -72,6 +74,7 @@ export const useCartStore = create<CartStore>()(
 		(set, get) => ({
 			items: [],
 			isLoading: false,
+			hasFetched: false,
 			guestItems: [],
 			isOpen: false,
 
@@ -88,7 +91,7 @@ export const useCartStore = create<CartStore>()(
 				} catch {
 					// Silent — user may not be authenticated or cart may be empty
 				} finally {
-					set({ isLoading: false })
+					set({ isLoading: false, hasFetched: true })
 				}
 			},
 

@@ -15,9 +15,10 @@ Files:
   `useSearchParams`)
 - `src/app/(root)/checkout/success/CheckoutSuccessContent.tsx` — success page state machine and
   the purchase conversion
-- `src/common/store/useCartStore.ts` — `clearAfterOrder`
+- `src/common/store/useCartStore.ts` — `clearAfterOrder`, `hasFetched` (§7)
 - `src/common/lib/gtag.ts`, `src/common/constants/analytics.constants.ts` — conversion plumbing
-- Tests: `checkout/CheckoutPage.test.tsx`, `checkout/success/CheckoutSuccessContent.test.tsx`
+- Tests: `checkout/CheckoutPage.test.tsx`, `checkout/success/CheckoutSuccessContent.test.tsx`;
+  browser: `e2e/` (Playwright against `e2e/mock-api.mjs`, see `e2e/README.md`)
 
 ---
 
@@ -45,6 +46,12 @@ interceptor in `http.service.ts` flattens `response.data.message` into `message`
 `'Unknown error'`) and copies the HTTP status onto `status`. `createOrder`, `initLiqpayCheckout` and
 `fetchOrderPaymentStatus` all pass `skipErrorToast: true`, so the checkout pages own every piece of
 error presentation (see [§6](#6-error-placement-on-the-checkout-form)).
+
+**Deploy order.** This frontend ships **after (or together with)** the backend branch
+`feature/order-payment-lookup` — `GET /orders/lookup`, `payment_access_token` in the `POST /orders`
+response, and the `token` in `result_url`. Against an older backend nothing breaks, but every LiqPay
+buyer lands on the neutral «Замовлення прийнято» card (no token → no lookup) and **no purchase
+conversion fires** for card payments until the backend is live.
 
 ---
 
@@ -156,8 +163,10 @@ Inputs from the URL: `order`, `payment`, `token` (LiqPay only), plus the offline
 (`total`, `subtotal`, `discountCode`, `discountPercent`, `discountAmount`).
 
 `canLookup = payment === 'LIQPAY' && order && token`. Only then does the page call
-`GET /orders/lookup/:order?token=` (React Query, key `['order-payment-status', order, token]`,
-`retry: 2`).
+`GET /orders/lookup/:order?token=` (React Query, key `['order-payment-status', order, token]`).
+Transient failures (network, 5xx) are retried twice with React Query's default back-off; a `404`
+(wrong token / unknown order) or `400` is definitive and is **not** retried —
+`retry: (count, err) => err.status !== 404 && err.status !== 400 && count < 2`.
 
 ```
 mount
@@ -168,7 +177,7 @@ mount
   │     "Замовлення прийнято — статус оплати ми перевіряємо". No lookup, no conversion, no retry.
   │
   └─ LIQPAY + order + token → [loading]  "Перевіряємо статус оплати…"  (spinner)
-        │  fetchOrderPaymentStatus; React Query retries twice before giving up
+        │  fetchOrderPaymentStatus; transient errors retried twice, 404/400 not at all
         ├─ error (404 wrong token / unknown order, network) → [neutral]  PAYMENT_NOT_CONFIRMED
         │     "Статус оплати ще не підтверджено — щойно банк підтвердить, надішлемо лист".
         ├─ payment_status 'PAID' ─────────────────────────→ [success]
@@ -244,27 +253,80 @@ city/warehouse fields are set through `setValue` and have no ref.
 
 ---
 
-## 7. The `orderPlacedRef` race guard
+## 7. Empty-cart redirect: the `cartReady` gate and the `orderPlacedRef` race guard
+
+The checkout page sends a visitor with an empty cart to the catalog — correct for someone who
+deep-links to `/checkout` with nothing in it. Two other situations produce **the same observable
+state** (`displayItems.length === 0`) and must not redirect: the cart has not been _loaded_ yet
+(hard load), and the cart was just _emptied by the order_ (success path).
 
 ```ts
 const orderPlacedRef = useRef(false)
 
+// The cart store uses skipHydration and is rehydrated by <Providers> after mount. Child
+// effects run first, so on a hard load guestItems is still [] here — without this gate a
+// guest with a full cart was bounced to the catalogue. `persist` is optional on purpose:
+// zustand skips the middleware on the server (no localStorage), so during SSR the API is
+// undefined and we simply render the loading state.
+const [cartHydrated, setCartHydrated] = useState(
+	() => useCartStore.persist?.hasHydrated() ?? false
+)
 useEffect(() => {
+	const persistApi = useCartStore.persist
+	if (!persistApi || persistApi.hasHydrated()) {
+		setCartHydrated(true)
+		return
+	}
+	return persistApi.onFinishHydration(() => setCartHydrated(true))
+}, [])
+
+// A logged-in user's cart lives on the server: after a hard load `items` is [] until
+// Providers finishes checkAuth() → fetchCart(), so wait for the first cart response too.
+const cartReady = cartHydrated && (!isAuth || hasFetchedCart)
+
+useEffect(() => {
+	if (!cartReady) return
 	if (!isLoadingCart && displayItems.length === 0 && !orderPlacedRef.current) {
 		router.replace(UI_URLS.CATALOG.FILAMENT)
 	}
-}, [displayItems.length, isLoadingCart, router])
+}, [cartReady, displayItems.length, isLoadingCart, router])
 
 // …
 
-if (!orderPlacedRef.current && (isLoadingCart || displayItems.length === 0)) {
+if (!orderPlacedRef.current && (!cartReady || isLoadingCart || displayItems.length === 0)) {
 	return <Loader />
 }
 ```
 
-The checkout page sends a visitor with an empty cart to the catalog — correct for someone who
-deep-links to `/checkout` with nothing in it. But clearing the cart after a successful order produces
-**the same observable state**: `displayItems.length` drops to `0`.
+### Cart not loaded yet: `cartReady`
+
+Until `cartReady` is true the page renders the loader — never the form, never the redirect. It is
+the conjunction of two facts that arrive at different times on a hard load:
+
+- **Guest — persist hydration.** `guestItems` live in `localStorage` (`fillando-cart`) and the store
+  uses `skipHydration: true`; `Providers` calls `useCartStore.persist.rehydrate()` in an effect.
+  React runs child effects before parent effects, so `CheckoutPage`'s effect ran first, saw
+  `guestItems = []` and bounced a guest with a full cart to `/filament` (the badge then showed the
+  items on the catalog page). `cartHydrated` starts from `persist.hasHydrated()` — already true on
+  a client-side navigation, so nothing flickers — and otherwise flips in `onFinishHydration`.
+- **Logged in — first server cart response.** The server cart is `items`, and it is `[]` until
+  `Providers` → `checkAuth()` → `fetchCart()` has answered; `isLoading` is still `false` in that gap
+  because nothing has started yet. `useCartStore.hasFetched` closes it: set to `true` in
+  `applyCartResponse` (any cart response) and in `fetchCart`'s `finally`. A failed fetch counts too
+  — otherwise a backend hiccup would pin the loader forever; instead the shopper is sent to the
+  catalog like anyone with an empty cart.
+
+Persist hydration is also awaited for a logged-in user (the store is one persist store), which is
+why `cartReady` is `cartHydrated && (!isAuth || hasFetchedCart)` and not an either/or.
+
+`CheckoutPage.test.tsx` («готовність кошика») covers the four combinations — guest before/after
+hydration with and without items, logged-in before/after the first cart response — and
+`e2e/checkout-errors.spec.ts` hard-loads `/checkout` with a seeded guest cart as the browser
+regression test.
+
+### Cart emptied by the order: `orderPlacedRef`
+
+Clearing the cart after a successful order also drops `displayItems.length` to `0`.
 
 Without the guard the effect races the success navigation. `await clearAfterOrder()` yields to the
 event loop; React commits the empty cart and runs the effect; `router.replace(catalog)` fires; only

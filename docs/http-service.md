@@ -183,8 +183,10 @@ If you find yourself adding a third, write down which of these two shapes it is.
 ### Second argument: `init`
 
 `serverFetch(path, init?)` merges `init` into the request, so callers can override
-`next.revalidate`, add `cache: 'no-store'`, set headers, or pass `next.tags`. The default
-`revalidate: 3600` applies when `init.next` is omitted.
+`next.revalidate`, set headers, or pass `next.tags`. The default `revalidate: 3600` applies
+when `init.next` is omitted. If you pass an explicit `cache` mode (e.g. `cache: 'no-store'`)
+the default revalidate is **not** added — Next treats `cache` + `revalidate` as a conflict and
+discards both with a warning.
 
 ### Sitemap: `revalidate: 0` inside `unstable_cache`, and `force-static`
 

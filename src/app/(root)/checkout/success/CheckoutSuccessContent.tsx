@@ -163,7 +163,11 @@ export function CheckoutSuccessContent() {
 		queryKey: ['order-payment-status', raw, token],
 		queryFn: () => fetchOrderPaymentStatus(raw ?? '', token ?? ''),
 		enabled: canLookup,
-		retry: 2,
+		// 404/400 are definitive (wrong token / bad order number) — only retry transient failures.
+		retry: (count, err) => {
+			const status = (err as { status?: number }).status
+			return status !== 404 && status !== 400 && count < 2
+		},
 		refetchInterval: query =>
 			query.state.data?.payment_status === 'PENDING' && !pollingExpired
 				? LIQPAY_POLL_INTERVAL_MS

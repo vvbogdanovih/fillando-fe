@@ -5,10 +5,13 @@
 //
 // Every request is logged to stdout and kept in memory; the specs read the log through
 // `GET /__e2e/requests` and reset it with `DELETE /__e2e/requests`.
+//
+// Env: MOCK_API_PORT (default 9001), MOCK_API_ALLOW_ORIGIN — the storefront origin allowed by
+// CORS (default http://localhost:9100, the port playwright.config.ts starts `next dev` on).
 import http from 'node:http'
 
 const PORT = Number(process.env.MOCK_API_PORT ?? 9001)
-const STOREFRONT_ORIGIN = process.env.MOCK_API_ALLOW_ORIGIN ?? 'http://localhost:9000'
+const STOREFRONT_ORIGIN = process.env.MOCK_API_ALLOW_ORIGIN ?? 'http://localhost:9100'
 
 const ORDER_NUMBER = 'FO-0000123'
 const ORDER_TOTAL = 700
@@ -19,6 +22,13 @@ const LIQPAY_SINK = `http://localhost:${PORT}/liqpay-sink`
 
 /** @type {{ method: string, path: string, query: Record<string, string>, body: unknown, status: number }[]} */
 const requestLog = []
+
+/**
+ * Token the page last looked each order up with. `POST /liqpay/checkout` only receives the
+ * order number, so this is how the mock knows which scenario a retry belongs to.
+ * @type {Map<string, string>}
+ */
+const lastLookupToken = new Map()
 
 const json = (status, body) => ({ status, body, contentType: 'application/json; charset=utf-8' })
 const html = (status, body) => ({ status, body, contentType: 'text/html; charset=utf-8' })
@@ -33,12 +43,18 @@ function paymentStatusForToken(token) {
 			return 'PAID'
 		case 'f':
 			return 'FAILED'
+		// Reads as FAILED so the retry button renders — but the retry itself is refused with
+		// 400 "Order is already paid" (the order got PAID meanwhile: another tab, late callback).
+		case 'p':
+			return 'FAILED'
 		case 'e':
 			return 'PENDING'
 		default:
 			return null
 	}
 }
+
+const isAlreadyPaidScenario = orderNumber => lastLookupToken.get(orderNumber)?.at(-1) === 'p'
 
 function createOrder(body) {
 	if (body?.comment === 'FAIL_STOCK') {
@@ -47,6 +63,8 @@ function createOrder(body) {
 	if (body?.coupon_code === 'BADCOUPON1') {
 		return json(400, { message: 'Invalid coupon code' })
 	}
+	// A fresh order has not been looked up yet.
+	lastLookupToken.delete(ORDER_NUMBER)
 	return json(201, {
 		order_number: ORDER_NUMBER,
 		subtotal_price: ORDER_TOTAL,
@@ -60,6 +78,7 @@ function createOrder(body) {
 function lookupOrder(orderNumber, token) {
 	const paymentStatus = paymentStatusForToken(token)
 	if (!paymentStatus) return json(404, { message: 'Order not found' })
+	lastLookupToken.set(orderNumber, token)
 	return json(200, {
 		order_number: orderNumber,
 		payment_method: 'LIQPAY',
@@ -75,6 +94,7 @@ function handle(method, url, body) {
 	if (path === '/__e2e/requests' && method === 'GET') return json(200, requestLog)
 	if (path === '/__e2e/requests' && method === 'DELETE') {
 		requestLog.length = 0
+		lastLookupToken.clear()
 		return { status: 204 }
 	}
 
@@ -102,8 +122,11 @@ function handle(method, url, body) {
 	}
 	if (method === 'POST' && path === '/orders') return createOrder(body)
 
-	// LiqPay
+	// LiqPay. Real backend: 400 once the order is PAID.
 	if (method === 'POST' && path === '/liqpay/checkout') {
+		if (isAlreadyPaidScenario(body?.order_number)) {
+			return json(400, { message: 'Order is already paid' })
+		}
 		return json(200, { data: 'ZmFrZQ==', signature: 'sig', action_url: LIQPAY_SINK })
 	}
 	if (path === '/liqpay-sink') {

@@ -1,23 +1,52 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ImgHTMLAttributes } from 'react'
 import toast from 'react-hot-toast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useCartStore } from '@/common/store/useCartStore'
+import { UI_URLS } from '@/common/constants'
+import { useCartStore, type CartItem } from '@/common/store/useCartStore'
 import { CheckoutPage } from './CheckoutPage'
 import { createOrder, fetchActivePaymentProvider, initLiqpayCheckout } from './checkout.api'
 import { submitLiqpayForm } from './liqpay.utils'
 
 // `vi.mock` factories are hoisted above imports, so anything they close over must be hoisted too.
-const { routerPush, routerReplace, GUEST_ITEM } = vi.hoisted(() => ({
-	routerPush: vi.fn(),
-	routerReplace: vi.fn(),
-	GUEST_ITEM: {
-		variant_id: 'variant-1',
-		quantity: 1,
-		_meta: { name: 'PLA 1.75 чорний', price: 700, thumbnail: null, slug: 'pla-175-black' }
+const { routerPush, routerReplace, GUEST_ITEM, authState, cartPersist } = vi.hoisted(() => {
+	// Stand-in for the zustand `persist` API of the cart store. Tests flip `hydrated` and fire
+	// the finish-hydration listeners the way `useCartStore.persist.rehydrate()` does in Providers.
+	let hydrated = true
+	const listeners = new Set<() => void>()
+	return {
+		routerPush: vi.fn(),
+		routerReplace: vi.fn(),
+		GUEST_ITEM: {
+			variant_id: 'variant-1',
+			quantity: 1,
+			_meta: { name: 'PLA 1.75 чорний', price: 700, thumbnail: null, slug: 'pla-175-black' }
+		},
+		authState: { user: null as null | Record<string, unknown> },
+		cartPersist: {
+			hasHydrated: () => hydrated,
+			onFinishHydration: (cb: () => void) => {
+				listeners.add(cb)
+				return () => {
+					listeners.delete(cb)
+				}
+			},
+			setHydrated: (value: boolean) => {
+				hydrated = value
+			},
+			/** What `rehydrate()` does last: mark the store hydrated, then notify subscribers. */
+			finishHydration: () => {
+				hydrated = true
+				listeners.forEach(cb => cb())
+			},
+			reset: () => {
+				hydrated = true
+				listeners.clear()
+			}
+		}
 	}
-}))
+})
 
 vi.mock('next/image', () => ({
 	default: (props: ImgHTMLAttributes<HTMLImageElement>) => (
@@ -34,7 +63,7 @@ vi.mock('react-hot-toast', () => ({
 }))
 
 vi.mock('@/common/store/useAuthStore', () => ({
-	useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: null })
+	useAuthStore: (selector: (state: typeof authState) => unknown) => selector(authState)
 }))
 
 // A real in-memory zustand store rather than a static selector stub: `clearAfterOrder`
@@ -43,9 +72,10 @@ vi.mock('@/common/store/useAuthStore', () => ({
 vi.mock('@/common/store/useCartStore', async () => {
 	const { create } = await import('zustand')
 	const useCartStore = create<{
-		items: never[]
+		items: CartItem[]
 		guestItems: (typeof GUEST_ITEM)[]
 		isLoading: boolean
+		hasFetched: boolean
 		clearAfterOrder: () => Promise<void>
 		updateQuantity: () => Promise<void>
 		setGuestItemQuantity: () => void
@@ -53,13 +83,18 @@ vi.mock('@/common/store/useCartStore', async () => {
 		items: [],
 		guestItems: [GUEST_ITEM],
 		isLoading: false,
+		hasFetched: false,
 		clearAfterOrder: vi.fn(async () => set({ guestItems: [] })),
 		updateQuantity: vi.fn(async () => {}),
 		setGuestItemQuantity: vi.fn()
 	}))
-	// The real store is a persist store; CheckoutPage gates its empty-cart redirect on hydration.
+	// The real store is a persist store; CheckoutPage gates its empty-cart redirect on hydration
+	// (and, for a logged-in user, on the first server cart response — `hasFetched`).
 	Object.assign(useCartStore, {
-		persist: { hasHydrated: () => true, onFinishHydration: () => () => {} }
+		persist: {
+			hasHydrated: cartPersist.hasHydrated,
+			onFinishHydration: cartPersist.onFinishHydration
+		}
 	})
 	return { useCartStore }
 })
@@ -118,7 +153,14 @@ beforeEach(() => {
 	// `resetAllMocks` also restores the implementations passed to `vi.fn(impl)` above,
 	// so a per-test `mockResolvedValue` never leaks into the next test.
 	vi.resetAllMocks()
-	useCartStore.setState({ guestItems: [GUEST_ITEM] })
+	authState.user = null
+	cartPersist.reset()
+	useCartStore.setState({
+		items: [],
+		guestItems: [GUEST_ITEM],
+		isLoading: false,
+		hasFetched: false
+	})
 })
 
 // vitest runs without `globals`, so RTL's automatic cleanup is not registered.
@@ -294,7 +336,7 @@ describe('CheckoutPage — оформлення замовлення', () => {
 		const fieldError = await screen.findByText('Купон не знайдено або він неактивний')
 		expect(fieldError).toHaveAttribute('id', 'coupon_code-error')
 
-		const couponInput = screen.getByLabelText('Coupon code')
+		const couponInput = screen.getByLabelText('Промокод')
 		expect(couponInput).toHaveAttribute('aria-invalid', 'true')
 		expect(couponInput).toHaveAttribute('aria-describedby', 'coupon_code-error')
 		expect(couponInput).toHaveFocus()
@@ -317,7 +359,7 @@ describe('CheckoutPage — оформлення замовлення', () => {
 
 		expect(document.getElementById('coupon_code-error')).toBeNull()
 		expect(screen.queryByText('Only 3 units available for SKU X')).not.toBeInTheDocument()
-		expect(screen.getByLabelText('Coupon code')).not.toHaveAttribute('aria-invalid', 'true')
+		expect(screen.getByLabelText('Промокод')).not.toHaveAttribute('aria-invalid', 'true')
 		expect(clearAfterOrderMock()).not.toHaveBeenCalled()
 		// The form is usable again for another attempt.
 		expect(submitButton()).toBeEnabled()
@@ -338,5 +380,102 @@ describe('CheckoutPage — оформлення замовлення', () => {
 			)
 		)
 		expect(document.getElementById('coupon_code-error')).toBeNull()
+	})
+})
+
+describe('CheckoutPage — готовність кошика (cartReady)', () => {
+	const USER = {
+		id: 'u1',
+		role: 'USER',
+		email: 'user@example.com',
+		name: 'Юзер Тестовий',
+		picture: null,
+		phone: null
+	}
+	const SERVER_ITEM: CartItem = {
+		variant_id: 'variant-2',
+		quantity: 2,
+		added_at: '2026-09-01T00:00:00.000Z',
+		variant: {
+			name: 'PETG 1.75 білий',
+			slug: 'petg-175-white',
+			price: 650,
+			stock: 10,
+			thumbnail: null,
+			v_value: null
+		}
+	}
+
+	const loader = () => screen.queryByText('Завантаження…')
+	const heading = () => screen.queryByRole('heading', { name: 'Оформлення замовлення' })
+
+	it('guest: shows the loader and does not redirect before the persisted cart is hydrated', () => {
+		cartPersist.setHydrated(false)
+		useCartStore.setState({ guestItems: [] })
+
+		renderCheckout()
+
+		expect(loader()).toBeInTheDocument()
+		expect(heading()).not.toBeInTheDocument()
+		expect(routerReplace).not.toHaveBeenCalled()
+
+		// Providers' rehydrate(): the persisted items land, then the finish-hydration listeners fire.
+		act(() => {
+			useCartStore.setState({ guestItems: [GUEST_ITEM] })
+			cartPersist.finishHydration()
+		})
+
+		expect(heading()).toBeInTheDocument()
+		expect(screen.getByText(GUEST_ITEM._meta.name)).toBeInTheDocument()
+		expect(loader()).not.toBeInTheDocument()
+		expect(routerReplace).not.toHaveBeenCalled()
+	})
+
+	it('guest: redirects to the catalogue only once hydration confirms the cart is empty', () => {
+		cartPersist.setHydrated(false)
+		useCartStore.setState({ guestItems: [] })
+
+		renderCheckout()
+
+		expect(loader()).toBeInTheDocument()
+		expect(routerReplace).not.toHaveBeenCalled()
+
+		act(() => {
+			cartPersist.finishHydration()
+		})
+
+		expect(routerReplace).toHaveBeenCalledTimes(1)
+		expect(routerReplace).toHaveBeenCalledWith(UI_URLS.CATALOG.FILAMENT)
+		expect(loader()).toBeInTheDocument()
+	})
+
+	it('logged in: waits for the first server cart response before treating the cart as empty', () => {
+		authState.user = USER
+		useCartStore.setState({ items: [], isLoading: false, hasFetched: false })
+
+		renderCheckout()
+
+		// Hydrated, but `items` is [] only because fetchCart() has not answered yet.
+		expect(loader()).toBeInTheDocument()
+		expect(routerReplace).not.toHaveBeenCalled()
+
+		act(() => {
+			useCartStore.setState({ hasFetched: true })
+		})
+
+		expect(routerReplace).toHaveBeenCalledTimes(1)
+		expect(routerReplace).toHaveBeenCalledWith(UI_URLS.CATALOG.FILAMENT)
+	})
+
+	it('logged in: renders the form once the server cart has been fetched with items', () => {
+		authState.user = USER
+		useCartStore.setState({ items: [SERVER_ITEM], hasFetched: true })
+
+		renderCheckout()
+
+		expect(heading()).toBeInTheDocument()
+		expect(screen.getByText(SERVER_ITEM.variant.name)).toBeInTheDocument()
+		expect(loader()).not.toBeInTheDocument()
+		expect(routerReplace).not.toHaveBeenCalled()
 	})
 })

@@ -1,12 +1,15 @@
 import { expect, test } from '@playwright/test'
 import {
+	checkoutForm,
 	couponError,
 	couponInput,
 	fillPickupContact,
 	GUEST_ITEM,
 	openCheckout,
+	resetMockRequests,
 	seedStorage,
-	submitButton
+	submitButton,
+	waitForBoot
 } from './helpers'
 
 test.describe('/checkout — server-side order errors', () => {
@@ -60,19 +63,27 @@ test.describe('/checkout — server-side order errors', () => {
 	})
 })
 
-// Known storefront issue, documented rather than worked around: a HARD load of /checkout with
-// a guest cart bounces to /filament. CheckoutPage's empty-cart effect runs before Providers'
-// `useCartStore.persist.rehydrate()` (React runs child effects first), so it sees
-// `guestItems = []` on the first commit and calls `router.replace('/filament')`; the cart badge
-// then shows the items on the catalog page. Flip to `test(...)` once the redirect is gated on
-// store hydration.
+// Regression test for the `cartHydrated` / `cartReady` gate in CheckoutPage. On a HARD load
+// the empty-cart effect used to run before Providers called `useCartStore.persist.rehydrate()`
+// (React runs child effects first), saw `guestItems = []` and bounced the shopper to /filament
+// with a full cart. The redirect now waits until the persisted cart is hydrated (and, for a
+// logged-in user, until the first server cart response), so the seeded cart must stay put.
 test('hard load of /checkout keeps the seeded guest cart on the page', async ({
 	context,
-	page
+	page,
+	request
 }) => {
+	await resetMockRequests(request)
 	await seedStorage(context, { cart: [GUEST_ITEM], consent: 'denied' })
 	await page.goto('/checkout')
-	await expect(page.getByText(GUEST_ITEM._meta.name)).toBeVisible()
-	await page.waitForTimeout(3_000)
+
+	// The form only renders once `cartReady` is true — the loader shows until then.
+	await expect(page.getByRole('heading', { name: 'Оформлення замовлення' })).toBeVisible()
+	await expect(checkoutForm(page).getByText(GUEST_ITEM._meta.name)).toBeVisible()
+
+	// Boot has settled once checkAuth() finished its 401 → refresh → logout chain; a redirect,
+	// had one been scheduled, would have fired by then.
+	await waitForBoot(request)
 	await expect(page).toHaveURL(/\/checkout$/)
+	await expect(submitButton(page)).toBeVisible()
 })

@@ -1,6 +1,7 @@
 import { expect, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test'
 
-export const STOREFRONT_ORIGIN = 'http://localhost:9000'
+// Keep in sync with STOREFRONT_PORT / MOCK_API_PORT in playwright.config.ts.
+export const STOREFRONT_ORIGIN = 'http://localhost:9100'
 export const MOCK_API = 'http://localhost:9001'
 export const LIQPAY_SINK_URL = `${MOCK_API}/liqpay-sink`
 export const ORDER_NUMBER = 'FO-0000123'
@@ -10,6 +11,8 @@ const TOKEN_PREFIX = '0123456789abcdef0123456789abcde'
 export const TOKENS = {
 	paid: `${TOKEN_PREFIX}a`,
 	failed: `${TOKEN_PREFIX}f`,
+	/** Lookup says FAILED, but `POST /liqpay/checkout` answers 400 "Order is already paid". */
+	alreadyPaid: `${TOKEN_PREFIX}p`,
 	pending: `${TOKEN_PREFIX}e`,
 	unknown: `${TOKEN_PREFIX}0`
 } as const
@@ -79,11 +82,33 @@ export async function resetMockRequests(request: APIRequestContext) {
 	await request.delete(`${MOCK_API}/__e2e/requests`)
 }
 
+export const lookupRequests = (log: MockRequest[]) =>
+	log.filter(r => r.method === 'GET' && r.path.startsWith('/orders/lookup/'))
+
+/**
+ * The storefront has booted once `Providers` ran `checkAuth()`: GET /auth/me → 401 →
+ * interceptor refresh → 401 → logout. Waiting for the tail of that chain replaces a fixed
+ * sleep wherever a spec needs "the app is hydrated and its first effects have run".
+ */
+export async function waitForBoot(request: APIRequestContext) {
+	await expect
+		.poll(async () => (await mockRequests(request)).some(r => r.path === '/auth/logout'))
+		.toBe(true)
+}
+
+/** Waits until the mock has answered at least `count` order lookups (the page polls on PENDING). */
+export async function waitForLookups(request: APIRequestContext, count: number) {
+	await expect
+		.poll(async () => lookupRequests(await mockRequests(request)).length)
+		.toBeGreaterThanOrEqual(count)
+}
+
 /**
  * Reaches /checkout the way a shopper does: land on a page, open the cart drawer, click
- * «Оформити замовлення». A hard load of /checkout is NOT used on purpose — with a guest cart
- * it bounces to /filament, because CheckoutPage's empty-cart effect runs before Providers
- * rehydrates the persisted stores (child effects run first). See README + the fixme spec.
+ * «Оформити замовлення». A hard load of /checkout works too — CheckoutPage waits for
+ * `cartReady` (persist hydration; for a logged-in user also the first server cart response)
+ * before it may redirect an empty cart — and `checkout-errors.spec.ts` keeps a regression
+ * test for that. The drawer route stays the default because it is the real path.
  */
 export async function openCheckout(page: Page) {
 	await page.goto('/contacts')
@@ -91,8 +116,13 @@ export async function openCheckout(page: Page) {
 	await page.getByRole('link', { name: 'Оформити замовлення' }).click()
 	await expect(page).toHaveURL(/\/checkout$/)
 	await expect(page.getByRole('heading', { name: 'Оформлення замовлення' })).toBeVisible()
-	await expect(page.getByText(GUEST_ITEM._meta.name)).toBeVisible()
+	// The drawer lists the same item while it animates out — assert on the form's copy.
+	await expect(page.getByRole('dialog')).toBeHidden()
+	await expect(checkoutForm(page).getByText(GUEST_ITEM._meta.name)).toBeVisible()
 }
+
+/** The checkout page renders a single <form>; the cart drawer has none. */
+export const checkoutForm = (page: Page) => page.locator('form')
 
 /** Minimal valid order: contact details + self-pickup (no Nova Post pickers involved). */
 export async function fillPickupContact(page: Page) {
@@ -105,5 +135,5 @@ export async function fillPickupContact(page: Page) {
 export const submitButton = (page: Page) =>
 	page.getByRole('button', { name: 'Замовити', exact: true })
 
-export const couponInput = (page: Page) => page.getByLabel('Coupon code')
+export const couponInput = (page: Page) => page.getByLabel('Промокод')
 export const couponError = (page: Page) => page.locator('#coupon_code-error')

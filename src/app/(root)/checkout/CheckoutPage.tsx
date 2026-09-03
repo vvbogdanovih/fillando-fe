@@ -124,6 +124,7 @@ export function CheckoutPage() {
 	const items = useCartStore(s => s.items)
 	const guestItems = useCartStore(s => s.guestItems)
 	const isLoadingCart = useCartStore(s => s.isLoading)
+	const hasFetchedCart = useCartStore(s => s.hasFetched)
 	const clearAfterOrder = useCartStore(s => s.clearAfterOrder)
 	const updateQuantity = useCartStore(s => s.updateQuantity)
 	const setGuestItemQuantity = useCartStore(s => s.setGuestItemQuantity)
@@ -204,12 +205,16 @@ export function CheckoutPage() {
 		return persistApi.onFinishHydration(() => setCartHydrated(true))
 	}, [])
 
+	// A logged-in user's cart lives on the server: after a hard load `items` is [] until
+	// Providers finishes checkAuth() → fetchCart(), so wait for the first cart response too.
+	const cartReady = cartHydrated && (!isAuth || hasFetchedCart)
+
 	useEffect(() => {
-		if (!cartHydrated) return
+		if (!cartReady) return
 		if (!isLoadingCart && displayItems.length === 0 && !orderPlacedRef.current) {
 			router.replace(UI_URLS.CATALOG.FILAMENT)
 		}
-	}, [cartHydrated, displayItems.length, isLoadingCart, router])
+	}, [cartReady, displayItems.length, isLoadingCart, router])
 
 	const form = useForm<CheckoutFormValues>({
 		resolver: zodResolver(checkoutFormSchema),
@@ -494,7 +499,7 @@ export function CheckoutPage() {
 
 	// Once the order is placed the cart is emptied on purpose — keep the form mounted
 	// (in its busy state) instead of flashing the loader while we leave the page.
-	if (!orderPlacedRef.current && (isLoadingCart || displayItems.length === 0)) {
+	if (!orderPlacedRef.current && (!cartReady || isLoadingCart || displayItems.length === 0)) {
 		return (
 			<div className='text-muted-foreground flex min-h-[40vh] items-center justify-center text-sm'>
 				Завантаження…
@@ -1066,7 +1071,7 @@ export function CheckoutPage() {
 						<CardTitle className='text-lg'>Купон на знижку</CardTitle>
 					</CardHeader>
 					<CardContent className='space-y-2'>
-						<Label htmlFor='coupon_code'>Coupon code</Label>
+						<Label htmlFor='coupon_code'>Промокод</Label>
 						<Input
 							id='coupon_code'
 							placeholder='Наприклад: ZY64GM08WT'

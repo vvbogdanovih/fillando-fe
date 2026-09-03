@@ -18,9 +18,11 @@ type ServerFetchInit = RequestInit & {
  * the rest of `init` is passed through untouched.
  */
 export async function serverFetch<T>(path: string, init?: ServerFetchInit): Promise<T | null> {
+	// An explicit `cache` mode (e.g. 'no-store') conflicts with `next.revalidate` — Next drops
+	// both with a warning — so the default revalidate is only applied when no mode is given.
 	const res = await fetch(`${API}${path}`, {
 		...init,
-		next: { revalidate: 3600, ...init?.next }
+		next: init?.cache ? init.next : { revalidate: 3600, ...init?.next }
 	})
 	if (res.status === 404) return null
 	if (!res.ok) throw new Error(`Upstream ${res.status} for ${path}`)
