@@ -72,6 +72,22 @@ Never `import { z } from 'zod'` — that pulls zod's namespace object, which no 
 
 **Products admin flow:** `/admin/products` lists products via `GET /products` and offers a wholesale price list export — `POST /products/price-list/pdf` (admin-only) returns a PDF **blob**, so `productsApi.downloadPriceList` uses bare `axios` rather than `httpService`. See [docs/http-service.md](./docs/http-service.md#blob--file-downloads).
 
+**Attribute keys:** `toAttrKey(label)` (`common/utils/slug.utils.ts`) turns an attribute label into its key. It is a mirror of `generateAttrKey` in `fillando-be` — it first looks the label up in `ATTR_KEY_OVERRIDES` (normalized: NFC, trimmed, whitespace collapsed, lower-cased) and transliterates only on a miss:
+
+| Label               | Key              |
+| ------------------- | ---------------- |
+| Тип пластику        | `polymer`        |
+| Ефект поверхні      | `finish`         |
+| Армування           | `reinforcement`  |
+| Серія               | `series`         |
+| Котушка в комплекті | `spool_included` |
+
+These five are the catalogue filter dimensions of TD-0002 §5.2.1 (`fillando-meta`), so they must be stable English identifiers rather than transliterated Ukrainian, and the table has to match the backend's exactly. Drift shows up in two ways. For `attributes[].k` and `required_attributes[].key` the backend recomputes the key from the label on save, so stored data stays consistent and the damage is confined to the admin edit form: on a category change `ProductEditForm` re-seeds required attributes by comparing `toAttrKey(attr.label)` against the server-stored `k`, so a key it cannot reproduce is taken for a custom attribute and a blank required row is submitted beside it (`ProductForm` runs the same effect but starts empty, so it only ever meets its own keys). `variant_type.key` is different — `toAttrKey` is its only author and the backend stores it verbatim, so drift there does reach the database and breaks the `variant_type.key === attributes[].k` join used by the product page and the edit form.
+
+Changing the table means editing five places together: `common/utils/slug.utils.ts`, its spec `common/utils/slug.utils.test.ts` (which pins the five pairs literally), the table above, `fillando-be/src/common/utils/attribute.utils.ts` and `fillando-be/scripts/migrations/normalize-attr-keys.js` — then deploy the backend and run that migration.
+
+`toSlug` deliberately does **not** consult the table: slugs are URLs, and routing them through the overrides would rewrite product and vendor addresses.
+
 **Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`.
 
 **Checkout / LiqPay:** `/checkout` → `POST /orders` → for LiqPay `POST /liqpay/checkout` → hidden-form POST to LiqPay → back to `/checkout/success?order=FO-…&payment=LIQPAY&token=<32 hex>`, where the page polls the public `GET /orders/lookup/:orderNumber?token=` for `payment_status`. Three rules that are easy to get wrong: (1) on the LiqPay path the cart is cleared **only after** `initLiqpayCheckout` has settled — create → init → clear → leave (form POST, or on init failure a caught redirect to the success page carrying `payment_access_token`), never before init; (2) the Google Ads conversion for LiqPay fires **only** when the lookup reports `PAID` (offline methods still fire on mount); (3) in `orderMutation.onError` only coupon messages are pinned to the coupon field, everything else is a toast, and `429` gets its own wording; (4) the empty-cart redirect and the loader on `/checkout` wait for `cartReady` — persist hydration for guests (`useCartStore.persist`, which is `undefined` during SSR) and the first server cart response (`hasFetched`) for logged-in users — otherwise a hard load bounces a full cart to the catalogue. Order numbers are strings (`'FO-0000123'`), never `Number()` them. Full state machine and the `orderPlacedRef` race guard in [docs/checkout-flow.md](./docs/checkout-flow.md).

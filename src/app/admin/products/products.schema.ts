@@ -4,7 +4,7 @@ import * as z from 'zod'
 // --- Attribute item ---
 
 export const attributeItemSchema = z.object({
-	k: z.string(), // slug key, generated via toSlug(label)
+	k: z.string(), // attribute key — toAttrKey(label) in the forms, generateAttrKey server-side
 	l: z.string().min(1, "Назва атрибута є обов'язковою"),
 	v: z.union([z.string(), z.number(), z.boolean()])
 })
