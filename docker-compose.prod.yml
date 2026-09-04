@@ -10,6 +10,12 @@ services:
                 # generate-image-derivatives.js migration passes MODE='verify'.
                 # A missing derivative is a hard 404 with no fallback.
                 NEXT_PUBLIC_USE_IMAGE_DERIVATIVES: 'false'
+                # Google Ads tag + purchase-conversion label. NEXT_PUBLIC_* is inlined at
+                # build time, so these MUST be build args — .env.prod cannot supply them.
+                # Values mirror the fallbacks in src/common/constants/analytics.constants.ts;
+                # override here for a staging build so it cannot pollute production data.
+                NEXT_PUBLIC_GOOGLE_ADS_ID: AW-18332229942
+                NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_CONVERSION: AW-18332229942/vho6CLCit9McELbCvqVE
         container_name: fillando-fe
         restart: unless-stopped
         env_file: .env.prod

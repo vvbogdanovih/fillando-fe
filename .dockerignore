@@ -1,0 +1,12 @@
+# Keep the build context free of local state. Without this, `COPY . .` in
+# Dockerfile.prod ships the developer's .env into the image build, where
+# `next build` reads it and can override the NEXT_PUBLIC_* build args.
+.env*
+!.env.example
+node_modules
+.next
+.git
+.github
+coverage
+*.log
+.DS_Store
