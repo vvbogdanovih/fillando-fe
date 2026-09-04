@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal, X } from 'lucide-react'
@@ -9,24 +10,57 @@ import { FilterSidebar } from './components/FilterSidebar'
 import { ProductGrid } from './components/ProductGrid'
 import { Pagination } from './components/Pagination'
 import { PerPageSelector } from './components/PerPageSelector'
+import { SORT_OPTIONS, SortSelector, type SortValue } from './components/SortSelector'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_URL } from '@/common/constants/seo.constants'
+import { Breadcrumbs } from '@/common/components/Breadcrumbs'
 import type { Category } from '@/app/admin/categories/categories.schema'
+
+export interface LandingContent {
+	h1: string
+	intro_html: string
+	bottom_html: string
+	faq: { q: string; a: string }[]
+	slug: string
+}
 
 interface CatalogPageProps {
 	categorySlug: string
 	initialCategory?: Category | null
 	initialCatalog?: CatalogResponse | null
+	/**
+	 * Filters a landing pins. Always applied, never removable, and never written to the URL —
+	 * the address already expresses them, and repeating them as query parameters would give one
+	 * listing two addresses.
+	 */
+	pinnedFilters?: Record<string, string[]>
+	landing?: LandingContent
+	/** Published landings of this category, shown as entry tiles. Empty on a landing itself. */
+	popularLandings?: { slug: string; h1: string }[]
 }
 
-export const CatalogPage = ({ categorySlug, initialCategory, initialCatalog }: CatalogPageProps) => {
+export const CatalogPage = ({
+	categorySlug,
+	initialCategory,
+	initialCatalog,
+	pinnedFilters,
+	landing,
+	popularLandings = []
+}: CatalogPageProps) => {
 	const [isFilterOpen, setIsFilterOpen] = useState(false)
 	const router = useRouter()
 	const searchParams = useSearchParams()
 
 	const currentLimit = Number(searchParams.get('limit')) || 12
+	const pinned = pinnedFilters ?? {}
+	const pinnedKeys = Object.keys(pinned)
 	const params = Object.fromEntries(searchParams.entries())
 	if (!params.limit) params.limit = String(currentLimit)
+	// Pinned last, so a hand-typed `?polymer=PETG` on `/filament/pla` cannot widen the landing
+	// beyond what its address promises.
+	for (const [key, values] of Object.entries(pinned)) {
+		if (values.length > 0) params[key] = values.join(',')
+	}
 
 	const { data: category } = useQuery({
 		queryKey: ['category', categorySlug],
@@ -44,6 +78,8 @@ export const CatalogPage = ({ categorySlug, initialCategory, initialCatalog }: C
 	const updateParams = (changes: Record<string, string | null>) => {
 		const next = new URLSearchParams(searchParams.toString())
 		for (const [key, value] of Object.entries(changes)) {
+			// A pinned dimension has no control to change it; guard the writer too.
+			if (pinnedKeys.includes(key)) continue
 			if (value === null || value === '') {
 				next.delete(key)
 			} else {
@@ -51,51 +87,69 @@ export const CatalogPage = ({ categorySlug, initialCategory, initialCatalog }: C
 			}
 		}
 		next.delete('page')
-		router.replace(`?${next.toString()}`)
-	}
-
-	const setPage = (page: number) => {
-		const next = new URLSearchParams(searchParams.toString())
-		next.set('page', String(page))
-		router.replace(`?${next.toString()}`)
+		router.push(`?${next.toString()}`)
 	}
 
 	const setLimit = (limit: number) => {
 		const next = new URLSearchParams(searchParams.toString())
 		next.set('limit', String(limit))
 		next.delete('page')
-		router.replace(`?${next.toString()}`)
+		router.push(`?${next.toString()}`)
 	}
+
+	const sortParam = searchParams.get('sort') ?? 'newest'
+	const currentSort: SortValue = SORT_OPTIONS.some(o => o.value === sortParam)
+		? (sortParam as SortValue)
+		: 'newest'
 
 	if (!category) return null
 
 	const filterSidebarProps = {
-		requiredAttributes: category.required_attributes,
+		// A pinned dimension is part of the address, so it is shown as fixed rather than as a
+		// control the visitor can clear.
+		requiredAttributes: category.required_attributes.filter(
+			attr => !pinnedKeys.includes(attr.key)
+		),
+		pinnedFilters: pinned,
 		priceRange: data?.price_range ?? { min: 0, max: 0 },
 		filterOptions: data?.filter_options ?? {},
+		colorOptions: data?.color_options ?? [],
 		searchParams: params,
 		onParamsChange: updateParams
 	}
 
-	const breadcrumbSchema = {
-		'@context': 'https://schema.org',
-		'@type': 'BreadcrumbList',
-		itemListElement: [
-			{ '@type': 'ListItem', position: 1, name: 'Головна', item: SITE_URL },
-			{
-				'@type': 'ListItem',
-				position: 2,
-				name: category.name,
-				item: `${SITE_URL}/${categorySlug}`
-			}
-		]
-	}
-
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
-			<JsonLd data={breadcrumbSchema} />
+			<Breadcrumbs
+				items={[
+					{ name: 'Головна', href: '/' },
+					{ name: category.name, href: `/${categorySlug}` },
+					...(landing
+						? [{ name: landing.h1, href: `/${categorySlug}/${landing.slug}` }]
+						: [])
+				]}
+			/>
+			{data && data.items.length > 0 && (
+				<JsonLd
+					data={{
+						'@context': 'https://schema.org',
+						'@type': 'ItemList',
+						name: category.name,
+						numberOfItems: data.pagination.total,
+						itemListElement: data.items.map((item, index) => ({
+							'@type': 'ListItem',
+							// Absolute across the whole listing, not within the page: on page 2
+							// the first product is not position 1.
+							position:
+								(data.pagination.page - 1) * data.pagination.limit + index + 1,
+							url: `${SITE_URL}/products/${item.slug}`,
+							name: item.name
+						}))
+					}}
+				/>
+			)}
 			<div className='mb-8 flex items-center justify-between'>
-				<h1 className='text-3xl font-bold'>{category.name}</h1>
+				<h1 className='text-3xl font-bold'>{landing?.h1 ?? category.name}</h1>
 				<button
 					className='border-border/50 bg-card hover:bg-muted flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors md:hidden'
 					onClick={() => setIsFilterOpen(true)}
@@ -131,19 +185,54 @@ export const CatalogPage = ({ categorySlug, initialCategory, initialCatalog }: C
 				</div>
 			</div>
 
+			{/* Entry points into the landings: a shopper looking for "PLA Silk" gets there in one
+			    click, and the crawler gets an internal link to every published landing. */}
+			{popularLandings.length > 0 && (
+				<nav aria-label='Популярні види' className='mb-8'>
+					<h2 className='text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase'>
+						Популярні види
+					</h2>
+					<div className='flex flex-wrap gap-2'>
+						{popularLandings.map(item => (
+							<Link
+								key={item.slug}
+								href={`/${categorySlug}/${item.slug}`}
+								className='border-border/50 bg-card hover:border-primary hover:text-primary rounded-lg border px-3 py-2 text-sm transition-colors'
+							>
+								{item.h1}
+							</Link>
+						))}
+					</div>
+				</nav>
+			)}
+
 			<div className='flex gap-8'>
 				<aside className='hidden w-64 shrink-0 md:block'>
 					<FilterSidebar {...filterSidebarProps} />
 				</aside>
 				<main className='min-w-0 flex-1'>
-					<div className='mb-4 flex items-center justify-between'>
+					<div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
 						{data && data.pagination.totalPages > 1 ? (
-							<Pagination pagination={data.pagination} onPageChange={setPage} />
+							<Pagination pagination={data.pagination} />
 						) : (
 							<div />
 						)}
-						<PerPageSelector value={currentLimit} onChange={setLimit} />
+						<div className='flex flex-wrap items-center gap-3'>
+							<SortSelector
+								value={currentSort}
+								onChange={sort => updateParams({ sort })}
+							/>
+							<PerPageSelector value={currentLimit} onChange={setLimit} />
+						</div>
 					</div>
+					{landing?.intro_html && (
+						// Sanitized server-side on write (`sanitizeRichText`), which is why this
+						// is safe to inject; never render unsanitised admin HTML here.
+						<div
+							className='prose prose-sm mb-6 max-w-none'
+							dangerouslySetInnerHTML={{ __html: landing.intro_html }}
+						/>
+					)}
 					<ProductGrid items={data?.items ?? []} isLoading={isLoading} />
 					{data && (
 						<div className='mt-8 space-y-4'>
@@ -164,12 +253,45 @@ export const CatalogPage = ({ categorySlug, initialCategory, initialCatalog }: C
 								<PerPageSelector value={currentLimit} onChange={setLimit} />
 							</div>
 							{data.pagination.totalPages > 1 && (
-								<Pagination pagination={data.pagination} onPageChange={setPage} />
+								<Pagination pagination={data.pagination} />
 							)}
 						</div>
 					)}
 				</main>
 			</div>
+
+			{landing?.bottom_html && (
+				<div
+					className='prose prose-sm mt-12 max-w-none'
+					dangerouslySetInnerHTML={{ __html: landing.bottom_html }}
+				/>
+			)}
+
+			{landing && landing.faq.length > 0 && (
+				<section className='mt-12'>
+					<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
+					<div className='divide-border/50 divide-y'>
+						{landing.faq.map(item => (
+							<details key={item.q} className='py-3'>
+								<summary className='cursor-pointer font-medium'>{item.q}</summary>
+								<p className='text-muted-foreground mt-2 text-sm'>{item.a}</p>
+							</details>
+						))}
+					</div>
+					{/* FAQPage markup is only valid where the answers are actually on the page. */}
+					<JsonLd
+						data={{
+							'@context': 'https://schema.org',
+							'@type': 'FAQPage',
+							mainEntity: landing.faq.map(item => ({
+								'@type': 'Question',
+								name: item.q,
+								acceptedAnswer: { '@type': 'Answer', text: item.a }
+							}))
+						}}
+					/>
+				</section>
+			)}
 		</div>
 	)
 }

@@ -1,4 +1,5 @@
 import { httpService } from '@/common/services/http.service'
+import type { PublicColor } from '@/common/utils/color.utils'
 import { API_URLS } from '@/common/constants'
 import { categorySchema, type Category } from '@/app/admin/categories/categories.schema'
 
@@ -15,6 +16,7 @@ export interface CatalogItem {
 	v_value: string | null
 	attributes: { k: string; l: string; v: string | number | boolean }[]
 	main_image: string | null
+	color: PublicColor | null
 }
 
 export interface ProductDetailData {
@@ -30,6 +32,8 @@ export interface ProductDetailData {
 		images: string[]
 		v_value: string | null
 		status: string
+		/** Resolved dictionary colour; null for categories with no colour axis. */
+		color: PublicColor | null
 	}
 	product: {
 		id: string
@@ -47,6 +51,7 @@ export interface ProductDetailData {
 		stock: number
 		v_value: string | null
 		images: string[]
+		color: PublicColor | null
 	}[]
 	category_slug: string
 	category_name: string
@@ -62,6 +67,8 @@ export interface CatalogResponse {
 	}
 	price_range: { min: number; max: number }
 	filter_options: Record<string, string[]>
+	/** One entry per colour family present in the category, with a swatch to paint. */
+	color_options: { family: string; count: number; hex_stops: string[] }[]
 }
 
 export type CatalogQueryParams = Record<string, string> & { category_id: string }

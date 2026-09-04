@@ -2,9 +2,16 @@ import { MetadataRoute } from 'next'
 import { unstable_cache } from 'next/cache'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { API_URLS } from '@/common/constants/api-routes.constants'
+import { UI_URLS } from '@/common/constants/ui-routes.constants'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 
 interface VariantSlug {
+	slug: string
+	updatedAt?: string
+}
+
+interface LandingSlug {
+	category_slug: string
 	slug: string
 	updatedAt?: string
 }
@@ -18,9 +25,12 @@ const fetchSitemapEntries = unstable_cache(
 		// while the failed re-run is logged, and a cache miss errors the route —
 		// either beats caching an empty sitemap for a day. `null` (404) is the
 		// only "no entries" case.
-		const [variants, categories] = await Promise.all([
+		const [variants, categories, landings] = await Promise.all([
 			serverFetch<VariantSlug[]>('/products/variants/slugs', { next: { revalidate: 0 } }),
-			serverFetch<{ slug: string }[]>(API_URLS.CATEGORIES.BASE, { next: { revalidate: 0 } })
+			serverFetch<{ slug: string }[]>(API_URLS.CATEGORIES.BASE, { next: { revalidate: 0 } }),
+			// Active landings only — the endpoint filters drafts, so an unpublished page is
+			// never advertised to Google.
+			serverFetch<LandingSlug[]>(API_URLS.LANDINGS.SLUGS, { next: { revalidate: 0 } })
 		])
 
 		const productRoutes = (variants ?? []).map(p => ({
@@ -30,6 +40,14 @@ const fetchSitemapEntries = unstable_cache(
 			priority: 0.9
 		}))
 
+		const landingRoutes = (landings ?? []).map(landing => ({
+			url: `${SITE_URL}/${landing.category_slug}/${landing.slug}`,
+			lastModified: landing.updatedAt ? new Date(landing.updatedAt) : new Date(),
+			changeFrequency: 'weekly' as const,
+			// Above a bare category: a landing has its own copy and targets a real query.
+			priority: 0.85
+		}))
+
 		const categoryRoutes = (categories ?? []).map(cat => ({
 			url: `${SITE_URL}/${cat.slug}`,
 			lastModified: new Date(),
@@ -37,21 +55,29 @@ const fetchSitemapEntries = unstable_cache(
 			priority: 0.8
 		}))
 
+		// Static pages that exist and are indexable. `/price-sheet` is listed only because
+		// Plan-0003 PR-2 stopped it leaking draft and archived variants — advertising it to
+		// Google before that would have indexed the leak.
+		const staticRoutes: MetadataRoute.Sitemap = [
+			{ path: '/faq', priority: 0.5 },
+			{ path: UI_URLS.WHOLESALE, priority: 0.5 },
+			{ path: UI_URLS.PRICE_SHEET, priority: 0.6 },
+			{ path: UI_URLS.CONTACTS, priority: 0.4 },
+			{ path: UI_URLS.OFFER, priority: 0.3 },
+			{ path: UI_URLS.RETURNS, priority: 0.3 },
+			{ path: UI_URLS.PRIVACY, priority: 0.3 }
+		].map(({ path, priority }) => ({
+			url: `${SITE_URL}${path}`,
+			lastModified: new Date(),
+			changeFrequency: 'monthly' as const,
+			priority
+		}))
+
 		return [
 			{ url: SITE_URL, lastModified: new Date(), changeFrequency: 'weekly', priority: 1.0 },
-			{
-				url: `${SITE_URL}/faq`,
-				lastModified: new Date(),
-				changeFrequency: 'monthly',
-				priority: 0.5
-			},
-			{
-				url: `${SITE_URL}/wholesale`,
-				lastModified: new Date(),
-				changeFrequency: 'monthly',
-				priority: 0.5
-			},
+			...staticRoutes,
 			...categoryRoutes,
+			...landingRoutes,
 			...productRoutes
 		]
 	},

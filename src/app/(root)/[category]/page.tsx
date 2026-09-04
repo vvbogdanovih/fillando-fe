@@ -2,6 +2,11 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CatalogPage } from './CatalogPage'
+import {
+	findMatchingLanding,
+	listingIndexing,
+	type LandingCanonical
+} from '@/common/utils/seo.utils'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 import type { Category } from '@/app/admin/categories/categories.schema'
@@ -14,8 +19,9 @@ interface PageProps {
 
 const formatSlug = (slug: string) => slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
 	const { category } = await params
+	const sp = await searchParams
 	let categoryData: Category | null
 	try {
 		categoryData = await serverFetch<Category>(`/categories/slug/${category}`)
@@ -32,16 +38,40 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 		return { title: 'Сторінку не знайдено', robots: { index: false, follow: false } }
 	}
 	const label = categoryData.name ?? formatSlug(category)
-	const title = `${label} — купити у Fillando`
+	let { canonical, robots } = listingIndexing(`/${category}`, sp)
+
+	// A filter combination that a landing already covers should point at the landing: the two
+	// return the same products, and the landing is the one with a heading and copy (TD-0002 §5.4).
+	if (robots) {
+		const landings = await serverFetch<LandingCanonical[]>(
+			`/landings?category_id=${categoryData._id}`
+		).catch(() => null)
+		const match = landings ? findMatchingLanding(landings, sp) : null
+		if (match) canonical = `${SITE_URL}/${category}/${match.slug}`
+	}
+	// Page 2 says so in the title: two pages of one category with the same <title> are a
+	// duplicate-content signal, and the number is what tells a searcher which one they landed on.
+	const page = readPageNumber(sp.page)
+	const title =
+		page > 1
+			? `${label} — сторінка ${page} — купити у Fillando`
+			: `${label} — купити у Fillando`
 	const description = `Каталог ${label.toLowerCase()}. Широкий вибір філаменту та витратних матеріалів для 3D-друку.`
-	const canonical = `${SITE_URL}/${category}`
 
 	return {
 		title,
 		description,
 		alternates: { canonical },
+		...(robots && { robots }),
 		openGraph: { title, description, url: canonical, type: 'website' }
 	}
+}
+
+/** Mirrors the page parsing in `listingIndexing`; used only to label the title. */
+function readPageNumber(value: string | string[] | undefined): number {
+	const raw = Array.isArray(value) ? value[0] : value
+	const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : NaN
+	return Number.isFinite(parsed) && parsed > 1 ? parsed : 1
 }
 
 export default async function CategoryPage({ params, searchParams }: PageProps) {
@@ -63,9 +93,14 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 			query.set(key, value)
 		}
 	}
-	const initialCatalog = await serverFetch<CatalogResponse>(
-		`/products/catalog?${query.toString()}`
-	)
+	const [initialCatalog, landings] = await Promise.all([
+		serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`),
+		// Published landings only (the endpoint filters drafts). A failure here must not take
+		// the catalogue down, so the tiles simply do not render.
+		serverFetch<{ slug: string; h1: string; order: number }[]>(
+			`/landings?category_id=${categoryData._id}`
+		).catch(() => null)
+	])
 
 	return (
 		<Suspense>
@@ -73,6 +108,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 				categorySlug={category}
 				initialCategory={categoryData}
 				initialCatalog={initialCatalog}
+				popularLandings={(landings ?? []).map(({ slug, h1 }) => ({ slug, h1 }))}
 			/>
 		</Suspense>
 	)

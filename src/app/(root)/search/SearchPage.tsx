@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { searchProducts, type SearchResponse } from './search.api'
@@ -13,7 +13,6 @@ interface SearchPageProps {
 }
 
 export const SearchPage = ({ q, initialData }: SearchPageProps) => {
-	const router = useRouter()
 	const searchParams = useSearchParams()
 
 	const page = Number(searchParams.get('page')) || 1
@@ -25,12 +24,6 @@ export const SearchPage = ({ q, initialData }: SearchPageProps) => {
 		enabled: q.length >= 2,
 		initialData: initialData ?? undefined
 	})
-
-	const setPage = (newPage: number) => {
-		const next = new URLSearchParams(searchParams.toString())
-		next.set('page', String(newPage))
-		router.replace(`?${next.toString()}`)
-	}
 
 	if (!q) {
 		return (
@@ -67,7 +60,7 @@ export const SearchPage = ({ q, initialData }: SearchPageProps) => {
 				<>
 					{data && data.pagination.totalPages > 1 && (
 						<div className='mb-4'>
-							<Pagination pagination={data.pagination} onPageChange={setPage} />
+							<Pagination pagination={data.pagination} />
 						</div>
 					)}
 					<ProductGrid items={data?.items ?? []} isLoading={isLoading} />
@@ -86,7 +79,7 @@ export const SearchPage = ({ q, initialData }: SearchPageProps) => {
 								)}{' '}
 								з {data.pagination.total}
 							</span>
-							<Pagination pagination={data.pagination} onPageChange={setPage} />
+							<Pagination pagination={data.pagination} />
 						</div>
 					)}
 				</>

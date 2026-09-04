@@ -4,12 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Menu, X, Phone } from 'lucide-react'
 import { Dialog } from 'radix-ui'
-import { CONTACTS, NAV_LINKS } from '@/common/constants'
+import { CONTACTS, type NavLink } from '@/common/constants'
 import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
 import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
 import { cn } from '@/common/utils/shad-cn.utils'
 
-export function MobileMenu() {
+export function MobileMenu({ navLinks }: { navLinks: NavLink[] }) {
 	const [open, setOpen] = useState(false)
 
 	// Pause Lenis while the menu is open so the background doesn't creep.
@@ -48,7 +48,7 @@ export function MobileMenu() {
 					</div>
 
 					<nav className='flex flex-col gap-1 p-3'>
-						{NAV_LINKS.map(({ href, label }) => (
+						{navLinks.map(({ href, label }) => (
 							<Dialog.Close key={href} asChild>
 								<Link
 									href={href}

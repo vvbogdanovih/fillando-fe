@@ -164,9 +164,9 @@ Consequences for call sites:
 - Never use it for user-specific data. It forwards no cookies, so anything behind auth returns
   `401` and throws.
 
-### The two deliberate catches
+### The three deliberate catches
 
-Both exist because the caught value is **not** what gets rendered and cached:
+The first two exist because the caught value is **not** what gets rendered and cached:
 
 1. **`generateMetadata` in `src/app/(root)/[category]/page.tsx`.** `[category]` is the catch-all
    for every unknown top-level path, so a `null` category is marked `robots: noindex` to keep the
@@ -178,7 +178,17 @@ Both exist because the caught value is **not** what gets rendered and cached:
    only the cache key of `fetchSitemapEntries`; a wrong key at worst re-runs the entries fetch,
    which has its own uncaught `serverFetch` calls. Nothing renders from the swallowed value.
 
-If you find yourself adding a third, write down which of these two shapes it is.
+3. **`getCategoryNavLinks` in `src/common/utils/navigation.utils.ts`** (Plan-0004 PR-3). A
+   different shape from the first two, and the reason is scope rather than caching: the call sits
+   in `(root)/layout.tsx`, the one server component every storefront page renders through. Letting
+   it throw would send `/faq`, `/contacts`, `/offer` and the rest — pages that need nothing from
+   the API — into the error boundary because the category endpoint blinked. Navigation is
+   decoration on those pages, so it falls back to `FALLBACK_CATEGORY_LINKS` and the menu degrades
+   instead of the site failing. Pages that genuinely need the API still fetch it themselves,
+   uncaught, and still fail loudly.
+
+If you find yourself adding a fourth, write down which of these shapes it is: the caught value is
+not what gets cached, or the call is decoration on pages that do not otherwise need the API.
 
 ### Second argument: `init`
 

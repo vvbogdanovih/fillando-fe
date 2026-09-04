@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import { NO_INDEX } from '@/common/constants/seo.constants'
 import { Suspense } from 'react'
 import { CheckoutSuccessContent } from './CheckoutSuccessContent'
 
 export const metadata: Metadata = {
+	...NO_INDEX,
 	title: 'Замовлення оформлено | Fillando',
 	description: 'Дякуємо за замовлення.'
 }

@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart } from 'lucide-react'
 import { DesktopSearchBar, MobileSearchToggle } from '@/common/components/SearchBar'
-import { UI_URLS, NAV_LINKS } from '@/common/constants'
+import { UI_URLS, type NavLink } from '@/common/constants'
 import { MobileMenu } from '@/common/components/MobileMenu'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
@@ -18,7 +18,7 @@ const UserMenu = dynamic(() => import('@/common/components/UserMenu').then(m => 
 	ssr: false
 })
 
-export function Header() {
+export function Header({ navLinks }: { navLinks: NavLink[] }) {
 	const user = useAuthStore(s => s.user)
 	const logOut = useAuthStore(s => s.logOut)
 	const resetServerCart = useCartStore(s => s.resetServerCart)
@@ -41,7 +41,7 @@ export function Header() {
 		<>
 			<header className='border-border bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg'>
 				<div className='container mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4'>
-					<MobileMenu />
+					<MobileMenu navLinks={navLinks} />
 					<Link
 						href='/'
 						className='flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80'
@@ -61,7 +61,7 @@ export function Header() {
 
 					<div className='hidden min-w-0 flex-1 items-center justify-center gap-6 md:flex'>
 						<nav className='flex shrink-0 items-center gap-6'>
-							{NAV_LINKS.map(({ href, label }) => (
+							{navLinks.map(({ href, label }) => (
 								<Link
 									key={href}
 									href={href}

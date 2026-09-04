@@ -1,11 +1,11 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Phone } from 'lucide-react'
-import { CONTACTS, UI_URLS } from '@/common/constants'
+import { CONTACTS, UI_URLS, type NavLink } from '@/common/constants'
 import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
 import { CookieSettingsButton } from '@/common/components/CookieSettingsButton'
 
-export function Footer() {
+export function Footer({ categories }: { categories: NavLink[] }) {
 	return (
 		<footer className='border-border bg-background border-t'>
 			<div className='container mx-auto max-w-7xl px-4 py-10'>
@@ -35,12 +35,15 @@ export function Footer() {
 						>
 							Головна
 						</Link>
-						<Link
-							href={UI_URLS.CATALOG.FILAMENT}
-							className='text-muted-foreground hover:text-primary text-sm transition-colors'
-						>
-							Філамент
-						</Link>
+						{categories.map(({ href, label }) => (
+							<Link
+								key={href}
+								href={href}
+								className='text-muted-foreground hover:text-primary text-sm transition-colors'
+							>
+								{label}
+							</Link>
+						))}
 						<Link
 							href={UI_URLS.WHOLESALE}
 							className='text-muted-foreground hover:text-primary text-sm transition-colors'

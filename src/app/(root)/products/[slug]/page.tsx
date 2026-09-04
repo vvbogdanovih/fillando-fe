@@ -6,6 +6,7 @@ import { serverFetch } from '@/common/utils/server-fetch.utils'
 import { API_URLS } from '@/common/constants/api-routes.constants'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
+import { variantLabel } from '@/common/utils/color.utils'
 
 interface PageProps {
 	params: Promise<{ slug: string }>
@@ -26,7 +27,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 	if (!data) return { title: 'Товар не знайдено', robots: { index: false, follow: false } }
 
 	const { variant, product } = data
-	const title = variant.v_value ? `${product.name} — ${variant.v_value}` : variant.name
+	const variantValue = variantLabel(variant)
+	const title = variantValue ? `${product.name} — ${variantValue}` : variant.name
 	const rawDescription = product.description?.html?.replace(/<[^>]*>/g, '').slice(0, 155) ?? null
 	const description = rawDescription ?? `Купити ${title} у Fillando`
 	const image = variant.images?.[0]

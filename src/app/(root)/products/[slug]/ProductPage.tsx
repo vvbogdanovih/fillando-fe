@@ -5,7 +5,16 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ShoppingCart, Check, Loader2, Minus, Plus, ChevronDown, Handshake } from 'lucide-react'
+import {
+	AlertTriangle,
+	Check,
+	ChevronDown,
+	Handshake,
+	Loader2,
+	Minus,
+	Plus,
+	ShoppingCart
+} from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 import { Badge } from '@/common/components/ui/badge'
 import {
@@ -18,18 +27,21 @@ import {
 import { cn } from '@/common/utils/shad-cn.utils'
 import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
 import { useCartStore } from '@/common/store/useCartStore'
-import {
-	getVariantBySlug,
-	type ProductDetailData
-} from '@/app/(root)/[category]/catalog.api'
+import { getVariantBySlug, type ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { JsonLd } from '@/common/components/JsonLd'
+import { Breadcrumbs } from '@/common/components/Breadcrumbs'
 import {
 	MERCHANT_RETURN_POLICY,
 	OFFER_SHIPPING_DETAILS,
-	SITE_NAME,
-	SITE_URL
+	SITE_NAME
 } from '@/common/constants/seo.constants'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
+import { variantLabel } from '@/common/utils/color.utils'
+import {
+	ATTR_NOTES,
+	REFILL_NOTE,
+	REFILL_VARIANT_PATTERN
+} from '@/common/constants/attribute-notes.constants'
 
 interface ProductPageProps {
 	slug: string
@@ -113,7 +125,16 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	const { category_slug, category_name } = data
 
 	const catalogPath = `/${category_slug}`
-	const displayName = variant.v_value ? `${product.name} — ${variant.v_value}` : variant.name
+	// The dictionary colour, not `v_value`: after the colour migration the raw value is the
+	// English name, and every one of these five places would switch the shop to English.
+	const variantValue = variantLabel(variant)
+
+	// Above the buy button, never in the description: the description renders below the CTA,
+	// i.e. after the decision (TD-0002 §5.2.1).
+	const attrNote =
+		product.attributes.map(attr => ATTR_NOTES[attr.k]?.[String(attr.v)]).find(Boolean) ??
+		(REFILL_VARIANT_PATTERN.test(variant.v_value ?? '') ? REFILL_NOTE : undefined)
+	const displayName = variantValue ? `${product.name} — ${variantValue}` : variant.name
 	const isOutOfStock = availableStock <= 0
 	const isLowStock = availableStock > 0 && availableStock <= 5
 	const priceAsOf = isOutOfStock ? formatPriceAsOf(variant.price_updated_at) : null
@@ -157,37 +178,16 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 		}
 	}
 
-	const breadcrumbSchema = {
-		'@context': 'https://schema.org',
-		'@type': 'BreadcrumbList',
-		itemListElement: [
-			{ '@type': 'ListItem', position: 1, name: 'Головна', item: SITE_URL },
-			{
-				'@type': 'ListItem',
-				position: 2,
-				name: category_name,
-				item: `${SITE_URL}/${category_slug}`
-			},
-			{
-				'@type': 'ListItem',
-				position: 3,
-				name: displayName,
-				item: `${SITE_URL}/products/${variant.slug}`
-			}
-		]
-	}
-
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
 			<JsonLd data={productSchema} />
-			<JsonLd data={breadcrumbSchema} />
-			<nav className='text-muted-foreground mb-6 flex items-center gap-2 text-sm'>
-				<Link href={catalogPath} className='hover:text-foreground transition-colors'>
-					{category_name}
-				</Link>
-				<span>/</span>
-				<span className='text-foreground'>{displayName}</span>
-			</nav>
+			<Breadcrumbs
+				items={[
+					{ name: 'Головна', href: '/' },
+					{ name: category_name, href: catalogPath },
+					{ name: displayName, href: `/products/${variant.slug}` }
+				]}
+			/>
 
 			<div className='flex flex-col gap-8 lg:flex-row'>
 				{/* Image gallery */}
@@ -319,6 +319,15 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 
 					{/* Add to cart */}
 					<div className='flex flex-col gap-3'>
+						{attrNote && (
+							<div className='rounded-lg border border-amber-500/40 bg-amber-50 p-3'>
+								<p className='flex items-center gap-2 text-sm font-medium text-amber-900'>
+									<AlertTriangle className='h-4 w-4 shrink-0' />
+									{attrNote.title}
+								</p>
+								<p className='mt-1 text-xs text-amber-800'>{attrNote.text}</p>
+							</div>
+						)}
 						{isLowStock && (
 							<div className='w-fit rounded-md bg-amber-700 px-3 py-1 text-sm font-medium text-white'>
 								Залишилось лише {availableStock} шт.
@@ -407,7 +416,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							</p>
 							<DropdownMenu>
 								<DropdownMenuTrigger className='border-input flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-sm shadow-xs outline-none focus:outline-none focus-visible:outline-none'>
-									<span>{variant.v_value ?? variant.name}</span>
+									<span>{variantValue ?? variant.name}</span>
 									<ChevronDown className='size-4 opacity-50' />
 								</DropdownMenuTrigger>
 								<DropdownMenuContent
@@ -427,7 +436,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 													s.stock <= 0 ? 'text-muted-foreground/50' : ''
 												}
 											>
-												{s.v_value ?? s.name}
+												{variantLabel(s) ?? s.name}
 												{s.stock <= 0 && (
 													<span className='text-muted-foreground/40 ml-2 text-xs'>
 														— немає в наявності
@@ -479,9 +488,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							{product.attributes.map(attr => {
 								const isVariantAttr = product.variant_type?.key === attr.k
 								const displayValue =
-									isVariantAttr && variant.v_value
-										? variant.v_value
-										: String(attr.v)
+									isVariantAttr && variantValue ? variantValue : String(attr.v)
 								return (
 									<tr
 										key={attr.k}
