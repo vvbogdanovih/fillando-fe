@@ -45,12 +45,13 @@ src/
     │   └── useAuthStore.ts  # Zustand auth store (persists to localStorage)
     ├── types/
     └── utils/
+        ├── server-fetch.utils.ts  # serverFetch() for RSC / metadata / sitemap (null == 404 only)
         └── shad-cn.utils.ts  # cn() class merging utility
 ```
 
 ### Key Patterns
 
-**HTTP Service:** `httpService` is an Axios singleton. Every call accepts an optional Zod schema to validate the response. 401s trigger automatic token refresh with promise deduplication.
+**HTTP Service:** `httpService` is an Axios singleton. Every call accepts an optional Zod schema to validate the response. 401s trigger automatic token refresh with promise deduplication. Server Components / `generateMetadata` / `sitemap.ts` use `serverFetch` (`common/utils/server-fetch.utils.ts`) instead: `null` means **404 only** — any other failure throws to the route error boundary, so an API outage can never be ISR-cached as an empty page. Do not `try/catch` it "to be safe" — the only two deliberate catches (`[category]` `generateMetadata`, the sitemap count key) are explained in [docs/http-service.md](./docs/http-service.md#server-side-fetching-serverfetch), and a new one needs the same kind of justification.
 
 **Auth Flow:** App boot → children render immediately (no boot-time loader gate) → `Providers` rehydrates persisted stores, then `checkAuth()` hits `/auth/me` → Zustand updates (`isAuthChecked=true`) once the result is known. Login/register → Zod validates response → Zustand store updates → cookie-based session. `PrivateRoute` wraps protected pages and checks `useAuthStore`. See `docs/auth-flow.md` for the full breakdown.
 
@@ -72,6 +73,8 @@ Never `import { z } from 'zod'` — that pulls zod's namespace object, which no 
 **Products admin flow:** `/admin/products` lists products via `GET /products` and offers a wholesale price list export — `POST /products/price-list/pdf` (admin-only) returns a PDF **blob**, so `productsApi.downloadPriceList` uses bare `axios` rather than `httpService`. See [docs/http-service.md](./docs/http-service.md#blob--file-downloads).
 
 **Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`.
+
+**Checkout / LiqPay:** `/checkout` → `POST /orders` → for LiqPay `POST /liqpay/checkout` → hidden-form POST to LiqPay → back to `/checkout/success?order=FO-…&payment=LIQPAY&token=<32 hex>`, where the page polls the public `GET /orders/lookup/:orderNumber?token=` for `payment_status`. Three rules that are easy to get wrong: (1) on the LiqPay path the cart is cleared **only after** `initLiqpayCheckout` has settled — create → init → clear → leave (form POST, or on init failure a caught redirect to the success page carrying `payment_access_token`), never before init; (2) the Google Ads conversion for LiqPay fires **only** when the lookup reports `PAID` (offline methods still fire on mount); (3) in `orderMutation.onError` only coupon messages are pinned to the coupon field, everything else is a toast, and `429` gets its own wording; (4) the empty-cart redirect and the loader on `/checkout` wait for `cartReady` — persist hydration for guests (`useCartStore.persist`, which is `undefined` during SSR) and the first server cart response (`hasFetched`) for logged-in users — otherwise a hard load bounces a full cart to the catalogue. Order numbers are strings (`'FO-0000123'`), never `Number()` them. Full state machine and the `orderPlacedRef` race guard in [docs/checkout-flow.md](./docs/checkout-flow.md).
 
 **Styling:** Tailwind CSS 4 with `@theme` inline tokens in `globals.css` (no `tailwind.config.*`). The site renders in a **single light theme** (`:root` tokens; there is no `.dark` block and `<html>` carries no theme class). Custom design tokens include filament-type colors (PLA, PETG, ABS, TPU, Nylon), gradients (`--gradient-primary/accent/border`), glow shadows, and utilities like `gradient-text`, `card-hover`, `glow-primary`, `animate-float`, `gradient-border`.
 
@@ -97,7 +100,7 @@ In `fillando-be`, edit the `MODE` constant at the top of
 
 **LCP:** `priority` is deprecated in Next 16 — use `preload`, and note that passing both throws. `preload` does **not** imply `fetchpriority="high"` in 16.1.4; set `fetchPriority` explicitly on the LCP image. `ProductGrid` marks the first `EAGER_CARDS` cards; keep that constant in sync with the widest grid column count.
 
-**Analytics / cookie consent:** the Google Ads tag is rendered by `common/components/Analytics.tsx` **only** once `useConsentStore.status === 'granted'`. Not rendering the `<Script>` is what removes the ~57 KB of gtag.js and the third-party cookies; Consent Mode alone would still load it. Always fire events through `common/lib/gtag.ts` (which queues onto `window.dataLayer`), never via `window.gtag(...)` directly — the tag may not have loaded, or may load minutes later when the visitor accepts, and a direct call is silently dropped.
+**Analytics / cookie consent:** the Google Ads tag is rendered by `common/components/Analytics.tsx` **only** once `useConsentStore.status === 'granted'`. Not rendering the `<Script>` is what removes the ~57 KB of gtag.js and the third-party cookies; Consent Mode alone would still load it. Always fire events through `common/lib/gtag.ts` (which queues onto `window.dataLayer`), never via `window.gtag(...)` directly — the tag may not have loaded, or may load minutes later when the visitor accepts, and a direct call is silently dropped. The purchase conversion on `/checkout/success` fires on mount for offline methods (CASH / COD / IBAN) but for LiqPay **only** once the order lookup reports `payment_status === 'PAID'` — LiqPay redirects to the success page on cancel and failure too, so for card payments mount ≠ purchase (see `docs/checkout-flow.md`).
 
 ## Documentation & Flow Integrity
 

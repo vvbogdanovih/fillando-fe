@@ -29,7 +29,6 @@ export interface ProductDetailData {
 		quantity?: number
 		images: string[]
 		v_value: string | null
-		vendor_product_sku: string | null
 		status: string
 	}
 	product: {
