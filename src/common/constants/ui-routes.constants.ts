@@ -37,6 +37,8 @@ export const UI_URLS = {
 		ORDER_DETAILS: (id: string) => `/admin/orders/${id}`,
 		COUPONS: '/admin/coupons',
 		CATEGORIES: '/admin/categories',
+		COLORS: '/admin/colors',
+		LANDINGS: '/admin/landings',
 		VENDORS: '/admin/vendors',
 		USERS: '/admin/users',
 		PRODUCTS: '/admin/products',

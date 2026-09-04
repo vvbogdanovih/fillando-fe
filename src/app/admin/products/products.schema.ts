@@ -24,7 +24,9 @@ export const variantFormItemSchema = z.object({
 		.refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'Введіть коректну кількість'),
 	images: z.array(z.string()), // public URLs, populated after upload
 	vendor_product_sku: z.string().optional(),
-	prom_id: z.string().optional()
+	prom_id: z.string().optional(),
+	// Dictionary colour. `color_family` is never sent — the API derives it (TD-0002 §5.2.2).
+	color_id: z.string().nullable().optional()
 })
 
 // --- Main product form schema (create) ---
@@ -84,13 +86,15 @@ export const variantEditFormSchema = z.object({
 		.refine(v => !isNaN(Number(v)) && Number(v) >= 0, 'Введіть коректну кількість'),
 	status: z.enum(['draft', 'active', 'archived']),
 	vendor_product_sku: z.string().optional(),
-	prom_id: z.string().optional()
+	prom_id: z.string().optional(),
+	color_id: z.string().nullable().optional()
 })
 
 // --- API response schemas ---
 
 export const productVariantResponseSchema = z.object({
 	_id: z.string(),
+	color_id: z.string().nullable().optional(),
 	v_value: z.string().nullable(),
 	sku: z.string(),
 	price: z.number(),
@@ -113,6 +117,8 @@ export const productVariantFullResponseSchema = z.object({
 	vendor_product_sku: z.string().optional(),
 	prom_id: z.string().optional(),
 	status: z.enum(['draft', 'active', 'archived']),
+	// Optional so an older backend response still validates; the picker seeds from it.
+	color_id: z.string().nullable().optional(),
 	createdAt: z.string(),
 	updatedAt: z.string()
 })

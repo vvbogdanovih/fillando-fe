@@ -13,6 +13,7 @@ import {
 } from '@/common/components/ui/dialog'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
+import { ColorSelect } from './ColorSelect'
 import { Button } from '@/common/components/ui/button'
 import { Badge } from '@/common/components/ui/badge'
 import {
@@ -83,7 +84,8 @@ export const VariantModal = ({
 				v_value: variant.v_value,
 				status: variant.status,
 				vendor_product_sku: variant.vendor_product_sku ?? '',
-				prom_id: variant.prom_id ?? ''
+				prom_id: variant.prom_id ?? '',
+				color_id: variant.color_id ?? null
 			})
 			setImageUploads(
 				variant.images.map(url => ({
@@ -100,7 +102,8 @@ export const VariantModal = ({
 				v_value: !hasExistingVariants && variantTypeAttrValue ? variantTypeAttrValue : null,
 				status: 'active',
 				vendor_product_sku: '',
-				prom_id: ''
+				prom_id: '',
+				color_id: null
 			})
 			setImageUploads([])
 		}
@@ -144,7 +147,9 @@ export const VariantModal = ({
 				status: values.status,
 				vendor_product_sku: values.vendor_product_sku || undefined,
 				prom_id: values.prom_id || undefined,
-				images
+				images,
+				// Sent on every save so clearing the colour actually clears it server-side.
+				color_id: hasVariants ? (values.color_id ?? null) : null
 			}
 
 			if (isEdit && variant) {
@@ -200,6 +205,27 @@ export const VariantModal = ({
 							{errors.v_value && (
 								<p className='text-destructive text-xs'>{errors.v_value.message}</p>
 							)}
+						</div>
+					)}
+
+					{/* Colour — only meaningful when the product varies by colour. */}
+					{hasVariants && (
+						<div className='flex flex-col gap-1.5'>
+							<Label htmlFor='variant-color'>Колір зі словника</Label>
+							<Controller
+								control={control}
+								name='color_id'
+								render={({ field }) => (
+									<ColorSelect
+										id='variant-color'
+										value={field.value ?? null}
+										onChange={field.onChange}
+									/>
+								)}
+							/>
+							<p className='text-muted-foreground text-xs'>
+								Родину кольору проставляє сервер зі словника.
+							</p>
 						</div>
 					)}
 

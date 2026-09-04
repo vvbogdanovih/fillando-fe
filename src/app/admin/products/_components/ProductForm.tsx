@@ -25,7 +25,8 @@ const DEFAULT_VARIANT = {
 	stock: '',
 	images: [],
 	vendor_product_sku: '',
-	prom_id: ''
+	prom_id: '',
+	color_id: null
 }
 
 export const ProductForm = () => {
@@ -222,7 +223,9 @@ export const ProductForm = () => {
 				stock: Number(v.stock),
 				images: [],
 				vendor_product_sku: v.vendor_product_sku || undefined,
-				prom_id: v.prom_id || undefined
+				prom_id: v.prom_id || undefined,
+				// Only for a colour-varied product; the API derives `color_family` from it.
+				color_id: values.has_variants ? (v.color_id ?? null) : null
 			}))
 		}
 

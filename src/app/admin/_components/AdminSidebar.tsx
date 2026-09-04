@@ -9,6 +9,7 @@ import {
 	Tag,
 	Percent,
 	Palette,
+	FileText,
 	LogOut,
 	Store,
 	Package,
@@ -47,6 +48,8 @@ const paymentDetailsItems = [
 const catalogueItems = [
 	{ label: 'Products', href: UI_URLS.ADMIN.PRODUCTS, icon: Package },
 	{ label: 'Categories', href: UI_URLS.ADMIN.CATEGORIES, icon: Tag },
+	{ label: 'Colors', href: UI_URLS.ADMIN.COLORS, icon: Palette },
+	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText },
 	{ label: 'Vendors', href: UI_URLS.ADMIN.VENDORS, icon: Store }
 ]
 

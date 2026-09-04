@@ -18,6 +18,18 @@ export const API_URLS = {
 		BY_ID: (id: string) => `/categories/${id}`, // GET/PATCH/DELETE
 		BY_SLUG: (slug: string) => `/categories/slug/${slug}` // GET — resolve slug to category doc
 	},
+	COLORS: {
+		BASE: `/colors`, // GET — dictionary (public) / POST — create
+		BY_ID: (id: string) => `/colors/${id}` // GET / PATCH / DELETE
+	},
+	LANDINGS: {
+		BASE: `/landings`, // GET — published only (public) / POST — create
+		ADMIN: `/landings/admin`, // GET — every landing including drafts
+		SLUGS: `/landings/slugs`, // GET — sitemap source
+		BY_SLUG: (categorySlug: string, landingSlug: string) =>
+			`/landings/slug/${categorySlug}/${landingSlug}`,
+		BY_ID: (id: string) => `/landings/${id}` // GET / PATCH / DELETE
+	},
 	VENDORS: {
 		BASE: `/vendors`, // GET (list all) / POST (create)
 		BY_ID: (id: string) => `/vendors/${id}`, // GET / PATCH / DELETE

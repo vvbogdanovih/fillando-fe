@@ -1,11 +1,18 @@
 'use client'
 
-import { useWatch, type Control, type FieldErrors, type UseFormRegister } from 'react-hook-form'
+import {
+	Controller,
+	useWatch,
+	type Control,
+	type FieldErrors,
+	type UseFormRegister
+} from 'react-hook-form'
 import { XIcon } from 'lucide-react'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
 import { Button } from '@/common/components/ui/button'
 import { toSlug } from '@/common/utils'
+import { ColorSelect } from './ColorSelect'
 import { ImageDropzone, type ImageUploadItem } from './ImageDropzone'
 import type { ProductFormValues } from '../products.schema'
 
@@ -81,6 +88,28 @@ export const VariantFieldsCard = ({
 							<span className='text-gray-300 italic'>slug буде згенеровано</span>
 						)}
 					</span>
+				</div>
+			)}
+
+			{/* Colour: only meaningful when the product actually varies by colour. */}
+			{hasVariants && (
+				<div className='flex flex-col gap-1.5'>
+					<Label htmlFor={`color_id_${index}`}>Колір зі словника</Label>
+					<Controller
+						control={control}
+						name={`variants.${index}.color_id`}
+						render={({ field }) => (
+							<ColorSelect
+								id={`color_id_${index}`}
+								value={field.value ?? null}
+								onChange={field.onChange}
+							/>
+						)}
+					/>
+					<p className='text-muted-foreground text-xs'>
+						Керує swatch-фільтром каталогу і назвою «Чорний (Black)». Родина кольору
+						проставляється сервером.
+					</p>
 				</div>
 			)}
 

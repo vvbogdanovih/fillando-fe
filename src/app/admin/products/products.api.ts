@@ -49,6 +49,7 @@ interface CreateProductPayload {
 		images: string[]
 		vendor_product_sku?: string
 		prom_id?: string
+		color_id?: string | null
 	}>
 }
 
@@ -79,6 +80,8 @@ interface AddVariantPayload {
 	vendor_product_sku?: string
 	prom_id?: string
 	status?: 'draft' | 'active' | 'archived'
+	/** Dictionary colour; the API derives `color_family` from it and never accepts that. */
+	color_id?: string | null
 }
 
 interface UpdateVariantPayload {
@@ -91,6 +94,7 @@ interface UpdateVariantPayload {
 	vendor_product_sku?: string
 	prom_id?: string
 	status?: 'draft' | 'active' | 'archived'
+	color_id?: string | null
 }
 
 interface ValidatePayload {
