@@ -7,7 +7,8 @@ import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
 import { Button } from '@/common/components/ui/button'
 import { toAttrKey } from '@/common/utils'
-import type { ProductFormValues, AttributeItem } from '../products.schema'
+import { layoutAttributes, type AttributeField } from '../products.utils'
+import type { ProductFormValues } from '../products.schema'
 import type { RequiredAttribute } from '../../categories/categories.schema'
 
 interface AttributesBlockProps {
@@ -29,8 +30,18 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 	const { fields, append, remove, update } = fieldArray
 	const [staging, setStaging] = useState<StagingAttr>(EMPTY_STAGING)
 
-	// Indices that belong to required attributes (pre-populated from category)
-	const requiredCount = requiredAttrs.length
+	// Paired by key, never by position — see `layoutAttributes` for why that matters.
+	const { required, custom } = layoutAttributes(
+		requiredAttrs,
+		fields as unknown as AttributeField[]
+	)
+
+	/** A required attribute the product does not carry yet is appended, not written over. */
+	const setRequiredValue = (row: (typeof required)[number], value: string) => {
+		const entry = { k: toAttrKey(row.attr.label), l: row.attr.label, v: value }
+		if (row.index === null) append(entry)
+		else update(row.index, entry)
+	}
 
 	const handleAddClick = () => {
 		const trimmedLabel = staging.label.trim()
@@ -63,9 +74,8 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 					<p className='text-xs font-medium text-gray-500'>
 						Обов'язкові атрибути підкатегорії
 					</p>
-					{requiredAttrs.map((attr, i) => {
-						const fieldIndex = i
-						const field = fields[fieldIndex] as AttributeItem | undefined
+					{required.map(row => {
+						const attr = row.attr
 						return (
 							<div key={attr.key} className='flex items-start gap-3'>
 								<div className='flex w-48 shrink-0 flex-col gap-1'>
@@ -81,19 +91,16 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 								<div className='flex flex-1 flex-col gap-1'>
 									<Input
 										placeholder='Значення'
-										value={(field?.v as string) ?? ''}
-										onChange={e =>
-											update(fieldIndex, {
-												k: toAttrKey(attr.label),
-												l: attr.label,
-												v: e.target.value
-											})
+										value={row.value}
+										onChange={e => setRequiredValue(row, e.target.value)}
+										aria-invalid={
+											row.index !== null &&
+											!!errors.attributes?.[row.index]?.v
 										}
-										aria-invalid={!!errors.attributes?.[fieldIndex]?.v}
 									/>
-									{errors.attributes?.[fieldIndex]?.v && (
+									{row.index !== null && errors.attributes?.[row.index]?.v && (
 										<p className='text-destructive text-xs'>
-											{errors.attributes[fieldIndex]?.v?.message as string}
+											{errors.attributes[row.index]?.v?.message as string}
 										</p>
 									)}
 								</div>
@@ -104,33 +111,28 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 			)}
 
 			{/* Custom attributes */}
-			{fields.length > requiredCount && (
+			{custom.length > 0 && (
 				<div className='flex flex-col gap-2'>
 					{requiredAttrs.length > 0 && (
 						<p className='text-xs font-medium text-gray-500'>Власні атрибути</p>
 					)}
-					{fields.slice(requiredCount).map((field, relIndex) => {
-						const absIndex = requiredCount + relIndex
-						return (
-							<div key={field.id} className='flex items-center gap-2'>
-								<span className='w-40 shrink-0 truncate text-xs text-gray-700'>
-									{field.l}
-								</span>
-								<span className='font-mono text-xs text-gray-400'>{field.k}</span>
-								<span className='flex-1 text-xs text-gray-600'>
-									{String(field.v)}
-								</span>
-								<Button
-									type='button'
-									size='icon-xs'
-									variant='ghost'
-									onClick={() => remove(absIndex)}
-								>
-									<XIcon className='size-3' />
-								</Button>
-							</div>
-						)
-					})}
+					{custom.map(({ field, index }) => (
+						<div key={`${field.k}-${index}`} className='flex items-center gap-2'>
+							<span className='w-40 shrink-0 truncate text-xs text-gray-700'>
+								{field.l}
+							</span>
+							<span className='font-mono text-xs text-gray-400'>{field.k}</span>
+							<span className='flex-1 text-xs text-gray-600'>{String(field.v)}</span>
+							<Button
+								type='button'
+								size='icon-xs'
+								variant='ghost'
+								onClick={() => remove(index)}
+							>
+								<XIcon className='size-3' />
+							</Button>
+						</div>
+					))}
 				</div>
 			)}
 

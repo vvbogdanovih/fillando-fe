@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
 	buildPriceListPayload,
+	layoutAttributes,
 	parseAttachmentFilename,
-	type PriceListFormState
+	type AttributeField,
+	type PriceListFormState,
+	type RequiredAttributeLike
 } from './products.utils'
 
 const baseState: PriceListFormState = {
@@ -83,5 +86,96 @@ describe('parseAttachmentFilename', () => {
 	it('falls back when the header is missing or unparseable', () => {
 		expect(parseAttachmentFilename(undefined, 'fallback.pdf')).toBe('fallback.pdf')
 		expect(parseAttachmentFilename('attachment', 'fallback.pdf')).toBe('fallback.pdf')
+	})
+})
+
+describe('layoutAttributes', () => {
+	const required: RequiredAttributeLike[] = [
+		{ key: 'vyrobnyk', label: 'Виробник', unit: null },
+		{ key: 'series', label: 'Серія', unit: null }
+	]
+
+	const field = (k: string, l: string, v: string): AttributeField => ({ k, l, v })
+
+	it('pairs each required attribute with its own row, whatever the order', () => {
+		const fields = [field('series', 'Серія', 'Plus'), field('vyrobnyk', 'Виробник', 'Bambu')]
+
+		const { required: rows } = layoutAttributes(required, fields)
+
+		expect(rows.map(r => [r.attr.key, r.index, r.value])).toEqual([
+			['vyrobnyk', 1, 'Bambu'],
+			['series', 0, 'Plus']
+		])
+	})
+
+	it('reports a required attribute the product does not carry yet', () => {
+		// This is the state Plan-0004 task 17 creates: the category gains dimensions that
+		// existing products have never stored.
+		const fields = [field('vyrobnyk', 'Виробник', 'Bambu')]
+
+		const { required: rows } = layoutAttributes(required, fields)
+
+		expect(rows[1]).toEqual({ attr: required[1], index: null, value: '' })
+	})
+
+	it('never points two required attributes at the same row', () => {
+		// The positional version did exactly this once the lists differed in length, so typing in one
+		// input overwrote another attribute.
+		const fields = [field('kolir', 'Колір', 'Чорний'), field('vyrobnyk', 'Виробник', 'Bambu')]
+
+		const indexes = layoutAttributes(required, fields)
+			.required.map(r => r.index)
+			.filter((i): i is number => i !== null)
+
+		expect(new Set(indexes).size).toBe(indexes.length)
+	})
+
+	it('keeps custom attributes visible even when they come before the required ones', () => {
+		// `fields.slice(requiredCount)` hid them whenever the counts disagreed.
+		const fields = [field('kolir', 'Колір', 'Чорний'), field('vyrobnyk', 'Виробник', 'Bambu')]
+
+		const { custom } = layoutAttributes(required, fields)
+
+		expect(custom).toEqual([{ field: fields[0], index: 0 }])
+	})
+
+	it('gives every custom row its real index, so removal deletes the right one', () => {
+		const fields = [
+			field('vyrobnyk', 'Виробник', 'Bambu'),
+			field('kolir', 'Колір', 'Чорний'),
+			field('series', 'Серія', 'Plus'),
+			field('tverdist', 'Твердість', '95A')
+		]
+
+		const { custom } = layoutAttributes(required, fields)
+
+		expect(custom.map(c => [c.field.k, c.index])).toEqual([
+			['kolir', 1],
+			['tverdist', 3]
+		])
+	})
+
+	it('matches on the key the API derives, not on the stored key', () => {
+		// `Серія` maps to `series` through ATTR_KEY_OVERRIDES; a row still carrying the old
+		// transliterated key is a custom attribute until the migration renames it.
+		const fields = [field('seriia', 'Серія', 'Plus')]
+
+		const layout = layoutAttributes(required, fields)
+
+		expect(layout.required[1].index).toBeNull()
+		expect(layout.custom).toHaveLength(1)
+	})
+
+	it.each([
+		['no required attributes', [] as RequiredAttributeLike[], [] as AttributeField[]],
+		['no fields', [{ key: 'vyrobnyk', label: 'Виробник', unit: null }], [] as AttributeField[]]
+	])('handles %s', (_case, attrs, fields) => {
+		expect(() => layoutAttributes(attrs, fields)).not.toThrow()
+	})
+
+	it('renders a missing value as an empty string rather than undefined', () => {
+		const fields = [{ k: 'vyrobnyk', l: 'Виробник', v: '' } as AttributeField]
+
+		expect(layoutAttributes(required, fields).required[0].value).toBe('')
 	})
 })
