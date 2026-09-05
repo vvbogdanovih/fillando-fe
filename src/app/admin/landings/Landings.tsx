@@ -22,6 +22,8 @@ export const Landings = () => {
 		refetch
 	} = useQuery({ queryKey: ['landings', 'admin'], queryFn: () => landingsApi.getAll() })
 
+	const activeCount = landings.filter(l => l.status === 'active').length
+
 	// Keep the open form pointing at the cached copy, so a change elsewhere is reflected.
 	const selected =
 		panel.mode === 'edit'
@@ -47,8 +49,14 @@ export const Landings = () => {
 					<div className='flex items-center justify-between gap-3'>
 						<CardTitle>
 							Лендінги
+							{/*
+							 * «Показано N з M» from the artboard is left out: there is no filter
+							 * or pagination here, so it would always read "14 з 14". The active
+							 * count is the half that says something — how many of them a visitor
+							 * can actually reach.
+							 */}
 							<span className='ml-2 text-sm font-normal text-gray-400'>
-								{landings.length}
+								{landings.length} · активних {activeCount}
 							</span>
 						</CardTitle>
 						{/* Locked until the list is on screen: creating against a cache that never
@@ -65,7 +73,13 @@ export const Landings = () => {
 					</div>
 				</CardHeader>
 
-				<CardContent className='pt-5'>
+				<CardContent className='space-y-4 pt-5'>
+					<p className='max-w-3xl text-sm text-gray-500'>
+						Лендінг — індексована сторінка каталогу із закріпленими фільтрами, власним
+						H1, текстом і FAQ. Категорії лишаються плоскими: це окрема сутність, а не
+						підкатегорія, тож той самий товар може потрапити на кілька лендінгів.
+					</p>
+
 					{isLoading ? (
 						<p className='text-sm text-gray-500'>Завантаження...</p>
 					) : isError ? (

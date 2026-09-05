@@ -72,3 +72,18 @@ describe('Landings screen', () => {
 		)
 	})
 })
+
+describe('Landings screen header', () => {
+	it('counts the landings and how many of them are reachable', async () => {
+		getAll.mockResolvedValueOnce([
+			LANDING,
+			{ ...LANDING, _id: '2', h1: 'PLA', status: 'active' },
+			{ ...LANDING, _id: '3', h1: 'PETG', status: 'active' }
+		])
+		renderScreen()
+
+		// The artboard's «Показано N з M» is left out — nothing filters this list — but the
+		// active count says how many a visitor can actually reach.
+		expect(await screen.findByText(/3 · активних 2/)).toBeInTheDocument()
+	})
+})

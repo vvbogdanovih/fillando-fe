@@ -171,7 +171,7 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 						<ArrowLeftIcon className='size-4' />
 					</Button>
 					<h1 className='text-2xl font-semibold tracking-tight'>
-						{initial ? 'Редагувати лендінг' : 'Новий лендінг'}
+						{initial ? `Редагування: ${initial.h1}` : 'Новий лендінг'}
 					</h1>
 				</div>
 				<div className='flex gap-2'>
@@ -318,6 +318,10 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 									/>
 								)}
 							/>
+							<p className='text-xs text-gray-400'>
+								Розмітка обох текстів санітизується на записі — так само, як описи
+								товарів. Дозволені лише безпечні теги.
+							</p>
 						</div>
 
 						<div className='flex flex-col gap-1.5'>
