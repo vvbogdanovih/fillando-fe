@@ -10,7 +10,8 @@ import { useCartStore } from '@/common/store/useCartStore'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
-import { catalogItemName } from '@/common/utils/color.utils'
+import { catalogItemName, colorLabel } from '@/common/utils/color.utils'
+import { ColorSwatch } from '@/common/components/ColorSwatch'
 
 interface CatalogProductCardProps {
 	item: CatalogItem
@@ -88,7 +89,22 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 					</div>
 				</div>
 				<div className='space-y-1 p-3'>
-					<p className='line-clamp-3 text-sm leading-tight font-medium'>{displayName}</p>
+					<div className='flex items-start gap-2'>
+						{/* The colour the shopper is looking at, painted by the same rule as the
+						    filter swatches — so a row of cards reads as a row of colours. */}
+						{item.color && (
+							<ColorSwatch
+								hexStops={item.color.hex_stops}
+								family={item.color.family}
+								size={14}
+								title={colorLabel(item.color) ?? undefined}
+								className='mt-0.5'
+							/>
+						)}
+						<p className='line-clamp-3 text-sm leading-tight font-medium'>
+							{displayName}
+						</p>
+					</div>
 					<p className='text-muted-foreground text-xs'>Арт. {item.sku}</p>
 					<p
 						className={cn(
