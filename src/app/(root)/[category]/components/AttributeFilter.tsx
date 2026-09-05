@@ -3,6 +3,7 @@
 import { Checkbox } from '@/common/components/ui/checkbox'
 import { Label } from '@/common/components/ui/label'
 import { RequiredAttribute } from '@/app/admin/categories/categories.schema'
+import { attributeValueLabel } from '../filter-labels'
 
 interface AttributeFilterProps {
 	attribute: RequiredAttribute
@@ -46,7 +47,7 @@ export const AttributeFilter = ({
 								htmlFor={`${idPrefix}${attribute.key}-${option}`}
 								className='cursor-pointer text-sm font-normal'
 							>
-								{option}
+								{attributeValueLabel(attribute.key, option)}
 								{attribute.unit ? ` ${attribute.unit}` : ''}
 							</Label>
 						</div>

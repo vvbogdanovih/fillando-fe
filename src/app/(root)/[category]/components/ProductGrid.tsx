@@ -8,7 +8,7 @@ interface ProductGridProps {
 
 // First-row cards render above the fold, so they preload instead of lazy-loading.
 // Keep in sync with the widest column count in the grid classes below.
-const EAGER_CARDS = 3
+const EAGER_CARDS = 4
 
 const SkeletonCard = () => (
 	<div className='bg-card border-border/50 animate-pulse overflow-hidden rounded-xl border'>
@@ -23,7 +23,7 @@ const SkeletonCard = () => (
 export const ProductGrid = ({ items, isLoading }: ProductGridProps) => {
 	if (isLoading) {
 		return (
-			<div className='grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+			<div className='grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
 				{Array.from({ length: 8 }).map((_, i) => (
 					<SkeletonCard key={i} />
 				))}
@@ -40,7 +40,7 @@ export const ProductGrid = ({ items, isLoading }: ProductGridProps) => {
 	}
 
 	return (
-		<div className='grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+		<div className='grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
 			{items.map((item, i) => (
 				<CatalogProductCard
 					key={item.id}

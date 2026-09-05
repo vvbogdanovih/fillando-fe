@@ -9,7 +9,8 @@ export interface ColorOption {
 	hex_stops: string[]
 }
 
-const FAMILY_LABELS: Record<string, string> = {
+/** Family → Ukrainian label; shared with the active-filter chips above the grid. */
+export const FAMILY_LABELS: Record<string, string> = {
 	black: 'Чорний',
 	white: 'Білий',
 	gray: 'Сірий',

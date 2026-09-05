@@ -97,9 +97,15 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 		serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`),
 		// Published landings only (the endpoint filters drafts). A failure here must not take
 		// the catalogue down, so the tiles simply do not render.
-		serverFetch<{ slug: string; h1: string; order: number }[]>(
-			`/landings?category_id=${categoryData._id}`
-		).catch(() => null)
+		serverFetch<
+			{
+				slug: string
+				h1: string
+				order: number
+				image: string | null
+				product_count: number
+			}[]
+		>(`/landings?category_id=${categoryData._id}`).catch(() => null)
 	])
 
 	return (
@@ -108,7 +114,14 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 				categorySlug={category}
 				initialCategory={categoryData}
 				initialCatalog={initialCatalog}
-				popularLandings={(landings ?? []).map(({ slug, h1 }) => ({ slug, h1 }))}
+				popularLandings={(landings ?? []).map(({ slug, h1, image, product_count }) => ({
+					slug,
+					h1,
+					image: image ?? null,
+					// An older backend has no such field; a tile reading "0 товарів" would be a
+					// lie, so an absent count prints nothing rather than a zero.
+					product_count: product_count ?? null
+				}))}
 			/>
 		</Suspense>
 	)

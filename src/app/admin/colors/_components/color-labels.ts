@@ -1,8 +1,8 @@
+import { pluralUk } from '@/common/utils'
+
 /**
  * «N кольорів» in the Ukrainian the plural rules ask for. The dictionary caps stops at six, so
- * only 1..6 ever reach here: 1 «колір», 2–4 «кольори», 5–6 «кольорів».
+ * only 1..6 ever reach here, but the shared rule is used rather than a local special case.
  */
-export const stopsLabel = (count: number): string => {
-	if (count === 1) return '1 колір'
-	return `${count} ${count < 5 ? 'кольори' : 'кольорів'}`
-}
+export const stopsLabel = (count: number): string =>
+	`${count} ${pluralUk(count, 'колір', 'кольори', 'кольорів')}`

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal, X } from 'lucide-react'
@@ -11,6 +10,11 @@ import { ProductGrid } from './components/ProductGrid'
 import { Pagination } from './components/Pagination'
 import { PerPageSelector } from './components/PerPageSelector'
 import { SORT_OPTIONS, SortSelector, type SortValue } from './components/SortSelector'
+import { ActiveFilterChips } from './components/ActiveFilterChips'
+import { PopularLandings, type PopularLanding } from './components/PopularLandings'
+import { FAMILY_LABELS } from './components/ColorFilter'
+import { attributeValueLabel } from './filter-labels'
+import { productsCount } from '@/common/utils'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { Breadcrumbs } from '@/common/components/Breadcrumbs'
@@ -36,7 +40,7 @@ interface CatalogPageProps {
 	pinnedFilters?: Record<string, string[]>
 	landing?: LandingContent
 	/** Published landings of this category, shown as entry tiles. Empty on a landing itself. */
-	popularLandings?: { slug: string; h1: string }[]
+	popularLandings?: PopularLanding[]
 }
 
 export const CatalogPage = ({
@@ -104,6 +108,26 @@ export const CatalogPage = ({
 
 	if (!category) return null
 
+	/**
+	 * What the visitor chose themselves, for the «Знайдено N за фільтром …» line. Pinned
+	 * dimensions are excluded: they are the page, not a narrowing of it, so naming them here
+	 * would read as though the shopper had filtered.
+	 */
+	const chosenFilterText = [
+		...category.required_attributes
+			.filter(attr => !pinnedKeys.includes(attr.key))
+			.flatMap(attr =>
+				(searchParams.get(attr.key) ?? '')
+					.split(',')
+					.filter(Boolean)
+					.map(value => attributeValueLabel(attr.key, value))
+			),
+		...(searchParams.get('color_family') ?? '')
+			.split(',')
+			.filter(Boolean)
+			.map(family => FAMILY_LABELS[family] ?? family)
+	].join(', ')
+
 	const filterSidebarProps = {
 		// A pinned dimension is part of the address, so it is shown as fixed rather than as a
 		// control the visitor can clear.
@@ -148,10 +172,21 @@ export const CatalogPage = ({
 					}}
 				/>
 			)}
-			<div className='mb-8 flex items-center justify-between'>
-				<h1 className='text-3xl font-bold'>{landing?.h1 ?? category.name}</h1>
+			<div className='mb-6 flex items-center justify-between gap-4'>
+				<div className='flex flex-wrap items-baseline gap-3'>
+					<h1 className='text-3xl font-bold'>{landing?.h1 ?? category.name}</h1>
+					{data && (
+						<span className='text-muted-foreground text-sm'>
+							{productsCount(data.pagination.total)}
+						</span>
+					)}
+				</div>
+				{/* A landing has no sidebar column — the artboard puts its grid across the full
+				    width — so the drawer is its only way to narrow further, at every width. */}
 				<button
-					className='border-border/50 bg-card hover:bg-muted flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors md:hidden'
+					className={`border-border/50 bg-card hover:bg-muted flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+						landing ? '' : 'md:hidden'
+					}`}
 					onClick={() => setIsFilterOpen(true)}
 				>
 					<SlidersHorizontal size={16} />
@@ -159,9 +194,22 @@ export const CatalogPage = ({
 				</button>
 			</div>
 
+			{/* Intro copy sits full width under the H1, above the filters — the landing reads as
+			    a page with a lead, not as a listing with a note wedged into its left column. */}
+			{landing?.intro_html && (
+				// Sanitized server-side on write (`sanitizeRichText`), which is why this is safe
+				// to inject; never render unsanitised admin HTML here.
+				<div
+					className='prose prose-sm mb-8 max-w-none'
+					dangerouslySetInnerHTML={{ __html: landing.intro_html }}
+				/>
+			)}
+
 			{/* Mobile filter overlay */}
 			<div
-				className={`fixed inset-0 z-50 md:hidden ${isFilterOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+				className={`fixed inset-0 z-50 ${landing ? '' : 'md:hidden'} ${
+					isFilterOpen ? 'pointer-events-auto' : 'pointer-events-none'
+				}`}
 			>
 				<div
 					className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${isFilterOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -187,29 +235,19 @@ export const CatalogPage = ({
 
 			{/* Entry points into the landings: a shopper looking for "PLA Silk" gets there in one
 			    click, and the crawler gets an internal link to every published landing. */}
-			{popularLandings.length > 0 && (
-				<nav aria-label='Популярні види' className='mb-8'>
-					<h2 className='text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase'>
-						Популярні види
-					</h2>
-					<div className='flex flex-wrap gap-2'>
-						{popularLandings.map(item => (
-							<Link
-								key={item.slug}
-								href={`/${categorySlug}/${item.slug}`}
-								className='border-border/50 bg-card hover:border-primary hover:text-primary rounded-lg border px-3 py-2 text-sm transition-colors'
-							>
-								{item.h1}
-							</Link>
-						))}
-					</div>
-				</nav>
-			)}
+			<PopularLandings
+				categorySlug={categorySlug}
+				categoryName={category.name}
+				landings={popularLandings}
+			/>
 
 			<div className='flex gap-8'>
-				<aside className='hidden w-64 shrink-0 md:block'>
-					<FilterSidebar {...filterSidebarProps} />
-				</aside>
+				{/* The landing's grid runs the full width: its filters are the chips above it. */}
+				{!landing && (
+					<aside className='hidden w-64 shrink-0 md:block'>
+						<FilterSidebar {...filterSidebarProps} />
+					</aside>
+				)}
 				<main className='min-w-0 flex-1'>
 					<div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
 						{data && data.pagination.totalPages > 1 ? (
@@ -225,13 +263,19 @@ export const CatalogPage = ({
 							<PerPageSelector value={currentLimit} onChange={setLimit} />
 						</div>
 					</div>
-					{landing?.intro_html && (
-						// Sanitized server-side on write (`sanitizeRichText`), which is why this
-						// is safe to inject; never render unsanitised admin HTML here.
-						<div
-							className='prose prose-sm mb-6 max-w-none'
-							dangerouslySetInnerHTML={{ __html: landing.intro_html }}
-						/>
+					<ActiveFilterChips
+						attributes={category.required_attributes}
+						pinnedFilters={pinned}
+						searchParams={params}
+						onParamsChange={updateParams}
+					/>
+					{/* «Знайдено N за фільтром …» — only once something narrows the listing; the
+					    count next to the H1 already says how many there are in total. */}
+					{data && chosenFilterText && (
+						<p className='text-muted-foreground mb-4 text-sm'>
+							Знайдено {productsCount(data.pagination.total)} за фільтром «
+							{chosenFilterText}»
+						</p>
 					)}
 					<ProductGrid items={data?.items ?? []} isLoading={isLoading} />
 					{data && (
@@ -260,38 +304,46 @@ export const CatalogPage = ({
 				</main>
 			</div>
 
-			{landing?.bottom_html && (
-				<div
-					className='prose prose-sm mt-12 max-w-none'
-					dangerouslySetInnerHTML={{ __html: landing.bottom_html }}
-				/>
-			)}
-
-			{landing && landing.faq.length > 0 && (
-				<section className='mt-12'>
-					<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
-					<div className='divide-border/50 divide-y'>
-						{landing.faq.map(item => (
-							<details key={item.q} className='py-3'>
-								<summary className='cursor-pointer font-medium'>{item.q}</summary>
-								<p className='text-muted-foreground mt-2 text-sm'>{item.a}</p>
-							</details>
-						))}
+			{/* Two cards side by side at the foot of a landing: the SEO copy and the FAQ. They
+			    stack on a narrow screen, and either one alone simply takes the full width. */}
+			<div className='mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]'>
+				{landing?.bottom_html && (
+					<div className='bg-card border-border/50 rounded-xl border p-6'>
+						<div
+							className='prose prose-sm max-w-none'
+							dangerouslySetInnerHTML={{ __html: landing.bottom_html }}
+						/>
 					</div>
-					{/* FAQPage markup is only valid where the answers are actually on the page. */}
-					<JsonLd
-						data={{
-							'@context': 'https://schema.org',
-							'@type': 'FAQPage',
-							mainEntity: landing.faq.map(item => ({
-								'@type': 'Question',
-								name: item.q,
-								acceptedAnswer: { '@type': 'Answer', text: item.a }
-							}))
-						}}
-					/>
-				</section>
-			)}
+				)}
+
+				{landing && landing.faq.length > 0 && (
+					<section className='bg-card border-border/50 rounded-xl border p-6'>
+						<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
+						<div className='divide-border/50 divide-y'>
+							{landing.faq.map(item => (
+								<details key={item.q} className='py-3'>
+									<summary className='cursor-pointer font-medium'>
+										{item.q}
+									</summary>
+									<p className='text-muted-foreground mt-2 text-sm'>{item.a}</p>
+								</details>
+							))}
+						</div>
+						{/* FAQPage markup is only valid where the answers are on the page. */}
+						<JsonLd
+							data={{
+								'@context': 'https://schema.org',
+								'@type': 'FAQPage',
+								mainEntity: landing.faq.map(item => ({
+									'@type': 'Question',
+									name: item.q,
+									acceptedAnswer: { '@type': 'Answer', text: item.a }
+								}))
+							}}
+						/>
+					</section>
+				)}
+			</div>
 		</div>
 	)
 }
