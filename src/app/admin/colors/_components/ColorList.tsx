@@ -9,12 +9,12 @@ import { Badge } from '@/common/components/ui/badge'
 import { ColorSwatch } from '@/common/components/ColorSwatch'
 import { DeleteConfirmDialog } from '@/app/admin/vendors/_components/DeleteConfirmDialog'
 import { colorsApi } from '../colors.api'
-import { COLOR_FAMILY_LABELS, type Color, type ColorFamily } from '../colors.schema'
+import { COLOR_FAMILY_LABELS, type AdminColor, type ColorFamily } from '../colors.schema'
 
 interface ColorListProps {
-	colors: Color[]
+	colors: AdminColor[]
 	selectedId: string | null
-	onSelect: (color: Color | null) => void
+	onSelect: (color: AdminColor | null) => void
 	onCreate: () => void
 }
 
@@ -25,7 +25,7 @@ export const ColorList = ({ colors, selectedId, onSelect, onCreate }: ColorListP
 	const { mutate: deleteColor, isPending: isDeleting } = useMutation({
 		mutationFn: (id: string) => colorsApi.delete(id),
 		onSuccess: (_, id) => {
-			queryClient.setQueryData<Color[]>(['colors'], prev =>
+			queryClient.setQueryData<AdminColor[]>(['colors'], prev =>
 				prev ? prev.filter(c => c._id !== id) : []
 			)
 			setDeletingId(null)
@@ -56,6 +56,17 @@ export const ColorList = ({ colors, selectedId, onSelect, onCreate }: ColorListP
 				</Button>
 			</div>
 
+			{/*
+			 * The caption for the «Варіантів» column. It lives here rather than on every row
+			 * because at w-80 — the width this list drops to the moment a colour is opened,
+			 * which is exactly when the dictionary is being worked through — a per-row label
+			 * would leave the name barely 100px and push the family badge over the numbers.
+			 */}
+			<p className='border-b border-gray-100 px-4 py-2 text-xs text-gray-400'>
+				Число праворуч — скільки варіантів товарів використовують колір. Нуль означає, що
+				цей запис словника не збігся з жодним варіантом.
+			</p>
+
 			<div className='flex-1 overflow-y-auto'>
 				{sorted.length === 0 && (
 					<p className='px-4 py-6 text-center text-sm text-gray-400'>
@@ -83,15 +94,45 @@ export const ColorList = ({ colors, selectedId, onSelect, onCreate }: ColorListP
 								{color.name_uk}{' '}
 								<span className='font-normal text-gray-400'>({color.name_en})</span>
 							</p>
-							<div className='mt-1 flex items-center gap-2'>
-								<Badge variant='secondary' className='text-xs'>
-									{COLOR_FAMILY_LABELS[color.family as ColorFamily] ??
-										color.family}
+							<div className='mt-1 flex min-w-0 items-center gap-2'>
+								{/*
+								 * «Багатокольорові» is wider than the whole cell at w-80, and a
+								 * flex item defaults to min-content — without this it painted
+								 * across the variant count instead of clipping.
+								 */}
+								<Badge variant='secondary' className='min-w-0 text-xs'>
+									<span className='truncate'>
+										{COLOR_FAMILY_LABELS[color.family as ColorFamily] ??
+											color.family}
+									</span>
 								</Badge>
-								<span className='text-xs text-gray-400'>
+								<span className='shrink-0 text-xs whitespace-nowrap text-gray-400'>
 									{color.hex_stops.length} стоп.
 								</span>
 							</div>
+						</div>
+
+						{/*
+						 * The «Варіантів» column of the mock. A zero is the reading that matters:
+						 * it marks a dictionary entry no variant resolved to, which is what the
+						 * manual pass over the unrecognized colour spellings is hunting for — so
+						 * it is greyed rather than hidden. The visible cell is the figure alone;
+						 * the caption sits above the list and, for a screen reader, here.
+						 */}
+						<div
+							className='shrink-0 text-right'
+							title='Варіантів товарів із цим кольором'
+						>
+							<span className='sr-only'>Варіантів</span>
+							<span
+								className={`text-sm tabular-nums ${
+									color.variant_count === 0
+										? 'text-gray-400'
+										: 'font-medium text-gray-900'
+								}`}
+							>
+								{color.variant_count}
+							</span>
 						</div>
 
 						<div className='flex shrink-0 gap-1' onClick={e => e.stopPropagation()}>

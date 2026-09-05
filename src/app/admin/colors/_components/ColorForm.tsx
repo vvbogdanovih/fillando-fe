@@ -23,6 +23,7 @@ import {
 	COLOR_FAMILIES,
 	COLOR_FAMILY_LABELS,
 	colorFormSchema,
+	type AdminColor,
 	type Color,
 	type ColorFormValues
 } from '../colors.schema'
@@ -94,9 +95,13 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 		mutationFn: (values: ColorFormValues) =>
 			initial ? colorsApi.update(initial._id, values) : colorsApi.create(values),
 		onSuccess: saved => {
-			queryClient.setQueryData<Color[]>(['colors'], prev => {
+			queryClient.setQueryData<AdminColor[]>(['colors'], prev => {
+				// The write endpoints answer with the dictionary row alone, so the usage count
+				// has to be carried over from the row already on screen — a colour just created
+				// has none yet, and saving one must never blank its «Варіантів» cell.
+				const previous = (prev ?? []).find(c => c._id === saved._id)
 				const rest = (prev ?? []).filter(c => c._id !== saved._id)
-				return [...rest, saved]
+				return [...rest, { ...saved, variant_count: previous?.variant_count ?? 0 }]
 			})
 			toast.success(initial ? 'Колір оновлено' : 'Колір створено')
 			onClose()

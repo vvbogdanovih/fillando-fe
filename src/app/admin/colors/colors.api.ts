@@ -1,9 +1,14 @@
 import { httpService } from '@/common/services/http.service'
 import { API_URLS } from '@/common/constants'
-import { colorSchema, colorsListSchema, type ColorFormValues } from './colors.schema'
+import { adminColorsListSchema, colorSchema, type ColorFormValues } from './colors.schema'
 
 export const colorsApi = {
-	getAll: () => httpService.get(API_URLS.COLORS.BASE, { schema: colorsListSchema }),
+	/**
+	 * Admin listing — the same dictionary as the public `GET /colors`, plus `variant_count` per
+	 * colour. Both callers of this are admin screens (the dictionary and the variant colour
+	 * picker), so neither needs the public endpoint.
+	 */
+	getAll: () => httpService.get(API_URLS.COLORS.ADMIN, { schema: adminColorsListSchema }),
 
 	create: (data: ColorFormValues) =>
 		httpService.post(API_URLS.COLORS.BASE, data, {

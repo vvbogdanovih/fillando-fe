@@ -57,9 +57,24 @@ export const colorSchema = z.object({
 	updatedAt: z.string().optional()
 })
 
-export const colorsListSchema = z.array(colorSchema)
-
 export type Color = z.infer<typeof colorSchema>
+
+/**
+ * What `GET /colors/admin` adds to a dictionary row: how many product variants point at this
+ * colour, in every status. It is the number that makes the unrecognized colour spellings
+ * tractable — a seeded entry reading 0 is one nothing matched — and it matches the count the
+ * API uses to refuse a delete, so a row showing 0 can always be deleted.
+ *
+ * The write endpoints answer with the dictionary row alone, so `Color` stays the shape of a
+ * create/update response and only the listing carries the count.
+ */
+export const adminColorSchema = colorSchema.extend({
+	variant_count: z.number().int().nonnegative()
+})
+
+export const adminColorsListSchema = z.array(adminColorSchema)
+
+export type AdminColor = z.infer<typeof adminColorSchema>
 
 // --- Form schema ---
 

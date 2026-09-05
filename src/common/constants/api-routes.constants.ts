@@ -20,6 +20,7 @@ export const API_URLS = {
 	},
 	COLORS: {
 		BASE: `/colors`, // GET — dictionary (public) / POST — create
+		ADMIN: `/colors/admin`, // GET — dictionary + how many variants use each colour
 		BY_ID: (id: string) => `/colors/${id}` // GET / PATCH / DELETE
 	},
 	LANDINGS: {

@@ -5,9 +5,9 @@ import { useQuery } from '@tanstack/react-query'
 import { colorsApi } from './colors.api'
 import { ColorList } from './_components/ColorList'
 import { ColorForm } from './_components/ColorForm'
-import type { Color } from './colors.schema'
+import type { AdminColor } from './colors.schema'
 
-type PanelState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; color: Color }
+type PanelState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; color: AdminColor }
 
 export const Colors = () => {
 	const [panel, setPanel] = useState<PanelState>({ mode: 'closed' })
