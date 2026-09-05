@@ -45,12 +45,17 @@ const paymentDetailsItems = [
 	{ label: 'Накладний платіж', href: UI_URLS.ADMIN.PAYMENT_DETAILS_COD, icon: Truck }
 ]
 
+/**
+ * Order and badges follow the AdminColors artboard: Vendors before the two screens TD-0002
+ * added, and those two carrying «нове» until the catalogue release has been out long enough
+ * that they are not new any more.
+ */
 const catalogueItems = [
 	{ label: 'Products', href: UI_URLS.ADMIN.PRODUCTS, icon: Package },
 	{ label: 'Categories', href: UI_URLS.ADMIN.CATEGORIES, icon: Tag },
-	{ label: 'Colors', href: UI_URLS.ADMIN.COLORS, icon: Palette },
-	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText },
-	{ label: 'Vendors', href: UI_URLS.ADMIN.VENDORS, icon: Store }
+	{ label: 'Vendors', href: UI_URLS.ADMIN.VENDORS, icon: Store },
+	{ label: 'Colors', href: UI_URLS.ADMIN.COLORS, icon: Palette, badge: 'нове' },
+	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText, badge: 'нове' }
 ]
 
 const bottomNavItems = [{ label: 'Style Guide', href: UI_URLS.ADMIN.STYLE_GUIDE, icon: Palette }]
@@ -73,7 +78,7 @@ export const AdminSidebar = () => {
 		router.push(UI_URLS.AUTH.LOGIN)
 	}
 
-	const navLink = (href: string, icon: React.ElementType, label: string) => {
+	const navLink = (href: string, icon: React.ElementType, label: string, badge?: string) => {
 		const Icon = icon
 		const isActive = href === UI_URLS.ADMIN.BASE ? pathname === href : pathname.startsWith(href)
 		return (
@@ -88,7 +93,12 @@ export const AdminSidebar = () => {
 				}`}
 			>
 				<Icon size={16} />
-				{label}
+				<span className='flex-1'>{label}</span>
+				{badge && (
+					<span className='rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
+						{badge}
+					</span>
+				)}
 			</Link>
 		)
 	}
@@ -158,8 +168,8 @@ export const AdminSidebar = () => {
 
 					{catalogueOpen && (
 						<div className='mt-0.5 ml-4 border-l border-gray-200 pl-3'>
-							{catalogueItems.map(({ label, href, icon }) =>
-								navLink(href, icon, label)
+							{catalogueItems.map(({ label, href, icon, badge }) =>
+								navLink(href, icon, label, badge)
 							)}
 						</div>
 					)}

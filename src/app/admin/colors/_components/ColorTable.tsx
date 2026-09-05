@@ -10,17 +10,12 @@ import { ColorSwatch } from '@/common/components/ColorSwatch'
 import { DeleteConfirmDialog } from '@/app/admin/vendors/_components/DeleteConfirmDialog'
 import { colorsApi } from '../colors.api'
 import { COLOR_FAMILY_LABELS, type AdminColor, type ColorFamily } from '../colors.schema'
+import { stopsLabel } from './color-labels'
 
 interface ColorTableProps {
 	colors: AdminColor[]
 	onSelect: (color: AdminColor) => void
 }
-
-/**
- * The dictionary caps stops at six, so this only ever sees 2..6 — one stop prints its hex
- * instead. Ukrainian takes the plural from the last digit: 2-4 «кольори», 5 and up «кольорів».
- */
-const stopsLabel = (count: number) => `${count} ${count < 5 ? 'кольори' : 'кольорів'}`
 
 export const ColorTable = ({ colors, onSelect }: ColorTableProps) => {
 	const queryClient = useQueryClient()

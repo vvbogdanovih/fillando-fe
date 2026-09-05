@@ -24,6 +24,7 @@ import {
 	SelectValue
 } from '@/common/components/ui/select'
 import { ColorSwatch } from '@/common/components/ColorSwatch'
+import { stopsLabel } from './color-labels'
 import { toSlug } from '@/common/utils'
 import { colorsApi } from '../colors.api'
 import {
@@ -140,50 +141,60 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 					{/* The stop rows make this form taller than a short viewport; the body
 					    scrolls so the save button never leaves the screen. */}
 					<div className='max-h-[60vh] space-y-5 overflow-y-auto pr-1'>
-						{/* Live preview: the swatch the shopper will see, painted by the same rule. */}
+						{/* Live preview: the swatch, the label and the address the shopper will
+						    get, all painted and built by the same rules as the storefront. */}
 						<div className='flex items-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4'>
 							<ColorSwatch hexStops={stops} family={family} size={56} />
 							<div className='min-w-0 text-sm'>
-								<p className='font-medium text-gray-900'>
+								<p className='text-xs text-gray-500'>
+									Прев'ю на сайті · {stopsLabel(stops.length)}
+								</p>
+								<p className='mt-0.5 font-medium text-gray-900'>
 									{watch('name_uk') || 'Назва українською'}{' '}
 									<span className='font-normal text-gray-400'>
 										({nameEn || 'English name'})
 									</span>
 								</p>
-								<p className='mt-0.5 text-xs text-gray-500'>
-									{stops.length === 1
-										? 'Один стоп — суцільний колір'
-										: family === 'multicolor'
-											? `${stops.length} стопів — конічний градієнт`
-											: `${stops.length} стопів — лінійний градієнт`}
+								<p className='mt-0.5 font-mono text-xs text-gray-400'>
+									{watch('slug') || (nameEn ? toSlug(nameEn) : 'slug')}
 								</p>
 							</div>
 						</div>
 
+						{/* Canonical English leads, as on the artboard: it is the unique key the
+						    migration matches on, and the slug is derived from it. */}
 						<div className='grid grid-cols-2 gap-4'>
 							<div className='flex flex-col gap-1.5'>
-								<Label htmlFor='color-name-uk'>Назва українською</Label>
-								<Input
-									id='color-name-uk'
-									placeholder='Чорний'
-									{...register('name_uk')}
-								/>
-								{errors.name_uk && (
-									<p className='text-destructive text-xs'>
-										{errors.name_uk.message}
-									</p>
-								)}
-							</div>
-							<div className='flex flex-col gap-1.5'>
-								<Label htmlFor='color-name-en'>Назва виробника (англійською)</Label>
+								<Label htmlFor='color-name-en'>Name EN (канон)</Label>
 								<Input
 									id='color-name-en'
 									placeholder='Black'
 									{...register('name_en')}
 								/>
+								<p className='text-xs text-gray-400'>
+									Як у виробника — унікальне, використовується у slug.
+								</p>
 								{errors.name_en && (
 									<p className='text-destructive text-xs'>
 										{errors.name_en.message}
+									</p>
+								)}
+							</div>
+							<div className='flex flex-col gap-1.5'>
+								<Label htmlFor='color-name-uk'>Назва укр</Label>
+								<Input
+									id='color-name-uk'
+									placeholder='Чорний'
+									{...register('name_uk')}
+								/>
+								<p className='text-xs text-gray-400'>
+									На сайті показуватиметься «
+									{(watch('name_uk') || 'Зелений Bambu').trim()} (
+									{(nameEn || 'Bambu Green').trim()})».
+								</p>
+								{errors.name_uk && (
+									<p className='text-destructive text-xs'>
+										{errors.name_uk.message}
 									</p>
 								)}
 							</div>
@@ -309,7 +320,12 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 							)}
 							<p className='text-xs text-gray-400'>
 								Перший колір — основний: його бере фід і будь-яке місце, де потрібен
-								один колір.
+								один колір.{' '}
+								{stops.length === 1
+									? 'Один колір — суцільний кружечок.'
+									: family === 'multicolor'
+										? 'Кілька кольорів у родині «Багатокольорові» — конічний градієнт.'
+										: 'Кілька кольорів — лінійний градієнт.'}
 							</p>
 						</div>
 

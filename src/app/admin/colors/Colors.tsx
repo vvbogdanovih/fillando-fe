@@ -54,7 +54,20 @@ export const Colors = () => {
 					</div>
 				</CardHeader>
 
-				<CardContent className='pt-5'>
+				<CardContent className='space-y-4 pt-5'>
+					{/*
+					 * The paragraph the artboard puts above the table. Two of these sentences are
+					 * not decoration: the family drives the storefront's swatch filter, and
+					 * changing it rewrites color_family on every variant of that colour — a bulk
+					 * write with no undo, triggered by an ordinary-looking select.
+					 */}
+					<p className='max-w-3xl text-sm text-gray-500'>
+						Словник — єдине джерело правди для назв кольорів і для фільтра в каталозі.
+						Родина визначає, у яку групу swatch-фільтра потрапляє колір; зміна родини
+						одразу перезаписує її на всіх варіантах товарів із цим кольором. Кольорів
+						нитки в одному записі може бути скільки треба — від одного до шести.
+					</p>
+
 					{isLoading ? (
 						<p className='text-sm text-gray-500'>Завантаження...</p>
 					) : isError ? (

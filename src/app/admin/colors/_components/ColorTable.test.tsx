@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ColorTable } from './ColorTable'
+import { stopsLabel } from './color-labels'
 import type { AdminColor } from '../colors.schema'
 
 // vitest runs without `globals`, so RTL's automatic cleanup is not registered.
@@ -158,5 +159,18 @@ describe('ColorTable — the dictionary as a table', () => {
 			.map(r => r.children[1].textContent)
 
 		expect(names).toEqual(['Blue', 'Zinc', 'Amber'])
+	})
+})
+
+describe('stopsLabel', () => {
+	it.each([
+		[1, '1 колір'],
+		[2, '2 кольори'],
+		[3, '3 кольори'],
+		[4, '4 кольори'],
+		[5, '5 кольорів'],
+		[6, '6 кольорів']
+	])('reads %i as "%s"', (count, expected) => {
+		expect(stopsLabel(count)).toBe(expected)
 	})
 })
