@@ -32,12 +32,20 @@ interface HtmlEditorProps {
  * backend sanitises it again on write — this toolbar is a convenience, never the security
  * boundary.
  */
+/**
+ * Quill writes `&nbsp;` for the spaces between words. The backend normalises them on write, but
+ * doing it here too keeps the form state and the stored value identical — otherwise the field
+ * comes back different from what was submitted, and the editor's own preview cannot wrap either.
+ * A non-breaking space after a digit is the typographic kind («100 °C») and is left alone.
+ */
+const normalizeSpaces = (html: string) => html.replace(/(\D|^)\u00a0/g, '$1 ')
+
 export const HtmlEditor = ({ value, onChange, placeholder }: HtmlEditorProps) => {
 	return (
 		<QuillEditor
 			theme='snow'
 			value={value}
-			onChange={onChange}
+			onChange={html => onChange(normalizeSpaces(html))}
 			placeholder={placeholder}
 			modules={{ toolbar: TOOLBAR_OPTIONS }}
 			className='bg-white [&_.ql-editor]:min-h-32'

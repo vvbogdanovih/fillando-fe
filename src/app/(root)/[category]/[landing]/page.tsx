@@ -58,7 +58,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 	const { canonical, robots } = listingIndexing(landingPath(category, landing), sp)
 
 	return {
-		title: data.title,
+		// `absolute`: the stored title is a finished SEO title that already carries the brand,
+		// which is what the admin's 60-character counter measures. Letting the root layout's
+		// `%s | Fillando` template wrap it again printed «… | Fillando | Fillando».
+		title: { absolute: data.title },
 		description: data.meta_description,
 		alternates: { canonical },
 		...(robots && { robots }),

@@ -225,13 +225,15 @@ export const CatalogPage = ({
 				</button>
 			</div>
 
-			{/* Intro copy sits full width under the H1, above the filters — the landing reads as
-			    a page with a lead, not as a listing with a note wedged into its left column. */}
+			{/* Intro copy sits under the H1, above the filters — the landing reads as a page with
+			    a lead, not as a listing with a note wedged into its left column. Capped at a
+			    readable measure, and it scrolls inside itself rather than widening the page if
+			    the copy ever contains something that will not wrap. */}
 			{landing?.intro_html && (
 				// Sanitized server-side on write (`sanitizeRichText`), which is why this is safe
 				// to inject; never render unsanitised admin HTML here.
 				<div
-					className='prose prose-sm mb-8 max-w-none'
+					className='description mb-8 max-w-[70ch] overflow-x-auto'
 					dangerouslySetInnerHTML={{ __html: landing.intro_html }}
 				/>
 			)}
@@ -341,16 +343,28 @@ export const CatalogPage = ({
 			{landing && (landing.bottom_html || landing.faq.length > 0) && (
 				<div className='mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]'>
 					{landing?.bottom_html && (
-						<div className='bg-card border-border/50 rounded-xl border p-6'>
+						/*
+						 * `min-w-0` and `overflow-x-auto` are load-bearing, not tidiness: a grid
+						 * item's automatic minimum is its content's, so one paragraph that cannot
+						 * wrap reports its whole length as the track's minimum and takes the page
+						 * sideways with it. Between them, admin-authored copy that will not wrap
+						 * scrolls inside its own card and the document never does. The
+						 * `description` class is the second belt — it carries the same
+						 * `overflow-wrap` product descriptions rely on, and it is what actually
+						 * styles this copy: `prose` was a dead class, the typography plugin is not
+						 * installed, and Tailwind's reset had flattened every heading into body
+						 * text.
+						 */
+						<div className='bg-card border-border/50 min-w-0 overflow-x-auto rounded-xl border p-6'>
 							<div
-								className='prose prose-sm max-w-none'
+								className='description'
 								dangerouslySetInnerHTML={{ __html: landing.bottom_html }}
 							/>
 						</div>
 					)}
 
 					{landing && landing.faq.length > 0 && (
-						<section className='bg-card border-border/50 rounded-xl border p-6'>
+						<section className='bg-card border-border/50 min-w-0 overflow-x-auto rounded-xl border p-6'>
 							<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
 							<div className='divide-border/50 divide-y'>
 								{landing.faq.map(item => (

@@ -206,8 +206,21 @@
 	font-size: 0.875rem;
 	line-height: 1.7;
 	color: var(--foreground);
-	overflow-wrap: break-word;
-	word-break: break-word;
+	/*
+	 * Prose wraps at spaces and nowhere else.
+	 *
+	 * Both `overflow-wrap: break-word` and the deprecated `word-break: break-word` that used to
+	 * sit here break an ordinary word mid-syllable rather than moving it to the next line —
+	 * measured in Chromium on this very copy, 15 words per screen split as «органай/зери»,
+	 * «прин/тер», «темпе/ратури». They are for content that genuinely cannot break, which in
+	 * admin-authored copy means a pasted URL, so the rule lives on links instead.
+	 *
+	 * `min-width: 0` stays: it is what stops a paragraph from reporting its whole length as its
+	 * grid or flex minimum. Anything that genuinely cannot break — a pasted URL — scrolls inside
+	 * the card that holds it, which is `overflow-x-auto` for exactly this reason, rather than
+	 * being chopped mid-word or widening the document.
+	 */
+	overflow-wrap: normal;
 	min-width: 0;
 }
 .description p {
