@@ -119,11 +119,19 @@ describe('LandingTable', () => {
 			expect(within(rowOf('PLA Silk')).getByText('готовий')).toBeInTheDocument()
 		})
 
+		/**
+		 * The last three are what Quill actually stores for an editor that was typed into and
+		 * cleared again — the backend's sanitizer keeps both `p` and `br`, so measuring the raw
+		 * markup counted seven characters of nothing as copy.
+		 */
 		it.each([
 			['no intro', { intro_html: '' }],
 			['no bottom text', { bottom_html: '' }],
 			['no FAQ', { faq: [] }],
-			['whitespace only', { intro_html: '   ' }]
+			['whitespace only', { intro_html: '   ' }],
+			['an empty paragraph', { intro_html: '<p></p>' }],
+			['a paragraph holding one break', { bottom_html: '<p><br /></p>' }],
+			['a non-breaking space', { intro_html: '<p>&nbsp;</p>' }]
 		])('reads порожній with %s', (_label, missing) => {
 			renderTable([
 				landing({ h1: 'Без тексту', ...missing } as Partial<AdminLanding> & { h1: string })

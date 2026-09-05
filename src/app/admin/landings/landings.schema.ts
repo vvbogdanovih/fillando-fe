@@ -57,14 +57,27 @@ export const adminLandingsListSchema = z.array(adminLandingSchema)
 export type AdminLanding = z.infer<typeof adminLandingSchema>
 
 /**
+ * Text, not markup.
+ *
+ * The editor is Quill, and an editor that was typed into and cleared again does not come back
+ * as an empty string — it emits `<p></p>` or `<p><br></p>`, and the backend's sanitizer keeps
+ * both `p` and `br`. Measuring the raw string would count seven characters of nothing as copy,
+ * which is precisely backwards for the column that exists to say which landings still need
+ * writing.
+ */
+const hasText = (html: string): boolean =>
+	html
+		.replace(/<[^>]*>/g, '')
+		.replace(/&nbsp;/g, ' ')
+		.trim().length > 0
+
+/**
  * «Контент» in the listing: a landing counts as written only when both texts and at least one
  * FAQ pair are there. Anything less and the page renders as a bare product grid under an H1,
  * which is the state the seeded drafts start in.
  */
 export const hasContent = (landing: Landing): boolean =>
-	landing.intro_html.trim().length > 0 &&
-	landing.bottom_html.trim().length > 0 &&
-	landing.faq.length > 0
+	hasText(landing.intro_html) && hasText(landing.bottom_html) && landing.faq.length > 0
 
 // --- Form ---
 

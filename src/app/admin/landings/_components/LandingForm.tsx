@@ -143,9 +143,23 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 
 			// The image needs an id to be keyed under, so it goes up after the landing exists
 			// and its URL comes back in a second PATCH — the same order the category form uses.
+			//
+			// A failure here must not fail the whole save. The landing is already written; if
+			// the rejection escaped, the form would stay in create mode over a landing that
+			// exists, and pressing Зберегти again would answer 409 on the slug with no way
+			// forward. So the image is reported on its own and the landing is returned anyway.
 			if (image.status === 'pending') {
-				const url = await landingsApi.uploadImage(saved._id, image.file)
-				return landingsApi.update(saved._id, { image: url })
+				try {
+					const url = await landingsApi.uploadImage(saved._id, image.file)
+					return await landingsApi.update(saved._id, { image: url })
+				} catch (error) {
+					toast.error(
+						`Лендінг збережено, але зображення не завантажилось: ${
+							error instanceof Error ? error.message : 'невідома помилка'
+						}. Відкрийте лендінг і спробуйте ще раз.`
+					)
+					return saved
+				}
 			}
 			if (image.status === 'removed' && initial) {
 				return landingsApi.update(saved._id, { image: null })
@@ -359,13 +373,21 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 											type='button'
 											size='sm'
 											variant='ghost'
-											onClick={() =>
+											onClick={() => {
+												// The button says «Прибрати», so the landing has
+												// to end up with no image — including when a
+												// replacement was picked over an existing one.
+												// Falling back to 'none' there showed «немає»
+												// while the save quietly kept the old URL.
+												if (image.status === 'pending') {
+													URL.revokeObjectURL(image.preview)
+												}
 												setImage(
-													image.status === 'existing'
+													initial?.image
 														? { status: 'removed' }
 														: { status: 'none' }
 												)
-											}
+											}}
 										>
 											Прибрати
 										</Button>
