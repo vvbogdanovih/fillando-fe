@@ -55,6 +55,12 @@ export interface ProductDetailData {
 	}[]
 	category_slug: string
 	category_name: string
+	/**
+	 * Set only on a refill: the spooled version of the same filament. After
+	 * `split-refill-products.js` the two are separate products with no siblings in common, so
+	 * this is the only thing that connects them.
+	 */
+	spooled_counterpart?: { slug: string; name: string; price: number } | null
 }
 
 export interface CatalogResponse {

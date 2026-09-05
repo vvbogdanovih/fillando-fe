@@ -36,3 +36,25 @@ export function variantLabel(variant: {
 }): string | null {
 	return colorLabel(variant.color) ?? variant.v_value ?? null
 }
+
+/**
+ * A catalogue row's name with the colour spelled the way the product page spells it.
+ *
+ * The stored variant name ends with the Ukrainian colour alone — `${product} — ${name_uk}` is
+ * what both the migration and `ProductService.variantName` write — while the product page shows
+ * «Чорний (Black)». That difference is not only cosmetic: adding the same variant to the cart
+ * from a catalogue card and from its own page used to put two different strings in the basket.
+ *
+ * Only the exact stored suffix is rewritten. A name that does not end in its colour is left
+ * alone rather than guessed at.
+ */
+export function catalogItemName(item: { name: string; color?: PublicColor | null }): string {
+	const label = colorLabel(item.color)
+	const uk = item.color?.name_uk?.trim()
+	if (!label || !uk || label === uk) return item.name
+
+	const suffix = ` — ${uk}`
+	return item.name.endsWith(suffix)
+		? `${item.name.slice(0, -suffix.length)} — ${label}`
+		: item.name
+}

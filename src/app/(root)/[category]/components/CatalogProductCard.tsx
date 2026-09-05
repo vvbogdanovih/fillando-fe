@@ -10,6 +10,7 @@ import { useCartStore } from '@/common/store/useCartStore'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
+import { catalogItemName } from '@/common/utils/color.utils'
 
 interface CatalogProductCardProps {
 	item: CatalogItem
@@ -25,6 +26,10 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 	const inGuestCart = useCartStore(s => s.guestItems.some(i => i.variant_id === item.id))
 	const isInCart = inAuthCart || inGuestCart
 	const [isAdding, setIsAdding] = useState(false)
+
+	// «Чорний (Black)», the same string the product page shows and the same one it puts in the
+	// cart — otherwise one variant reaches the basket under two different names.
+	const displayName = catalogItemName(item)
 
 	const availableQuantity = item.quantity ?? item.stock
 	const isOutOfStock = availableQuantity <= 0
@@ -43,7 +48,7 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 		setIsAdding(true)
 		try {
 			await addItem(item.id, 1, {
-				name: item.name,
+				name: displayName,
 				price: item.price,
 				thumbnail: item.main_image,
 				slug: item.slug
@@ -68,7 +73,7 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 						{item.main_image ? (
 							<Image
 								src={item.main_image}
-								alt={item.name}
+								alt={displayName}
 								fill
 								className={cn('object-cover', isOutOfStock && 'grayscale')}
 								sizes='(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
@@ -83,7 +88,7 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 					</div>
 				</div>
 				<div className='space-y-1 p-3'>
-					<p className='line-clamp-3 text-sm leading-tight font-medium'>{item.name}</p>
+					<p className='line-clamp-3 text-sm leading-tight font-medium'>{displayName}</p>
 					<p className='text-muted-foreground text-xs'>Арт. {item.sku}</p>
 					<p
 						className={cn(

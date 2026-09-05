@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { colorLabel, variantLabel, type PublicColor } from './color.utils'
+import { catalogItemName, colorLabel, variantLabel, type PublicColor } from './color.utils'
 
 const BLACK: PublicColor = {
 	name_uk: 'Чорний',
@@ -58,5 +58,39 @@ describe('variantLabel', () => {
 		['an empty variant', {}]
 	])('returns null for %s, so the caller can fall back to the name', (_case, variant) => {
 		expect(variantLabel(variant)).toBeNull()
+	})
+})
+
+describe('catalogItemName', () => {
+	const gold = { name_uk: 'Золотий', name_en: 'Gold', family: 'gold', hex_stops: ['#d4af37'] }
+
+	it('spells the colour the way the product page does', () => {
+		expect(catalogItemName({ name: 'Sunlu PLA Silk — Золотий', color: gold })).toBe(
+			'Sunlu PLA Silk — Золотий (Gold)'
+		)
+	})
+
+	it('leaves a name that does not end in its colour alone', () => {
+		expect(catalogItemName({ name: 'Sunlu PLA Silk 1 кг', color: gold })).toBe(
+			'Sunlu PLA Silk 1 кг'
+		)
+	})
+
+	it('changes nothing when the two names are the same word', () => {
+		const candy = {
+			name_uk: 'Candy',
+			name_en: 'Candy',
+			family: 'multicolor',
+			hex_stops: ['#f0f']
+		}
+		expect(catalogItemName({ name: 'Kingroon PLA — Candy', color: candy })).toBe(
+			'Kingroon PLA — Candy'
+		)
+	})
+
+	it('changes nothing for a variant with no dictionary colour', () => {
+		expect(catalogItemName({ name: 'Kingroon PLA — Rainbow', color: null })).toBe(
+			'Kingroon PLA — Rainbow'
+		)
 	})
 })

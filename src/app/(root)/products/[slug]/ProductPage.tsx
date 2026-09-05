@@ -37,6 +37,8 @@ import {
 } from '@/common/constants/seo.constants'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 import { variantLabel } from '@/common/utils/color.utils'
+import { buildSpecRows } from './product-attributes'
+import { VariantSwitcher } from './VariantSwitcher'
 import {
 	ATTR_NOTES,
 	REFILL_NOTE,
@@ -134,6 +136,42 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	const attrNote =
 		product.attributes.map(attr => ATTR_NOTES[attr.k]?.[String(attr.v)]).find(Boolean) ??
 		(REFILL_VARIANT_PATTERN.test(variant.v_value ?? '') ? REFILL_NOTE : undefined)
+
+	/**
+	 * Whether this page is a refill, and what the spooled version of it costs.
+	 *
+	 * Two shapes, because the data is mid-move. Once `split-refill-products.js` has run the
+	 * refill is its own product carrying `spool_included = Ні (рефіл)`, and the backend answers
+	 * with `spooled_counterpart`. Before that it is a variant sitting among spooled colours on
+	 * one product, recognisable only by the marker in its value — and its counterpart is a
+	 * sibling.
+	 */
+	// The variant axis prints what the shopper chose, not the product-level value stored for it.
+	const specRows = buildSpecRows(
+		product.attributes,
+		product.variant_type?.key && variantValue
+			? { [product.variant_type.key]: variantValue }
+			: {}
+	)
+
+	const isRefill =
+		product.attributes.some(
+			attr => attr.k === 'spool_included' && String(attr.v) === 'Ні (рефіл)'
+		) || REFILL_VARIANT_PATTERN.test(variant.v_value ?? '')
+
+	const spooledSibling = isRefill
+		? siblings.find(s => s.id !== variant.id && !REFILL_VARIANT_PATTERN.test(s.v_value ?? ''))
+		: undefined
+	const spooled =
+		data.spooled_counterpart ??
+		(spooledSibling
+			? {
+					slug: spooledSibling.slug,
+					name: spooledSibling.name,
+					price: spooledSibling.price
+				}
+			: null)
+
 	const displayName = variantValue ? `${product.name} — ${variantValue}` : variant.name
 	const isOutOfStock = availableStock <= 0
 	const isLowStock = availableStock > 0 && availableStock <= 5
@@ -193,6 +231,13 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 				{/* Image gallery */}
 				<div className='flex flex-col gap-3 lg:w-1/2'>
 					<div className='bg-muted relative aspect-square overflow-hidden rounded-xl'>
+						{/* The one thing about a refill a photo cannot show: there is no spool in
+						    the box. It sits on the image because that is where the eye lands. */}
+						{isRefill && (
+							<span className='absolute top-3 left-3 z-10 rounded-full bg-black/85 px-3 py-1 text-xs font-medium text-white'>
+								Без котушки
+							</span>
+						)}
 						<div className='absolute inset-4'>
 							<div className='relative h-full w-full overflow-hidden rounded-lg'>
 								{images.length > 0 ? (
@@ -314,8 +359,29 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							{formatUah(variant.price)}
 						</p>
 						{priceAsOf && <p className='text-muted-foreground text-sm'>{priceAsOf}</p>}
+						{/* What the same filament costs with a spool, so the saving is visible
+						    without hunting for the other page. */}
+						{isRefill && spooled && (
+							<p className='text-muted-foreground text-sm'>
+								на котушці —{' '}
+								<Link
+									href={`/products/${spooled.slug}`}
+									className='hover:text-primary underline underline-offset-2'
+								>
+									{formatUah(spooled.price)}
+								</Link>
+							</p>
+						)}
 						<span className='text-muted-foreground text-sm'>Арт. {variant.sku}</span>
 					</div>
+
+					{/* Above the buy button: the colour is part of the decision, and a shopper who
+					    picks one after pressing «Додати в кошик» has added the wrong thing. */}
+					<VariantSwitcher
+						variants={siblings}
+						currentSlug={variant.slug}
+						axisLabel={product.variant_type?.label ?? 'Варіація'}
+					/>
 
 					{/* Add to cart */}
 					<div className='flex flex-col gap-3'>
@@ -326,6 +392,16 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 									{attrNote.title}
 								</p>
 								<p className='mt-1 text-xs text-amber-800'>{attrNote.text}</p>
+								{/* The warning tells the shopper they need their own spool; this
+								    is the way out for the ones who would rather not. */}
+								{spooled && (
+									<Link
+										href={`/products/${spooled.slug}`}
+										className='mt-2 inline-block text-xs font-medium text-amber-900 underline underline-offset-2'
+									>
+										Обрати варіант на котушці — {formatUah(spooled.price)}
+									</Link>
+								)}
 							</div>
 						)}
 						{isLowStock && (
@@ -408,48 +484,6 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 						{addError && <p className='text-destructive text-sm'>{addError}</p>}
 					</div>
 
-					{/* Variant switcher */}
-					{siblings.length > 1 && (
-						<div>
-							<p className='text-muted-foreground mb-2 text-sm'>
-								{product.variant_type?.label ?? 'Варіація'}:
-							</p>
-							<DropdownMenu>
-								<DropdownMenuTrigger className='border-input flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-sm shadow-xs outline-none focus:outline-none focus-visible:outline-none'>
-									<span>{variantValue ?? variant.name}</span>
-									<ChevronDown className='size-4 opacity-50' />
-								</DropdownMenuTrigger>
-								<DropdownMenuContent
-									className='max-h-[360px] min-w-(--radix-dropdown-menu-trigger-width) bg-white'
-									align='start'
-									sideOffset={4}
-								>
-									<DropdownMenuRadioGroup
-										value={variant.slug}
-										onValueChange={slug => router.push(`/products/${slug}`)}
-									>
-										{siblings.map(s => (
-											<DropdownMenuRadioItem
-												key={s.id}
-												value={s.slug}
-												className={
-													s.stock <= 0 ? 'text-muted-foreground/50' : ''
-												}
-											>
-												{variantLabel(s) ?? s.name}
-												{s.stock <= 0 && (
-													<span className='text-muted-foreground/40 ml-2 text-xs'>
-														— немає в наявності
-													</span>
-												)}
-											</DropdownMenuRadioItem>
-										))}
-									</DropdownMenuRadioGroup>
-								</DropdownMenuContent>
-							</DropdownMenu>
-						</div>
-					)}
-
 					{/* Wholesale note */}
 					<Link
 						href={UI_URLS.WHOLESALE}
@@ -480,27 +514,30 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 				</div>
 			)}
 
-			{/* Attributes */}
-			{product.attributes.length > 0 && (
+			{/* Attributes — curated: fixed order, one row per characteristic, and the value the
+			    shopper actually chose on the variant axis. */}
+			{specRows.length > 0 && (
 				<div className='border-border/50 bg-card mt-6 rounded-xl border p-4 shadow-lg shadow-black/10'>
 					<table className='w-full text-sm'>
 						<tbody>
-							{product.attributes.map(attr => {
-								const isVariantAttr = product.variant_type?.key === attr.k
-								const displayValue =
-									isVariantAttr && variantValue ? variantValue : String(attr.v)
-								return (
-									<tr
-										key={attr.k}
-										className='border-border/50 border-b last:border-0'
+							{specRows.map(row => (
+								<tr
+									key={row.key}
+									className='border-border/50 border-b last:border-0'
+								>
+									<td className='text-muted-foreground w-1/2 py-2 pr-8'>
+										{row.label}
+									</td>
+									<td
+										className={cn(
+											'py-2 font-medium',
+											row.emphasised && 'font-semibold text-amber-700'
+										)}
 									>
-										<td className='text-muted-foreground w-1/2 py-2 pr-8'>
-											{attr.l}
-										</td>
-										<td className='py-2 font-medium'>{displayValue}</td>
-									</tr>
-								)
-							})}
+										{row.value}
+									</td>
+								</tr>
+							))}
 						</tbody>
 					</table>
 				</div>
