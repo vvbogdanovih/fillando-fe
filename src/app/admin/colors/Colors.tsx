@@ -2,8 +2,11 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { PlusIcon } from 'lucide-react'
+import { Button } from '@/common/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { colorsApi } from './colors.api'
-import { ColorList } from './_components/ColorList'
+import { ColorTable } from './_components/ColorTable'
 import { ColorForm } from './_components/ColorForm'
 import type { AdminColor } from './colors.schema'
 
@@ -19,49 +22,65 @@ export const Colors = () => {
 		refetch
 	} = useQuery({ queryKey: ['colors'], queryFn: () => colorsApi.getAll() })
 
-	// Keep the open panel pointing at the cached copy, so an edit elsewhere is reflected.
+	// Keep the open form pointing at the cached copy, so an edit elsewhere is reflected.
 	const selected =
 		panel.mode === 'edit' ? (colors.find(c => c._id === panel.color._id) ?? panel.color) : null
 
-	const isPanelOpen = panel.mode !== 'closed'
-
 	return (
-		<div className='flex h-full'>
-			<div className={`shrink-0 ${isPanelOpen ? 'w-80' : 'w-full max-w-2xl'} transition-all`}>
-				{isLoading ? (
-					<div className='flex h-full items-center justify-center text-sm text-gray-400'>
-						Завантаження...
-					</div>
-				) : isError ? (
-					<div className='flex h-full flex-col items-center justify-center gap-3 text-sm text-gray-500'>
-						<p>Помилка завантаження кольорів</p>
-						<button
-							onClick={() => refetch()}
-							className='text-primary text-sm hover:underline'
+		<div className='p-6'>
+			<Card className='h-fit'>
+				<CardHeader className='border-b'>
+					<div className='flex items-center justify-between gap-3'>
+						<CardTitle>
+							Кольори
+							<span className='ml-2 text-sm font-normal text-gray-400'>
+								{colors.length}
+							</span>
+						</CardTitle>
+						{/*
+						 * Locked until the dictionary is on screen. Creating against a list that
+						 * never loaded would leave the cache holding that one colour — and
+						 * writing to the cache also resolves the query, so the failure notice
+						 * would disappear with it.
+						 */}
+						<Button
+							variant='outline'
+							disabled={isLoading || isError}
+							onClick={() => setPanel({ mode: 'create' })}
 						>
-							Спробувати знову
-						</button>
+							<PlusIcon className='size-4' />
+							Новий колір
+						</Button>
 					</div>
-				) : (
-					<ColorList
-						colors={colors}
-						selectedId={panel.mode === 'edit' ? panel.color._id : null}
-						onSelect={color =>
-							setPanel(color ? { mode: 'edit', color } : { mode: 'closed' })
-						}
-						onCreate={() => setPanel({ mode: 'create' })}
-					/>
-				)}
-			</div>
+				</CardHeader>
 
-			{isPanelOpen && (
-				<div className='flex-1 border-l border-gray-200'>
-					<ColorForm
-						key={panel.mode === 'edit' ? panel.color._id : 'create'}
-						initial={panel.mode === 'edit' ? selected : null}
-						onClose={() => setPanel({ mode: 'closed' })}
-					/>
-				</div>
+				<CardContent className='pt-5'>
+					{isLoading ? (
+						<p className='text-sm text-gray-500'>Завантаження...</p>
+					) : isError ? (
+						<div className='space-y-2'>
+							<p className='text-sm text-gray-500'>Помилка завантаження кольорів</p>
+							<Button variant='outline' size='sm' onClick={() => refetch()}>
+								Спробувати знову
+							</Button>
+						</div>
+					) : (
+						<ColorTable
+							colors={colors}
+							onSelect={color => setPanel({ mode: 'edit', color })}
+						/>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Mounted only while open, and keyed by colour, so `useForm` starts from the right
+			    defaults on every open rather than keeping the previous colour's values. */}
+			{panel.mode !== 'closed' && (
+				<ColorForm
+					key={panel.mode === 'edit' ? panel.color._id : 'create'}
+					initial={selected}
+					onClose={() => setPanel({ mode: 'closed' })}
+				/>
 			)}
 		</div>
 	)
