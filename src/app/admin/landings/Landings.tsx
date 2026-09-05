@@ -2,12 +2,15 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { PlusIcon } from 'lucide-react'
+import { Button } from '@/common/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { landingsApi } from './landings.api'
-import { LandingList } from './_components/LandingList'
+import { LandingTable } from './_components/LandingTable'
 import { LandingForm } from './_components/LandingForm'
-import type { Landing } from './landings.schema'
+import type { AdminLanding } from './landings.schema'
 
-type PanelState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; landing: Landing }
+type PanelState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; landing: AdminLanding }
 
 export const Landings = () => {
 	const [panel, setPanel] = useState<PanelState>({ mode: 'closed' })
@@ -19,51 +22,67 @@ export const Landings = () => {
 		refetch
 	} = useQuery({ queryKey: ['landings', 'admin'], queryFn: () => landingsApi.getAll() })
 
+	// Keep the open form pointing at the cached copy, so a change elsewhere is reflected.
 	const selected =
 		panel.mode === 'edit'
 			? (landings.find(l => l._id === panel.landing._id) ?? panel.landing)
 			: null
 
-	const isPanelOpen = panel.mode !== 'closed'
+	// The form is a two-column layout of its own, so it takes the screen rather than squeezing
+	// the table into a side panel.
+	if (panel.mode !== 'closed') {
+		return (
+			<LandingForm
+				key={panel.mode === 'edit' ? panel.landing._id : 'create'}
+				initial={selected}
+				onClose={() => setPanel({ mode: 'closed' })}
+			/>
+		)
+	}
 
 	return (
-		<div className='flex h-full'>
-			<div className={`shrink-0 ${isPanelOpen ? 'w-80' : 'w-full max-w-3xl'} transition-all`}>
-				{isLoading ? (
-					<div className='flex h-full items-center justify-center text-sm text-gray-400'>
-						Завантаження...
-					</div>
-				) : isError ? (
-					<div className='flex h-full flex-col items-center justify-center gap-3 text-sm text-gray-500'>
-						<p>Помилка завантаження лендінгів</p>
-						<button
-							onClick={() => refetch()}
-							className='text-primary text-sm hover:underline'
+		<div className='p-6'>
+			<Card className='h-fit'>
+				<CardHeader className='border-b'>
+					<div className='flex items-center justify-between gap-3'>
+						<CardTitle>
+							Лендінги
+							<span className='ml-2 text-sm font-normal text-gray-400'>
+								{landings.length}
+							</span>
+						</CardTitle>
+						{/* Locked until the list is on screen: creating against a cache that never
+						    loaded would leave it holding that one landing, and writing to the
+						    cache also clears the error the screen is showing. */}
+						<Button
+							variant='outline'
+							disabled={isLoading || isError}
+							onClick={() => setPanel({ mode: 'create' })}
 						>
-							Спробувати знову
-						</button>
+							<PlusIcon className='size-4' />
+							Новий лендінг
+						</Button>
 					</div>
-				) : (
-					<LandingList
-						landings={landings}
-						selectedId={panel.mode === 'edit' ? panel.landing._id : null}
-						onSelect={landing =>
-							setPanel(landing ? { mode: 'edit', landing } : { mode: 'closed' })
-						}
-						onCreate={() => setPanel({ mode: 'create' })}
-					/>
-				)}
-			</div>
+				</CardHeader>
 
-			{isPanelOpen && (
-				<div className='flex-1 border-l border-gray-200'>
-					<LandingForm
-						key={panel.mode === 'edit' ? panel.landing._id : 'create'}
-						initial={panel.mode === 'edit' ? selected : null}
-						onClose={() => setPanel({ mode: 'closed' })}
-					/>
-				</div>
-			)}
+				<CardContent className='pt-5'>
+					{isLoading ? (
+						<p className='text-sm text-gray-500'>Завантаження...</p>
+					) : isError ? (
+						<div className='space-y-2'>
+							<p className='text-sm text-gray-500'>Помилка завантаження лендінгів</p>
+							<Button variant='outline' size='sm' onClick={() => refetch()}>
+								Спробувати знову
+							</Button>
+						</div>
+					) : (
+						<LandingTable
+							landings={landings}
+							onSelect={landing => setPanel({ mode: 'edit', landing })}
+						/>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

@@ -38,8 +38,33 @@ export const landingSchema = z.object({
 	updatedAt: z.string().optional()
 })
 
-export const landingsListSchema = z.array(landingSchema)
 export type Landing = z.infer<typeof landingSchema>
+
+/**
+ * What `GET /landings/admin` adds to each row: how many catalogue variants the landing's pinned
+ * filters currently match. A zero is the reading that matters — that landing may not be
+ * published, and the API refuses it — and it is the only thing on the screen that says which of
+ * the fourteen seeded landings are still empty.
+ *
+ * The write endpoints answer with the landing alone, so `Landing` stays the shape of a
+ * create/update response and only the listing carries the count.
+ */
+export const adminLandingSchema = landingSchema.extend({
+	product_count: z.number().int().nonnegative()
+})
+
+export const adminLandingsListSchema = z.array(adminLandingSchema)
+export type AdminLanding = z.infer<typeof adminLandingSchema>
+
+/**
+ * «Контент» in the listing: a landing counts as written only when both texts and at least one
+ * FAQ pair are there. Anything less and the page renders as a bare product grid under an H1,
+ * which is the state the seeded drafts start in.
+ */
+export const hasContent = (landing: Landing): boolean =>
+	landing.intro_html.trim().length > 0 &&
+	landing.bottom_html.trim().length > 0 &&
+	landing.faq.length > 0
 
 // --- Form ---
 
@@ -58,6 +83,9 @@ export const landingFormSchema = z.object({
 	// and react-hook-form is typed against one of them. `defaultValues` supplies the empties.
 	faq: z.array(faqItemSchema),
 	filters: z.record(z.string(), z.array(z.string())),
+	// The tile image the category's «Популярні види» block shows. Nullable rather than optional:
+	// clearing it has to reach the API as an explicit null.
+	image: z.string().nullable(),
 	order: z.number().int().min(0).optional(),
 	status: z.enum(LANDING_STATUSES)
 })
