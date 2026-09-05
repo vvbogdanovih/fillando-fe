@@ -15,6 +15,7 @@ import { PopularLandings, type PopularLanding } from './components/PopularLandin
 import { FAMILY_LABELS } from './components/ColorFilter'
 import { attributeValueLabel } from './filter-labels'
 import { productsCount } from '@/common/utils'
+import { catalogItemName } from '@/common/utils/color.utils'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { Breadcrumbs } from '@/common/components/Breadcrumbs'
@@ -79,6 +80,32 @@ export const CatalogPage = ({
 		initialData: initialCatalog ?? undefined
 	})
 
+	/**
+	 * How many products this page is about, which is not the same number as how many are on
+	 * screen. `pagination.total` is counted after every filter, so once the visitor ticks
+	 * «Чорний» it becomes 42 — and the heading would then claim the whole category holds 42,
+	 * while the line below it said «Знайдено 42» twice over.
+	 *
+	 * So the heading takes the total of the page's own scope: the category, or the landing's
+	 * pinned filters. That costs a second request only while something is actually narrowed;
+	 * with nothing selected the main query already answers it.
+	 */
+	const narrowingKeys = [...searchParams.keys()].filter(
+		key => !['page', 'limit', 'sort'].includes(key) && !pinnedKeys.includes(key)
+	)
+	const hasNarrowed = narrowingKeys.length > 0
+	const scopeParams: Record<string, string> = { limit: '1' }
+	for (const [key, values] of Object.entries(pinned)) {
+		if (values.length > 0) scopeParams[key] = values.join(',')
+	}
+
+	const { data: scope } = useQuery({
+		queryKey: ['catalog-scope', category?._id, scopeParams],
+		queryFn: () => getCatalogProducts({ category_id: category!._id, ...scopeParams }),
+		enabled: !!category && hasNarrowed
+	})
+	const scopeTotal = hasNarrowed ? scope?.pagination.total : data?.pagination.total
+
 	const updateParams = (changes: Record<string, string | null>) => {
 		const next = new URLSearchParams(searchParams.toString())
 		for (const [key, value] of Object.entries(changes)) {
@@ -134,6 +161,7 @@ export const CatalogPage = ({
 		requiredAttributes: category.required_attributes.filter(
 			attr => !pinnedKeys.includes(attr.key)
 		),
+		allAttributes: category.required_attributes,
 		pinnedFilters: pinned,
 		priceRange: data?.price_range ?? { min: 0, max: 0 },
 		filterOptions: data?.filter_options ?? {},
@@ -167,7 +195,10 @@ export const CatalogPage = ({
 							position:
 								(data.pagination.page - 1) * data.pagination.limit + index + 1,
 							url: `${SITE_URL}/products/${item.slug}`,
-							name: item.name
+							// The same string the card renders: markup that disagrees with the
+							// visible content is the one thing structured data must never do,
+							// and the two differ on any row migrated before the naming change.
+							name: catalogItemName(item)
 						}))
 					}}
 				/>
@@ -175,9 +206,9 @@ export const CatalogPage = ({
 			<div className='mb-6 flex items-center justify-between gap-4'>
 				<div className='flex flex-wrap items-baseline gap-3'>
 					<h1 className='text-3xl font-bold'>{landing?.h1 ?? category.name}</h1>
-					{data && (
+					{scopeTotal !== undefined && (
 						<span className='text-muted-foreground text-sm'>
-							{productsCount(data.pagination.total)}
+							{productsCount(scopeTotal)}
 						</span>
 					)}
 				</div>
@@ -305,45 +336,50 @@ export const CatalogPage = ({
 			</div>
 
 			{/* Two cards side by side at the foot of a landing: the SEO copy and the FAQ. They
-			    stack on a narrow screen, and either one alone simply takes the full width. */}
-			<div className='mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]'>
-				{landing?.bottom_html && (
-					<div className='bg-card border-border/50 rounded-xl border p-6'>
-						<div
-							className='prose prose-sm max-w-none'
-							dangerouslySetInnerHTML={{ __html: landing.bottom_html }}
-						/>
-					</div>
-				)}
-
-				{landing && landing.faq.length > 0 && (
-					<section className='bg-card border-border/50 rounded-xl border p-6'>
-						<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
-						<div className='divide-border/50 divide-y'>
-							{landing.faq.map(item => (
-								<details key={item.q} className='py-3'>
-									<summary className='cursor-pointer font-medium'>
-										{item.q}
-									</summary>
-									<p className='text-muted-foreground mt-2 text-sm'>{item.a}</p>
-								</details>
-							))}
+			    stack on a narrow screen, and either one alone simply takes the full width. A
+			    category has neither, so the grid is not rendered there at all. */}
+			{landing && (landing.bottom_html || landing.faq.length > 0) && (
+				<div className='mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]'>
+					{landing?.bottom_html && (
+						<div className='bg-card border-border/50 rounded-xl border p-6'>
+							<div
+								className='prose prose-sm max-w-none'
+								dangerouslySetInnerHTML={{ __html: landing.bottom_html }}
+							/>
 						</div>
-						{/* FAQPage markup is only valid where the answers are on the page. */}
-						<JsonLd
-							data={{
-								'@context': 'https://schema.org',
-								'@type': 'FAQPage',
-								mainEntity: landing.faq.map(item => ({
-									'@type': 'Question',
-									name: item.q,
-									acceptedAnswer: { '@type': 'Answer', text: item.a }
-								}))
-							}}
-						/>
-					</section>
-				)}
-			</div>
+					)}
+
+					{landing && landing.faq.length > 0 && (
+						<section className='bg-card border-border/50 rounded-xl border p-6'>
+							<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
+							<div className='divide-border/50 divide-y'>
+								{landing.faq.map(item => (
+									<details key={item.q} className='py-3'>
+										<summary className='cursor-pointer font-medium'>
+											{item.q}
+										</summary>
+										<p className='text-muted-foreground mt-2 text-sm'>
+											{item.a}
+										</p>
+									</details>
+								))}
+							</div>
+							{/* FAQPage markup is only valid where the answers are on the page. */}
+							<JsonLd
+								data={{
+									'@context': 'https://schema.org',
+									'@type': 'FAQPage',
+									mainEntity: landing.faq.map(item => ({
+										'@type': 'Question',
+										name: item.q,
+										acceptedAnswer: { '@type': 'Answer', text: item.a }
+									}))
+								}}
+							/>
+						</section>
+					)}
+				</div>
+			)}
 		</div>
 	)
 }

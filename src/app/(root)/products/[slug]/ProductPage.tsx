@@ -38,6 +38,7 @@ import {
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 import { variantLabel } from '@/common/utils/color.utils'
 import { buildSpecRows } from './product-attributes'
+import { findSpooledSibling } from './refill.utils'
 import { VariantSwitcher } from './VariantSwitcher'
 import {
 	ATTR_NOTES,
@@ -159,16 +160,15 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 			attr => attr.k === 'spool_included' && String(attr.v) === 'Ні (рефіл)'
 		) || REFILL_VARIANT_PATTERN.test(variant.v_value ?? '')
 
-	const spooledSibling = isRefill
-		? siblings.find(s => s.id !== variant.id && !REFILL_VARIANT_PATTERN.test(s.v_value ?? ''))
-		: undefined
+	const spooledSibling = isRefill ? findSpooledSibling(variant, siblings) : undefined
 	const spooled =
 		data.spooled_counterpart ??
 		(spooledSibling
 			? {
 					slug: spooledSibling.slug,
 					name: spooledSibling.name,
-					price: spooledSibling.price
+					price: spooledSibling.price,
+					matched_colour: true
 				}
 			: null)
 
@@ -363,7 +363,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 						    without hunting for the other page. */}
 						{isRefill && spooled && (
 							<p className='text-muted-foreground text-sm'>
-								на котушці —{' '}
+								на котушці — {spooled.matched_colour ? '' : 'від '}
 								<Link
 									href={`/products/${spooled.slug}`}
 									className='hover:text-primary underline underline-offset-2'
@@ -399,7 +399,9 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 										href={`/products/${spooled.slug}`}
 										className='mt-2 inline-block text-xs font-medium text-amber-900 underline underline-offset-2'
 									>
-										Обрати варіант на котушці — {formatUah(spooled.price)}
+										Обрати варіант на котушці —{' '}
+										{spooled.matched_colour ? '' : 'від '}
+										{formatUah(spooled.price)}
 									</Link>
 								)}
 							</div>

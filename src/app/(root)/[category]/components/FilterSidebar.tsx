@@ -1,12 +1,16 @@
 'use client'
 
 import { RequiredAttribute } from '@/app/admin/categories/categories.schema'
+import { attributeValueLabel } from '../filter-labels'
 import { PriceRangeFilter } from './PriceRangeFilter'
 import { AttributeFilter } from './AttributeFilter'
 import { ColorFilter, type ColorOption } from './ColorFilter'
 
 interface FilterSidebarProps {
+	/** The dimensions with a control — pinned ones are excluded by the caller. */
 	requiredAttributes: RequiredAttribute[]
+	/** Every dimension of the category, pinned included: the pinned chips need their labels. */
+	allAttributes: RequiredAttribute[]
 	priceRange: { min: number; max: number }
 	filterOptions: Record<string, string[]>
 	colorOptions: ColorOption[]
@@ -19,6 +23,7 @@ interface FilterSidebarProps {
 
 export const FilterSidebar = ({
 	requiredAttributes,
+	allAttributes,
 	priceRange,
 	filterOptions,
 	colorOptions,
@@ -51,7 +56,8 @@ export const FilterSidebar = ({
 									key={key}
 									className='border-border/60 text-muted-foreground rounded-full border px-2 py-1 text-xs'
 								>
-									{values.join(', ')}
+									{allAttributes.find(a => a.key === key)?.label ?? key}:{' '}
+									{values.map(v => attributeValueLabel(key, v)).join(', ')}
 								</span>
 							))}
 						</div>

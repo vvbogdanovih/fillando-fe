@@ -60,7 +60,13 @@ export interface ProductDetailData {
 	 * `split-refill-products.js` the two are separate products with no siblings in common, so
 	 * this is the only thing that connects them.
 	 */
-	spooled_counterpart?: { slug: string; name: string; price: number } | null
+	spooled_counterpart?: {
+		slug: string
+		name: string
+		price: number
+		/** false when it is the cheapest spool rather than this refill's own colour. */
+		matched_colour: boolean
+	} | null
 }
 
 export interface CatalogResponse {

@@ -67,13 +67,16 @@ describe('PopularLandings', () => {
 		expect(images[0]).toHaveAttribute('src', 'https://cdn.test/pla.webp')
 	})
 
-	it('caps the grid at nine tiles and offers the rest behind «Ще N видів»', () => {
-		renderTiles(
+	it('shows nine tiles and offers the rest behind «Ще N видів»', () => {
+		const { container } = renderTiles(
 			Array.from({ length: 14 }, (_, i) => tile({ slug: `l${i}`, h1: `Вид ${i} філамент` }))
 		)
 
 		expect(screen.getAllByRole('link')).toHaveLength(9)
 		expect(screen.getByRole('button', { name: 'Ще 5 видів' })).toBeInTheDocument()
+		// Hidden, not dropped: these tiles are the category's internal links to its landings,
+		// and a crawler never presses the button.
+		expect(container.querySelectorAll('a')).toHaveLength(14)
 	})
 
 	it('shows every tile once there is nothing left to hide', () => {

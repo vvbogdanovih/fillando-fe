@@ -38,15 +38,18 @@ export function variantLabel(variant: {
 }
 
 /**
- * A catalogue row's name with the colour spelled the way the product page spells it.
+ * A transitional shim: a catalogue row's name with the colour spelled the way the product page
+ * spells it.
  *
- * The stored variant name ends with the Ukrainian colour alone — `${product} — ${name_uk}` is
- * what both the migration and `ProductService.variantName` write — while the product page shows
- * «Чорний (Black)». That difference is not only cosmetic: adding the same variant to the cart
- * from a catalogue card and from its own page used to put two different strings in the basket.
+ * Both writers — `ProductService.variantName` and `normalize-variant-colors.js` — now store
+ * «<product> — Чорний (Black)» themselves, so on freshly written data this function does
+ * nothing at all: such a name does not end in the bare Ukrainian colour and falls straight
+ * through. It exists for the rows left behind by the previous version of those two, which is
+ * every environment migrated before that change, and the release procedure deliberately puts
+ * this frontend in production *before* the colour migration runs.
  *
- * Only the exact stored suffix is rewritten. A name that does not end in its colour is left
- * alone rather than guessed at.
+ * It can be deleted once the migration has run everywhere. Until then, do not treat the old
+ * form as the contract: the shim rewrites, it does not define.
  */
 export function catalogItemName(item: { name: string; color?: PublicColor | null }): string {
 	const label = colorLabel(item.color)

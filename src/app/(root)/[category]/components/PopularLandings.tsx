@@ -66,7 +66,6 @@ export const PopularLandings = ({ categorySlug, categoryName, landings }: Popula
 	if (landings.length === 0) return null
 
 	const hidden = landings.length - VISIBLE
-	const shown = expanded || hidden <= 0 ? landings : landings.slice(0, VISIBLE)
 
 	return (
 		<nav aria-label='Популярні види' className='mb-8'>
@@ -74,10 +73,17 @@ export const PopularLandings = ({ categorySlug, categoryName, landings }: Popula
 				Популярні види
 			</h2>
 			<div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'>
-				{shown.map(item => (
+				{/*
+				 * Every landing is rendered, and the overflow is hidden with a class rather than
+				 * sliced out of the array. These tiles are the category's internal links to its
+				 * landings — a crawler that never presses «Ще N видів» would otherwise see nine
+				 * of the fourteen, and the rest would depend on the sitemap alone.
+				 */}
+				{landings.map((item, index) => (
 					<Link
 						key={item.slug}
 						href={`/${categorySlug}/${item.slug}`}
+						hidden={!expanded && hidden > 0 && index >= VISIBLE}
 						className='border-border/50 bg-card hover:border-primary group flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors'
 					>
 						{item.image ? (
