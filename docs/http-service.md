@@ -227,12 +227,33 @@ re-run it. With `force-static` plus `export const revalidate = 86400` the fetch 
 each daily regeneration, exactly as the bare `fetch` did before `serverFetch` replaced it. Keep the
 two exports together; removing `dynamic` looks harmless and silently makes the sitemap dynamic.
 
+### On-demand revalidation
+
+A landing-reading fetch carries `CACHE_TAGS.LANDINGS` so `POST /api/revalidate` can drop it when
+the admin saves, instead of leaving the editor to wait out the hour. The purge is always
+`revalidateTag(tag, { expire: 0 })` — `'max'` is stale-while-revalidate (the first reload still
+shows the old copy) and the single-argument form is a build error (the second argument is required). Full mechanism,
+tag table, auth posture and limits in [cache-revalidation.md](./cache-revalidation.md).
+
+Two rules that live with the tags rather than with the endpoint:
+
+- **`next.tags` is not part of the fetch cache key.** Two calls to the same URL share one Data
+  Cache entry, and whichever renders first writes it with its own tags; the other's are dropped
+  without a warning. The two `/landings?category_id=` calls in `[category]/page.tsx` must keep
+  identical tag arrays.
+- **`unstable_cache` takes its tags on the options object**, not from `keyParts` and not from the
+  fetches inside it — those pass `revalidate: 0` and never reach the Data Cache.
+
 ### Call sites
 
-| File                                      | Calls                                                                 |
-| ----------------------------------------- | --------------------------------------------------------------------- |
-| `src/app/(root)/Home.tsx`                 | `/categories`, `/products/catalog?…`                                  |
-| `src/app/(root)/[category]/page.tsx`      | `/categories/slug/:slug` (metadata + page), `/products/catalog?…`     |
-| `src/app/(root)/products/[slug]/page.tsx` | `/products/by-slug/:slug` (metadata + page)                           |
-| `src/app/(root)/search/page.tsx`          | `/products/search?…`                                                  |
-| `src/app/sitemap.ts`                      | `/products/variants/count`, `/products/variants/slugs`, `/categories` |
+| File                                              | Calls                                                                             | Tags       |
+| ------------------------------------------------- | --------------------------------------------------------------------------------- | ---------- |
+| `src/app/(root)/Home.tsx`                         | `/categories`, `/products/catalog?…`                                              | —          |
+| `src/app/(root)/[category]/page.tsx`              | `/categories/slug/:slug` (metadata + page), `/products/catalog?…`                 | —          |
+| `src/app/(root)/[category]/page.tsx`              | `/landings?category_id=` (metadata canonical **and** page tiles — same URL)       | `landings` |
+| `src/app/(root)/[category]/[landing]/page.tsx`    | `/landings/slug/:category/:landing` (metadata + page, via `loadLanding`)          | `landings` |
+| `src/app/(root)/[category]/[landing]/page.tsx`    | `/categories/slug/:slug`, `/products/catalog?…`                                   | —          |
+| `src/app/(root)/products/[slug]/page.tsx`         | `/products/by-slug/:slug` (metadata + page)                                       | —          |
+| `src/app/(root)/search/page.tsx`                  | `/products/search?…`                                                              | —          |
+| `src/common/utils/navigation.utils.ts`            | `/categories`                                                                     | —          |
+| `src/app/sitemap.ts`                              | `/products/variants/count`, `/products/variants/slugs`, `/categories`, `/landings/slugs` | — (the `unstable_cache` memo carries `sitemap`) |

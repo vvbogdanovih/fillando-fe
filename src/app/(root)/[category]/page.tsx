@@ -9,6 +9,7 @@ import {
 } from '@/common/utils/seo.utils'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
+import { CACHE_TAGS } from '@/common/constants'
 import type { Category } from '@/app/admin/categories/categories.schema'
 import type { CatalogResponse } from './catalog.api'
 
@@ -43,8 +44,12 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 	// A filter combination that a landing already covers should point at the landing: the two
 	// return the same products, and the landing is the one with a heading and copy (TD-0002 §5.4).
 	if (robots) {
+		// Same URL as the page-body fetch below, so both share one Data Cache entry: `next.tags`
+		// is not part of the fetch cache key, whichever call renders first writes the entry with
+		// its own tags and the other's are silently dropped. Keep the two tag arrays identical.
 		const landings = await serverFetch<LandingCanonical[]>(
-			`/landings?category_id=${categoryData._id}`
+			`/landings?category_id=${categoryData._id}`,
+			{ next: { tags: [CACHE_TAGS.LANDINGS] } }
 		).catch(() => null)
 		const match = landings ? findMatchingLanding(landings, sp) : null
 		if (match) canonical = `${SITE_URL}/${category}/${match.slug}`
@@ -97,6 +102,9 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 		serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`),
 		// Published landings only (the endpoint filters drafts). A failure here must not take
 		// the catalogue down, so the tiles simply do not render.
+		//
+		// Tags must stay byte-identical to the `generateMetadata` fetch above — same URL, one
+		// cache entry.
 		serverFetch<
 			{
 				slug: string
@@ -105,7 +113,9 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 				image: string | null
 				product_count: number
 			}[]
-		>(`/landings?category_id=${categoryData._id}`).catch(() => null)
+		>(`/landings?category_id=${categoryData._id}`, {
+			next: { tags: [CACHE_TAGS.LANDINGS] }
+		}).catch(() => null)
 	])
 
 	return (

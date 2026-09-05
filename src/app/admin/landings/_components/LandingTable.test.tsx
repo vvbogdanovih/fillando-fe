@@ -1,13 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LandingTable } from './LandingTable'
 import type { AdminLanding } from '../landings.schema'
 
 // vitest runs without `globals`, so RTL's automatic cleanup is not registered.
 afterEach(cleanup)
 
-vi.mock('../landings.api', () => ({ landingsApi: { delete: vi.fn() } }))
+const deleteLanding = vi.fn()
+vi.mock('../landings.api', () => ({ landingsApi: { delete: (id: string) => deleteLanding(id) } }))
+
+const revalidateStorefront = vi.fn()
+vi.mock('@/common/services/revalidate.service', () => ({
+	revalidateStorefront: (...args: unknown[]) => revalidateStorefront(...args)
+}))
+
+beforeEach(() => {
+	deleteLanding.mockReset()
+	revalidateStorefront.mockReset()
+})
 vi.mock('@/app/admin/categories/categories.api', () => ({
 	categoriesApi: {
 		getAll: () =>
@@ -163,6 +174,23 @@ describe('LandingTable', () => {
 
 			expect(within(rowOf('Вся категорія')).getByText('вся категорія')).toBeInTheDocument()
 		})
+	})
+
+	/**
+	 * Without the purge the category page keeps rendering a «Популярні види» tile pointing at an
+	 * address that now 404s, for up to the hour the storefront caches landing lists.
+	 */
+	it('purges the storefront after a landing is deleted', async () => {
+		deleteLanding.mockResolvedValueOnce({ success: true })
+		renderTable([landing({ h1: 'PLA Silk' })])
+
+		fireEvent.click(within(rowOf('PLA Silk')).getByTitle('Видалити'))
+		// Scoped to the dialog: the row's icon button takes its accessible name from the same
+		// `title='Видалити'`.
+		const dialog = await screen.findByRole('dialog')
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Видалити' }))
+
+		await waitFor(() => expect(revalidateStorefront).toHaveBeenCalledWith('landings'))
 	})
 
 	it('sorts by order, then by heading', () => {

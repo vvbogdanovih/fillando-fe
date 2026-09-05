@@ -31,8 +31,8 @@ src/
 │   │   └── error.tsx     # Auth-segment error boundary
 │   ├── error.tsx         # Root error boundary
 │   ├── layout.tsx        # Root layout (light theme; Inter + Geist fonts)
+│   ├── api/revalidate/   # POST /api/revalidate — on-demand cache purge (the only route handler)
 │   └── provider.tsx      # Client providers (React Query, Toast) + auth init gate
-├── env.ts                # Zod-validated env vars (throws on missing/invalid)
 └── common/
     ├── components/
     │   ├── ui/           # Styled primitives (Button, Input, Card, Badge, PasswordInput, etc.)
@@ -40,7 +40,8 @@ src/
     ├── constants/        # API_URLS, UI_URLS, Role enum, FORM_ERRORS
     ├── schemas/          # Zod schemas (composable primitives: email, password, name)
     ├── services/
-    │   └── http.service.ts  # Axios singleton with interceptors + token refresh
+    │   ├── http.service.ts        # Axios singleton with interceptors + token refresh
+    │   └── revalidate.service.ts  # same-origin POST to /api/revalidate after an admin save
     ├── store/
     │   └── useAuthStore.ts  # Zustand auth store (persists to localStorage)
     ├── types/
@@ -52,6 +53,8 @@ src/
 ### Key Patterns
 
 **HTTP Service:** `httpService` is an Axios singleton. Every call accepts an optional Zod schema to validate the response. 401s trigger automatic token refresh with promise deduplication. Server Components / `generateMetadata` / `sitemap.ts` use `serverFetch` (`common/utils/server-fetch.utils.ts`) instead: `null` means **404 only** — any other failure throws to the route error boundary, so an API outage can never be ISR-cached as an empty page. Do not `try/catch` it "to be safe" — the only three deliberate catches (`[category]` `generateMetadata`, the sitemap count key, and `getCategoryNavLinks`) are explained in [docs/http-service.md](./docs/http-service.md#server-side-fetching-serverfetch), and a new one needs the same kind of justification.
+
+**On-demand revalidation:** landing-reading `serverFetch` calls carry `CACHE_TAGS.LANDINGS`, the sitemap's `unstable_cache` memo carries `CACHE_TAGS.SITEMAP`, and `POST /api/revalidate` — which the landings admin calls after a save or a delete — expires both with `revalidateTag(tag, { expire: 0 })`. Never `'max'` (that is stale-while-revalidate, so the first reload still shows the old copy) and never the single-argument form (the second argument is required — TS2554, so the build fails). The caller names a resource from a closed enum, never a tag or a path. The browser caller is development-only; production needs a server-to-server secret. Two silent traps: `next.tags` is not part of the fetch cache key, so identical URLs must carry identical tag arrays, and `unstable_cache` takes its tags on the options object. Adding a resource means editing `cache-tags.constants.ts`, the call sites and the handler's `INVALIDATIONS` map together. See [docs/cache-revalidation.md](./docs/cache-revalidation.md).
 
 **Auth Flow:** App boot → children render immediately (no boot-time loader gate) → `Providers` rehydrates persisted stores, then `checkAuth()` hits `/auth/me` → Zustand updates (`isAuthChecked=true`) once the result is known. Login/register → Zod validates response → Zustand store updates → cookie-based session. `PrivateRoute` wraps protected pages and checks `useAuthStore`. See `docs/auth-flow.md` for the full breakdown.
 

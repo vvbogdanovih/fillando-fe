@@ -11,6 +11,10 @@ export const UI_URLS = {
 	PRIVACY: '/privacy',
 	CHECKOUT: '/checkout',
 	CHECKOUT_SUCCESS: '/checkout/success',
+	API: {
+		// Same-origin Next route, not the NestJS API — see docs/cache-revalidation.md.
+		REVALIDATE: '/api/revalidate'
+	},
 	CATALOG: {
 		FILAMENT: '/filament'
 	},

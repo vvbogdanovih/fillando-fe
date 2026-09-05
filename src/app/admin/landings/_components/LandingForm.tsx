@@ -20,6 +20,7 @@ import {
 	SelectValue
 } from '@/common/components/ui/select'
 import { categoriesApi } from '@/app/admin/categories/categories.api'
+import { revalidateStorefront } from '@/common/services/revalidate.service'
 import { landingsApi } from '../landings.api'
 import {
 	META_DESCRIPTION_SOFT_LIMIT,
@@ -167,6 +168,16 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 			return saved
 		},
 		onSuccess: () => {
+			// The storefront caches landing responses for an hour, so without this the text just
+			// saved stays invisible until the window lapses — which makes proofreading fourteen
+			// landings impossible. One coarse purge covers create, edit, rename, category move,
+			// publish and unpublish alike, because they all arrive here.
+			//
+			// Here and not in `mutationFn`: the image path issues a second PATCH, and `onSuccess`
+			// is the only point guaranteed to run after the last write. Fire-and-forget, and
+			// `onSuccess` stays synchronous — awaiting it would hold `isPending` and leave the
+			// button on «Збереження...» behind a hung purge.
+			void revalidateStorefront('landings')
 			// Refetched rather than patched into the cache: `product_count` is computed server
 			// side and a filter change is exactly what moves it, so the stored number would be
 			// stale the moment it matters.

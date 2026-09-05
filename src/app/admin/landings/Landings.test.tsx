@@ -12,6 +12,9 @@ vi.mock('./landings.api', () => ({ landingsApi: { getAll: () => getAll(), delete
 vi.mock('@/app/admin/categories/categories.api', () => ({
 	categoriesApi: { getAll: () => Promise.resolve([]) }
 }))
+// The screen reaches the storefront purge through the table; mocked at the service so the
+// assertions here stay about what is on screen.
+vi.mock('@/common/services/revalidate.service', () => ({ revalidateStorefront: vi.fn() }))
 
 const LANDING = {
 	_id: '1',

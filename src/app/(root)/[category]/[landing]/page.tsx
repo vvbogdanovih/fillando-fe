@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CatalogPage } from '../CatalogPage'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
+import { CACHE_TAGS } from '@/common/constants'
 import { listingIndexing } from '@/common/utils/seo.utils'
 import type { Category } from '@/app/admin/categories/categories.schema'
 import type { CatalogResponse } from '../catalog.api'
@@ -31,9 +32,15 @@ const landingPath = (category: string, landing: string) => `/${category}/${landi
 /**
  * The public endpoint returns active landings only, so an unknown address and a draft are the
  * same 404 here — a visitor cannot tell that an unpublished page exists.
+ *
+ * Tagged because this is the copy an admin edits: without it the hour-long `serverFetch`
+ * window is how long a saved text stays invisible. One helper feeds both `generateMetadata`
+ * and the page body, so the tag covers the title and the H1 together.
  */
 async function loadLanding(category: string, landing: string) {
-	return serverFetch<LandingResponse>(`/landings/slug/${category}/${landing}`)
+	return serverFetch<LandingResponse>(`/landings/slug/${category}/${landing}`, {
+		next: { tags: [CACHE_TAGS.LANDINGS] }
+	})
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {

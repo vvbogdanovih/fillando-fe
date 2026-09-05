@@ -8,6 +8,7 @@ import { Button } from '@/common/components/ui/button'
 import { Badge } from '@/common/components/ui/badge'
 import { DeleteConfirmDialog } from '@/app/admin/vendors/_components/DeleteConfirmDialog'
 import { categoriesApi } from '@/app/admin/categories/categories.api'
+import { revalidateStorefront } from '@/common/services/revalidate.service'
 import { landingsApi } from '../landings.api'
 import { hasContent, type AdminLanding } from '../landings.schema'
 import { attributeLabel, buildAttributeLabels } from './landing-attributes'
@@ -33,6 +34,9 @@ export const LandingTable = ({ landings, onSelect }: LandingTableProps) => {
 	const { mutate: deleteLanding, isPending: isDeleting } = useMutation({
 		mutationFn: (id: string) => landingsApi.delete(id),
 		onSuccess: (_, id) => {
+			// Also drops the tile in «Популярні види» on the category page, which would otherwise
+			// keep pointing at an address that now 404s.
+			void revalidateStorefront('landings')
 			queryClient.setQueryData<AdminLanding[]>(['landings', 'admin'], prev =>
 				prev ? prev.filter(l => l._id !== id) : []
 			)
