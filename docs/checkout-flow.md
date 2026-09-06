@@ -24,12 +24,13 @@ Files:
 
 ## 1. Backend contract
 
-| Call                                             | Behaviour                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /orders`                                   | Body from `buildCreateOrderPayload`. `200 { order_number, subtotal_price?, total_price?, applied_discount?, payment_access_token? }`. `payment_access_token` is present **only** for `payment_method === 'LIQPAY'`. Coupon failures come back as the English messages `Invalid coupon code` / `Coupon is expired`. Rate-limited (`429`). |
-| `POST /liqpay/checkout { order_number }`         | `200 { data, signature, action_url }` — the signed payload the browser form-POSTs to LiqPay. `400` when the order is already `PAID`.                                                                                                                                                                                                     |
-| `GET /orders/lookup/:orderNumber?token=<32 hex>` | Public — no login, authorised by the token alone. `200 { order_number, payment_method, payment_status, total_price }`. `404` for an unknown order **or** a wrong token — the two are indistinguishable on purpose.                                                                                                                       |
-| LiqPay `result_url` (set by the backend)         | `{FRONTEND_URL}/checkout/success?order=FO-0000123&payment=LIQPAY&token=<32 hex>`. No amounts in the URL — the success page fetches them through the lookup.                                                                                                                                                                              |
+| Call                                                                         | Behaviour                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /orders`                                                               | Body from `buildCreateOrderPayload`. `200 { order_number, subtotal_price?, total_price?, applied_discount?, payment_access_token? }`. `payment_access_token` is present **only** for `payment_method === 'LIQPAY'`. Coupon failures come back as the English messages `Invalid coupon code` / `Coupon is expired`. Rate-limited (`429`).                                               |
+| `POST /liqpay/checkout { order_number }`                                     | `200 { data, signature, action_url }` — the signed payload the browser form-POSTs to LiqPay. `400` (Ukrainian message) when the order is already `PAID`, cancelled or not a card order. `409 { code: 'LIQPAY_SESSION_ACTIVE', retry_after_seconds }` while a previous card session for a still-`PENDING` payment may be live (15 min).                                                 |
+| `GET /orders/lookup/:orderNumber?token=<32 hex>`                             | Public — no login, authorised by the token alone. `200 { order_number, payment_method, payment_status, total_price, order_status, delivery_method, can_change_payment_method, liqpay_retry_after_seconds }` (the last four are optional in the schema — older backends omit them). `404` for an unknown order **or** a wrong token — the two are indistinguishable on purpose.         |
+| `PATCH /orders/lookup/:orderNumber/payment-method?token= { payment_method }` | Public, same token. Moves an unpaid order (payment `PENDING`/`FAILED`, order `NEW`/`CONFIRMED`) to `COD`/`IBAN`/`CASH` and answers the same shape as the lookup. `400` when the method does not fit the delivery, `409 { code: 'PAYMENT_METHOD_LOCKED' }` when the order may no longer change. `PATCH /orders/me/:id/payment-method` is the signed-in twin for `/profile/orders/[id]`. |
+| LiqPay `result_url` (set by the backend)                                     | `{FRONTEND_URL}/checkout/success?order=FO-0000123&payment=LIQPAY&token=<32 hex>`. No amounts in the URL — the success page fetches them through the lookup.                                                                                                                                                                                                                            |
 
 `payment_method` is one of `CASH | CARD | LIQPAY | MONOPAY | IBAN | COD` and `payment_status` one
 of `PENDING | PAID | FAILED | REFUNDED | VOIDED` (`paymentMethodValues` / `paymentStatusValues` in
@@ -138,22 +139,38 @@ The order exists as `PENDING` and nobody has paid. On the success page:
 - **Without a token** (the backend did not return one) the card is the neutral «Замовлення
   прийнято» with no lookup at all.
 
-**Known gap:** the «Повторити оплату карткою» button is rendered only in the `failed` view
-(`FAILED` / `VOIDED`), so a `PENDING` order from a failed init has **no in-page way to pay** yet.
-The toast promises payment "зі сторінки замовлення", which today means: once the order is `FAILED`
-or `VOIDED` the retry appears; until then the confirmation e-mail / manager is the recovery path.
-Offering the retry on a long-`PENDING` order is deliberately not done — see "Why stop at 60 s"
-below.
+**Paying a stuck order (TD-0009).** A `PENDING` order from a failed init arrives with
+`liqpay_retry_after_seconds: null` — no card session was ever opened — and the card offers
+«Оплатити карткою» (`PayNowButton`) at once, without waiting out the polling window: nothing is
+coming from the bank. A `PENDING` order whose session may still be live carries the seconds left;
+the page polls as before and, once the window closes, shows the button **disabled with the minutes
+left** rather than one that is bound to answer 409. The toast on the checkout page promising
+payment "зі сторінки замовлення" is now true.
 
 ### Retrying a payment
 
 `startLiqpayCheckout(orderNumber)` (`liqpay.utils.ts`) re-runs the same two steps —
 `initLiqpayCheckout` then `submitLiqpayForm` — against the existing order; no new order is created
 and the cart is not involved. The success page exposes it as the **«Повторити оплату карткою»**
-button (`retryMutation`), shown only in the `failed` view next to a link to `/contacts` for choosing
-another payment method. On any error the server message is toasted (fallback «Не вдалося перейти до
-оплати. Спробуйте ще раз.») and the lookup is refetched — a `400` here usually means the order
-became `PAID` in the meantime (another tab, a late callback), and the refetch lets the card catch up.
+button (`retryMutation`) in the `failed` view, and as `PayNowButton` in the pending views. Errors go
+through `describePaymentError` (`common/components/order-payment/order-payment.api.ts`): a `409
+LIQPAY_SESSION_ACTIVE` becomes «Ви вже відкривали сторінку оплати … через N хв або оберіть інший
+спосіб оплати», anything else shows the server's Ukrainian message; the lookup is then refetched —
+a `400` here usually means the order became `PAID` in the meantime (another tab, a late callback),
+and the refetch lets the card catch up.
+
+### Changing the payment method
+
+«Обрати інший спосіб оплати» opens `ChangePaymentMethodDialog` (shared with
+`/profile/orders/[id]`), which lists `COD` / `IBAN` / `CASH` through `PaymentMethodOptions` — the
+same compatibility rule as the checkout (`isPaymentMethodAllowed`, now in
+`common/constants/payment.constants.ts`): cash only for pickup, cash on delivery only for a
+carrier. The dialog does not know which endpoint applies the change; the success page passes
+`changePaymentMethodPublic(order, token, method)` and the account page `changePaymentMethodMine(id,
+method)`. The success page writes the response straight into the lookup's cache
+(`setQueryData(['order-payment-status', order, token])`), so the card flips to «Спосіб оплати
+змінено» without another round trip. The button is offered only when the backend says
+`can_change_payment_method: true` — an older backend that omits the field has no endpoint to call.
 
 ---
 
@@ -182,14 +199,21 @@ mount
         │     "Статус оплати ще не підтверджено — щойно банк підтвердить, надішлемо лист".
         ├─ payment_status 'PAID' ─────────────────────────→ [success]
         │     Conversion fires once, value = total_price from the lookup.
+        ├─ payment_method !== 'LIQPAY' ───────────────────→ [success]  "Спосіб оплати змінено"
+        │     Checked before the status: the URL still says LIQPAY after a change. Conversion fires once.
         ├─ 'FAILED' | 'VOIDED' ───────────────────────────→ [failed]   "Оплата не пройшла"
-        │     «Повторити оплату карткою» (startLiqpayCheckout) + «Обрати інший спосіб оплати».
+        │     «Повторити оплату карткою» (startLiqpayCheckout); «Обрати інший спосіб оплати»
+        │     (dialog) when can_change_payment_method is true — never for VOIDED.
         ├─ 'REFUNDED' ────────────────────────────────────→ [neutral]  "Кошти повернено"
+        ├─ 'PENDING', liqpay_retry_after_seconds === null ─→ [neutral]  PAYMENT_NOT_STARTED
+        │     No card session was ever opened: «Оплатити карткою» + «Обрати інший спосіб оплати» at once, no polling.
         └─ 'PENDING' ─────────────────────────────────────→ [pending]  "Очікуємо підтвердження оплати…"
-              refetchInterval = 3 000 ms while data is PENDING and the window is open
+              refetchInterval = 3 000 ms while data is PENDING, still LIQPAY, and the window is open
               ├─ → 'PAID'              → [success]  (conversion fires now)
               ├─ → 'FAILED' | 'VOIDED' → [failed]
               └─ 60 s wall-clock timer fires → pollingExpired = true → [neutral] PAYMENT_NOT_CONFIRMED
+                    + PayNowButton (disabled with the minutes left while liqpay_retry_after_seconds > 0)
+                    + «Обрати інший спосіб оплати» when can_change_payment_method
 ```
 
 The mapping lives in the pure `resolveLiqpayView()`; the component only feeds it `canLookup`,
@@ -209,9 +233,12 @@ still `PENDING`. Polling for a short window turns that into `PAID` without a man
 
 **Why stop at 60 s.** The lookup is a public endpoint; an abandoned tab must not keep hitting it
 forever. After the window the email confirmation (sent by the backend on the callback) is the source
-of truth, and the card says so. The neutral view has no retry button: a still-PENDING order is not a
-failed one, and starting a second LiqPay session while the first may still complete is how double
-charges happen.
+of truth, and the card says so. The neutral view now does offer «Оплатити карткою» — safely, because
+the backend keeps **one live LiqPay session per order** (a second payload within 15 minutes of the
+previous one is a `409` while the payment is `PENDING`) and the lookup carries the same clock, so the
+button is disabled with the minutes left rather than clickable into a failure. Starting a second
+session while the first may still complete is how double charges happen; the cooldown is what makes
+the button safe to show.
 
 **The token is a capability, not a session.** 32 lowercase hex chars = 128 random bits; whoever
 has the URL can read the order number, payment method, payment status and total — nothing else, no
@@ -227,13 +254,13 @@ the init-failure path.
 `orderMutation.onError` receives the flattened `Error & { status?: number }` and decides **where**
 the message goes:
 
-| Condition                                                                               | Where it is shown                                                                                                                                                                             |
-| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/coupon/i.test(message)` — in practice `'Invalid coupon code'` / `'Coupon is expired'` | `setError('coupon_code', { type: 'server', message })` + `setFocus('coupon_code')`, **and** a toast with the same text. `mapServerCouponError` translates the two known strings to Ukrainian. |
-| `status === 429`                                                                        | Toast: «Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.» — never the raw throttler message.                                                                                       |
-| `details.code === 'INSUFFICIENT_STOCK'` (409, with `variant_id`, `available`)          | The cart line it names gets `data-invalid`, a red total and «Доступно лише N шт. — зменште кількість, щоб оформити замовлення» under it; the page scrolls to it; the toast repeats the server message. Editing that line's quantity clears it. |
-| anything else with a real `message` (validation, 5xx with a body)                       | Toast with the server's message verbatim.                                                                                                                                                     |
-| no usable message (`'Unknown error'` from the interceptor, network)                     | Toast: «Не вдалося оформити замовлення. Спробуйте ще раз.»                                                                                                                                    |
+| Condition                                                                               | Where it is shown                                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/coupon/i.test(message)` — in practice `'Invalid coupon code'` / `'Coupon is expired'` | `setError('coupon_code', { type: 'server', message })` + `setFocus('coupon_code')`, **and** a toast with the same text. `mapServerCouponError` translates the two known strings to Ukrainian.                                                  |
+| `status === 429`                                                                        | Toast: «Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.» — never the raw throttler message.                                                                                                                                        |
+| `details.code === 'INSUFFICIENT_STOCK'` (409, with `variant_id`, `available`)           | The cart line it names gets `data-invalid`, a red total and «Доступно лише N шт. — зменште кількість, щоб оформити замовлення» under it; the page scrolls to it; the toast repeats the server message. Editing that line's quantity clears it. |
+| anything else with a real `message` (validation, 5xx with a body)                       | Toast with the server's message verbatim.                                                                                                                                                                                                      |
+| no usable message (`'Unknown error'` from the interceptor, network)                     | Toast: «Не вдалося оформити замовлення. Спробуйте ще раз.»                                                                                                                                                                                     |
 
 The rule: **a field-level error is shown only when changing that field can fix it.** The previous
 `onError` called `setError('coupon_code', …)` unconditionally, so an out-of-stock line or a network

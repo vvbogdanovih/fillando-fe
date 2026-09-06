@@ -132,10 +132,20 @@ function handle(method, url, body) {
 	}
 	if (method === 'POST' && path === '/orders') return createOrder(body)
 
-	// LiqPay. Real backend: 400 once the order is PAID.
+	// LiqPay. Real backend: 400 once the order is PAID; 409 while a previous card session may
+	// still be live (TD-0009 — `FO-0000409` is the fixture for that).
 	if (method === 'POST' && path === '/liqpay/checkout') {
 		if (isAlreadyPaidScenario(body?.order_number)) {
-			return json(400, { message: 'Order is already paid' })
+			return json(400, { message: 'Замовлення вже оплачено' })
+		}
+		if (body?.order_number === 'FO-0000409') {
+			return json(409, {
+				statusCode: 409,
+				error: 'Conflict',
+				code: 'LIQPAY_SESSION_ACTIVE',
+				message: 'Сторінку оплати вже відкрито',
+				retry_after_seconds: 600
+			})
 		}
 		return json(200, { data: 'ZmFrZQ==', signature: 'sig', action_url: LIQPAY_SINK })
 	}
@@ -150,6 +160,29 @@ function handle(method, url, body) {
 	const lookup = path.match(/^\/orders\/lookup\/([^/]+)$/)
 	if (method === 'GET' && lookup) {
 		return lookupOrder(decodeURIComponent(lookup[1]), url.searchParams.get('token'))
+	}
+	// Payment-method change (TD-0009): the order becomes an offline one awaiting payment.
+	const change = path.match(/^\/orders\/lookup\/([^/]+)\/payment-method$/)
+	if (method === 'PATCH' && change) {
+		const orderNumber = decodeURIComponent(change[1])
+		if (orderNumber === 'FO-0000409') {
+			return json(409, {
+				statusCode: 409,
+				error: 'Conflict',
+				code: 'PAYMENT_METHOD_LOCKED',
+				message: 'Спосіб оплати цього замовлення вже не можна змінити'
+			})
+		}
+		return json(200, {
+			order_number: orderNumber,
+			payment_method: body?.payment_method ?? 'COD',
+			payment_status: 'PENDING',
+			total_price: 1500,
+			order_status: 'NEW',
+			delivery_method: 'NOVA_POST',
+			can_change_payment_method: true,
+			liqpay_retry_after_seconds: null
+		})
 	}
 
 	return json(404, { message: `Cannot ${method} ${path}` })

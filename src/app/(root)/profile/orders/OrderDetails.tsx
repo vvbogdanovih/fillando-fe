@@ -2,8 +2,12 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/common/components/ui/button'
+import { ChangePaymentMethodDialog } from '@/common/components/order-payment/ChangePaymentMethodDialog'
+import { PayNowButton } from '@/common/components/order-payment/PayNowButton'
+import { changePaymentMethodMine } from '@/common/components/order-payment/order-payment.api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { UI_URLS } from '@/common/constants'
 import { myOrdersApi } from './orders.api'
@@ -60,7 +64,13 @@ function OrderItemsList({ items }: { items: MyOrderItem[] }) {
 	)
 }
 
+/** Mirrors the backend rule: the buyer may act on payment while it is awaited and the order is not yet in fulfilment. */
+const PAYMENT_OPEN_STATUSES = new Set(['PENDING', 'FAILED'])
+const PAYMENT_CHANGEABLE_ORDER_STATUSES = new Set(['NEW', 'CONFIRMED'])
+
 export function OrderDetails({ orderId }: { orderId: string }) {
+	const queryClient = useQueryClient()
+	const [isChangeOpen, setIsChangeOpen] = useState(false)
 	const {
 		data: order,
 		isLoading,
@@ -181,9 +191,52 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 				<CardHeader>
 					<CardTitle>Оплата</CardTitle>
 				</CardHeader>
-				<CardContent className='text-sm'>
-					<p>Метод: {PAYMENT_METHOD_LABELS[order.payment_method]}</p>
-					<p>Статус: {PAYMENT_STATUS_LABELS[order.payment_status]}</p>
+				<CardContent className='space-y-3 text-sm'>
+					<div>
+						<p>Метод: {PAYMENT_METHOD_LABELS[order.payment_method]}</p>
+						<p>Статус: {PAYMENT_STATUS_LABELS[order.payment_status]}</p>
+					</div>
+					{/* An unpaid order that is not yet in fulfilment can still be paid by card or
+					    moved to an offline method (TD-0009); the server enforces the same rule. */}
+					{PAYMENT_OPEN_STATUSES.has(order.payment_status) &&
+						PAYMENT_CHANGEABLE_ORDER_STATUSES.has(order.order_status) && (
+							<div className='flex flex-col gap-2 sm:flex-row'>
+								{order.payment_method === 'LIQPAY' && (
+									<PayNowButton
+										orderNumber={order.order_number}
+										retryAfterSeconds={undefined}
+										onError={() =>
+											void queryClient.invalidateQueries({
+												queryKey: ['my-order', orderId]
+											})
+										}
+									/>
+								)}
+								<Button
+									type='button'
+									variant='outline'
+									onClick={() => setIsChangeOpen(true)}
+								>
+									Змінити спосіб оплати
+								</Button>
+								<ChangePaymentMethodDialog
+									open={isChangeOpen}
+									onOpenChange={setIsChangeOpen}
+									orderNumber={order.order_number}
+									currentMethod={order.payment_method}
+									deliveryMethod={order.delivery_method}
+									onSubmit={method => changePaymentMethodMine(order.id, method)}
+									onChanged={() => {
+										void queryClient.invalidateQueries({
+											queryKey: ['my-order', orderId]
+										})
+										void queryClient.invalidateQueries({
+											queryKey: ['my-orders']
+										})
+									}}
+								/>
+							</div>
+						)}
 				</CardContent>
 			</Card>
 

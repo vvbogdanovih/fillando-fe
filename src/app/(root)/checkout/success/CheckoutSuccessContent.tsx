@@ -3,9 +3,15 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from 'lucide-react'
+import { ChangePaymentMethodDialog } from '@/common/components/order-payment/ChangePaymentMethodDialog'
+import { PayNowButton } from '@/common/components/order-payment/PayNowButton'
+import {
+	changePaymentMethodPublic,
+	describePaymentError
+} from '@/common/components/order-payment/order-payment.api'
 import { UI_URLS } from '@/common/constants'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
@@ -57,6 +63,17 @@ const PAYMENT_NOT_CONFIRMED: View = {
 		'Статус оплати ще не підтверджено. Щойно банк підтвердить платіж, ми надішлемо лист.'
 }
 
+/**
+ * PENDING with no card session ever opened — the checkout could not reach LiqPay. Nothing is
+ * coming from the bank, so there is nothing to wait for: offer the payment right away.
+ */
+const PAYMENT_NOT_STARTED: View = {
+	tone: 'neutral',
+	title: 'Замовлення прийнято',
+	description:
+		'Оплату карткою не розпочато. Ви можете оплатити зараз або обрати інший спосіб оплати.'
+}
+
 function describeOfflinePayment(paymentMethod: string | null): string {
 	switch (paymentMethod) {
 		case 'CASH':
@@ -77,6 +94,15 @@ function resolveLiqpayView(args: {
 	const { canLookup, lookup, isError, pollingExpired } = args
 	if (!canLookup) return ORDER_ACCEPTED
 	if (lookup) {
+		// Keyed on the lookup, not the URL: after «Обрати інший спосіб оплати» the address still
+		// says LIQPAY, while the order is now COD/IBAN/CASH and awaits that payment instead.
+		if (lookup.payment_method !== 'LIQPAY') {
+			return {
+				tone: 'success',
+				title: 'Спосіб оплати змінено',
+				description: describeOfflinePayment(lookup.payment_method)
+			}
+		}
 		switch (lookup.payment_status) {
 			case 'PAID':
 				return {
@@ -91,7 +117,7 @@ function resolveLiqpayView(args: {
 					tone: 'failed',
 					title: 'Оплата не пройшла',
 					description:
-						'Банк відхилив платіж — кошти не списано. Замовлення збережено, товари зарезервовані: можна спробувати ще раз або обрати інший спосіб оплати.'
+						'Банк відхилив платіж — кошти не списано. Замовлення збережено: можна оплатити карткою ще раз або обрати інший спосіб оплати.'
 				}
 			case 'REFUNDED':
 				return {
@@ -101,6 +127,7 @@ function resolveLiqpayView(args: {
 						'Кошти за цим замовленням повернено. Деталі надіслані на вашу електронну пошту.'
 				}
 			case 'PENDING':
+				if (lookup.liqpay_retry_after_seconds === null) return PAYMENT_NOT_STARTED
 				return pollingExpired
 					? PAYMENT_NOT_CONFIRMED
 					: {
@@ -150,6 +177,8 @@ export function CheckoutSuccessContent() {
 
 	const isLiqpay = paymentMethod === 'LIQPAY'
 	const canLookup = isLiqpay && Boolean(raw) && Boolean(token)
+	const queryClient = useQueryClient()
+	const [isChangeOpen, setIsChangeOpen] = useState(false)
 
 	// State (not a bare timestamp) so that closing the window re-renders the card and,
 	// through the re-evaluated `refetchInterval` below, stops the poller in one step.
@@ -169,25 +198,38 @@ export function CheckoutSuccessContent() {
 			const status = (err as { status?: number }).status
 			return status !== 404 && status !== 400 && count < 2
 		},
-		refetchInterval: query =>
-			query.state.data?.payment_status === 'PENDING' && !pollingExpired
+		// Only a LiqPay order awaiting the bank is worth re-asking; an order moved to COD/IBAN/
+		// CASH stays PENDING until the money arrives offline, and no callback will change that.
+		// A PENDING order that never reached LiqPay has nothing to wait for either.
+		refetchInterval: query => {
+			const data = query.state.data
+			return data?.payment_status === 'PENDING' &&
+				data.payment_method === 'LIQPAY' &&
+				data.liqpay_retry_after_seconds !== null &&
+				!pollingExpired
 				? LIQPAY_POLL_INTERVAL_MS
 				: false
+		}
 	})
 	const lookup = lookupQuery.data
 
 	const retryMutation = useMutation({
 		mutationFn: () => startLiqpayCheckout(raw ?? ''),
-		onError: (err: Error) => {
-			toast.error(err.message || 'Не вдалося перейти до оплати. Спробуйте ще раз.')
+		onError: (err: unknown) => {
+			toast.error(describePaymentError(err))
 			// A 400 here usually means the order got PAID meanwhile (another tab, late
 			// callback) — refresh the status so the card catches up.
 			void lookupQuery.refetch()
 		}
 	})
 
-	// Google Ads: offline methods convert on arrival, LiqPay only once the bank confirmed.
-	const shouldConvert = isLiqpay ? lookup?.payment_status === 'PAID' : true
+	// Google Ads: offline methods convert on arrival, LiqPay only once the bank confirmed —
+	// or once the buyer moved the order to an offline method, which is the same commitment
+	// a COD/IBAN checkout makes on its own success page.
+	const shouldConvert = isLiqpay
+		? lookup?.payment_status === 'PAID' ||
+			(lookup !== undefined && lookup.payment_method !== 'LIQPAY')
+		: true
 	const conversionValue = isLiqpay ? lookup?.total_price : hasTotal ? total : undefined
 
 	const conversionSent = useRef(false)
@@ -228,6 +270,22 @@ export function CheckoutSuccessContent() {
 	// to the amount the lookup reports.
 	const displayTotal = hasTotal ? total : lookup?.total_price
 	const hasDisplayTotal = displayTotal !== undefined && Number.isFinite(displayTotal)
+
+	// The server decides whether the method may still change; an older backend that does not
+	// say so has no endpoint to change it either, so "unknown" reads as "no".
+	const canChangeMethod =
+		lookup?.can_change_payment_method === true &&
+		lookup.payment_method === 'LIQPAY' &&
+		lookup.delivery_method !== undefined
+	// «Оплатити» for a still-awaited card payment: once the bank said no (the failed view has
+	// its own retry), once nothing is coming (no session was ever opened), or once the polling
+	// window is over and the card is not going to flip on its own.
+	const showPayNow =
+		lookup?.payment_status === 'PENDING' &&
+		lookup.payment_method === 'LIQPAY' &&
+		(lookup.liqpay_retry_after_seconds === null || pollingExpired)
+	const showChangeMethod = canChangeMethod && (view.tone === 'failed' || showPayNow)
+	const hasActions = Boolean(raw) && (view.tone === 'failed' || showPayNow)
 
 	return (
 		<div className='mx-auto max-w-lg px-4 py-12 md:py-20'>
@@ -288,24 +346,62 @@ export function CheckoutSuccessContent() {
 							</div>
 						</div>
 					)}
-					{view.tone === 'failed' && raw ? (
+					{hasActions && raw ? (
 						<>
-							<Button
-								type='button'
-								className='mt-2 w-full'
-								disabled={retryMutation.isPending}
-								onClick={() => retryMutation.mutate()}
-							>
-								{retryMutation.isPending ? (
-									<Loader2 className='h-4 w-4 animate-spin' aria-hidden />
-								) : (
-									<RefreshCw className='h-4 w-4' aria-hidden />
-								)}
-								Повторити оплату карткою
-							</Button>
-							<Button asChild variant='outline' className='w-full'>
-								<Link href={UI_URLS.CONTACTS}>Обрати інший спосіб оплати</Link>
-							</Button>
+							{view.tone === 'failed' ? (
+								<Button
+									type='button'
+									className='mt-2 w-full'
+									disabled={retryMutation.isPending}
+									onClick={() => retryMutation.mutate()}
+								>
+									{retryMutation.isPending ? (
+										<Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+									) : (
+										<RefreshCw className='h-4 w-4' aria-hidden />
+									)}
+									Повторити оплату карткою
+								</Button>
+							) : (
+								<PayNowButton
+									orderNumber={raw}
+									retryAfterSeconds={lookup?.liqpay_retry_after_seconds}
+									onError={() => void lookupQuery.refetch()}
+									className='mt-2 w-full'
+								/>
+							)}
+							{showChangeMethod && lookup?.delivery_method && (
+								<>
+									<Button
+										type='button'
+										variant='outline'
+										className='w-full'
+										onClick={() => setIsChangeOpen(true)}
+									>
+										Обрати інший спосіб оплати
+									</Button>
+									<ChangePaymentMethodDialog
+										open={isChangeOpen}
+										onOpenChange={setIsChangeOpen}
+										orderNumber={raw}
+										currentMethod={lookup.payment_method}
+										deliveryMethod={lookup.delivery_method}
+										onSubmit={async method => {
+											const next = await changePaymentMethodPublic(
+												raw,
+												token ?? '',
+												method
+											)
+											// The response is the fresh lookup: no second round trip.
+											queryClient.setQueryData(
+												['order-payment-status', raw, token],
+												next
+											)
+											return next
+										}}
+									/>
+								</>
+							)}
 						</>
 					) : (
 						<Button asChild className='mt-2 w-full'>

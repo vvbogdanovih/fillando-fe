@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchOrderPaymentStatus, initLiqpayCheckout } from '../checkout.api'
 import type { OrderPaymentStatus } from '../checkout.api.schemas'
+import { changePaymentMethodPublic } from '@/common/components/order-payment/order-payment.api'
 import { gtag } from '@/common/lib/gtag'
 import { trackPurchase } from '@/common/lib/ga4-events'
 import { CheckoutSuccessContent } from './CheckoutSuccessContent'
@@ -28,6 +29,16 @@ vi.mock('../checkout.api', () => ({
 vi.mock('@/common/lib/gtag', () => ({
 	gtag: vi.fn()
 }))
+
+// The change itself goes through `httpService`; the page only needs its outcome. Everything
+// else in the module (error wording) stays real.
+vi.mock('@/common/components/order-payment/order-payment.api', async importOriginal => ({
+	...(await importOriginal<
+		typeof import('@/common/components/order-payment/order-payment.api')
+	>()),
+	changePaymentMethodPublic: vi.fn()
+}))
+vi.mock('@/common/hooks/useLenisModalLock', () => ({ useLenisModalLock: () => undefined }))
 
 vi.mock('@/common/lib/ga4-events', () => ({
 	trackPurchase: vi.fn()
@@ -49,12 +60,27 @@ const NOT_CONFIRMED_TEXT =
 	'Статус оплати ще не підтверджено. Щойно банк підтвердить платіж, ми надішлемо лист.'
 
 const lookupResult = (
-	payment_status: OrderPaymentStatus['payment_status']
+	payment_status: OrderPaymentStatus['payment_status'],
+	extra: Partial<OrderPaymentStatus> = {}
 ): OrderPaymentStatus => ({
 	order_number: ORDER,
 	payment_method: 'LIQPAY',
 	payment_status,
-	total_price: 1500
+	total_price: 1500,
+	...extra
+})
+
+/** What a TD-0009 backend adds to the lookup for an order the buyer may still act on. */
+const changeable = (
+	retry: number | null = null
+): Pick<
+	OrderPaymentStatus,
+	'order_status' | 'delivery_method' | 'can_change_payment_method' | 'liqpay_retry_after_seconds'
+> => ({
+	order_status: 'NEW',
+	delivery_method: 'NOVA_POST',
+	can_change_payment_method: true,
+	liqpay_retry_after_seconds: retry
 })
 
 /** `httpService` surfaces backend errors as `Error & { status }`. */
@@ -148,7 +174,7 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 		expect(await screen.findByText('Оплата не пройшла')).toBeInTheDocument()
 		expect(
 			screen.getByText(
-				'Банк відхилив платіж — кошти не списано. Замовлення збережено, товари зарезервовані: можна спробувати ще раз або обрати інший спосіб оплати.'
+				'Банк відхилив платіж — кошти не списано. Замовлення збережено: можна оплатити карткою ще раз або обрати інший спосіб оплати.'
 			)
 		).toBeInTheDocument()
 
@@ -159,14 +185,23 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 		expect(gtag).not.toHaveBeenCalled()
 	})
 
-	it('LiqPay: VOIDED renders the failure card with the card retry, no conversion', async () => {
-		vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(lookupResult('VOIDED'))
+	it('LiqPay: VOIDED renders the failure card with the card retry only — a cancelled order cannot change method', async () => {
+		vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+			lookupResult('VOIDED', {
+				order_status: 'CANCELLED',
+				delivery_method: 'NOVA_POST',
+				can_change_payment_method: false,
+				liqpay_retry_after_seconds: 0
+			})
+		)
 
 		renderSuccess(LIQPAY_QUERY)
 
 		expect(await screen.findByText('Оплата не пройшла')).toBeInTheDocument()
 		expect(retryButton()).toBeInTheDocument()
-		expect(screen.getByRole('link', { name: 'Обрати інший спосіб оплати' })).toBeInTheDocument()
+		expect(
+			screen.queryByRole('button', { name: 'Обрати інший спосіб оплати' })
+		).not.toBeInTheDocument()
 		expect(gtag).not.toHaveBeenCalled()
 	})
 
@@ -343,6 +378,117 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 			expect(screen.getByText('Дякуємо за замовлення!')).toBeInTheDocument()
 			expect(retryButton()).not.toBeInTheDocument()
 			expect(gtag).toHaveBeenCalledTimes(1)
+		})
+	})
+
+	describe('changing the payment method and paying a stuck order (TD-0009)', () => {
+		const changeButton = () =>
+			screen.queryByRole('button', { name: 'Обрати інший спосіб оплати' })
+
+		it('FAILED on an older backend: retry only, the change-method action is not offered', async () => {
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(lookupResult('FAILED'))
+
+			renderSuccess(LIQPAY_QUERY)
+
+			expect(await screen.findByText('Оплата не пройшла')).toBeInTheDocument()
+			expect(retryButton()).toBeInTheDocument()
+			expect(changeButton()).not.toBeInTheDocument()
+		})
+
+		it('FAILED: «Обрати інший спосіб оплати» opens the dialog, and the card follows the changed order', async () => {
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('FAILED', changeable())
+			)
+			vi.mocked(changePaymentMethodPublic).mockResolvedValue(
+				lookupResult('PENDING', {
+					...changeable(),
+					payment_method: 'COD',
+					can_change_payment_method: true
+				})
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+			expect(await screen.findByText('Оплата не пройшла')).toBeInTheDocument()
+
+			fireEvent.click(changeButton()!)
+			expect(await screen.findByText('Інший спосіб оплати')).toBeInTheDocument()
+			fireEvent.click(screen.getByLabelText(/Накладний платіж/))
+			fireEvent.click(screen.getByRole('button', { name: 'Змінити спосіб оплати' }))
+
+			await waitFor(() =>
+				expect(changePaymentMethodPublic).toHaveBeenCalledWith(ORDER, TOKEN, 'COD')
+			)
+			expect(await screen.findByText('Спосіб оплати змінено')).toBeInTheDocument()
+			expect(retryButton()).not.toBeInTheDocument()
+			// Moving to an offline method is the same commitment a COD checkout makes: one conversion.
+			await waitFor(() => expect(gtag).toHaveBeenCalledTimes(1))
+		})
+
+		it('a lookup that already says COD renders the changed view — the URL still says LIQPAY', async () => {
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('PENDING', { ...changeable(), payment_method: 'COD' })
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+
+			expect(await screen.findByText('Спосіб оплати змінено')).toBeInTheDocument()
+			expect(screen.getByText(/накладним платежем/)).toBeInTheDocument()
+			expect(retryButton()).not.toBeInTheDocument()
+			expect(changeButton()).not.toBeInTheDocument()
+			await waitFor(() => expect(gtag).toHaveBeenCalledTimes(1))
+		})
+
+		it('PENDING with no card session ever opened offers «Оплатити карткою» at once, without waiting 60 s', async () => {
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('PENDING', changeable(null))
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+
+			expect(
+				await screen.findByText(
+					'Оплату карткою не розпочато. Ви можете оплатити зараз або обрати інший спосіб оплати.'
+				)
+			).toBeInTheDocument()
+			expect(screen.getByRole('button', { name: 'Оплатити карткою' })).toBeEnabled()
+			expect(changeButton()).toBeInTheDocument()
+			expect(gtag).not.toHaveBeenCalled()
+		})
+
+		it('PENDING inside a live card session: waits, then shows the cooldown clock instead of a failing button', async () => {
+			vi.useFakeTimers()
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('PENDING', changeable(600))
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+			await advance(0)
+
+			expect(screen.getByText('Очікуємо підтвердження оплати…')).toBeInTheDocument()
+			expect(
+				screen.queryByRole('button', { name: /Оплатити карткою/ })
+			).not.toBeInTheDocument()
+
+			await advance(POLL_WINDOW_MS)
+
+			expect(screen.getByText(NOT_CONFIRMED_TEXT)).toBeInTheDocument()
+			expect(
+				screen.getByRole('button', { name: 'Оплатити карткою можна через 10 хв' })
+			).toBeDisabled()
+			expect(changeButton()).toBeInTheDocument()
+		})
+
+		it('stops polling once the order is no longer a LiqPay order', async () => {
+			vi.useFakeTimers()
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('PENDING', { ...changeable(0), payment_method: 'IBAN' })
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+			await advance(0)
+			await advance(POLL_INTERVAL_MS * 3)
+
+			expect(fetchOrderPaymentStatus).toHaveBeenCalledTimes(1)
 		})
 	})
 })

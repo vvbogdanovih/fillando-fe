@@ -12,21 +12,9 @@ export const WAREHOUSE_TYPE_LABELS = {
 	CARGO: 'Вантажне відділення (до 1100 кг)'
 } as const
 
-/** Накладний платіж requires the parcel to travel with Nova Post. */
-export const COD_ALLOWED_DELIVERY: CheckoutFormValues['delivery_method'][] = [
-	'NOVA_POST',
-	'COURIER'
-]
-
-/** Payment methods that only work with some delivery methods. */
-export function isPaymentMethodAllowed(
-	paymentMethod: CheckoutFormValues['payment_method'],
-	deliveryMethod: CheckoutFormValues['delivery_method']
-): boolean {
-	if (paymentMethod === 'CASH') return deliveryMethod === 'PICKUP'
-	if (paymentMethod === 'COD') return COD_ALLOWED_DELIVERY.includes(deliveryMethod)
-	return true
-}
+// The delivery/payment compatibility rule now lives in `common/constants/payment.constants.ts`,
+// shared with the payment-method change on the success page and in the account (TD-0009).
+export { COD_ALLOWED_DELIVERY, isPaymentMethodAllowed } from '@/common/constants/payment.constants'
 
 export const COD_MIN_PREPAYMENT_UAH = 200
 

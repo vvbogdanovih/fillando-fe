@@ -78,6 +78,9 @@ export const API_URLS = {
 	ORDERS: {
 		BASE: `/orders`, // POST — create order (guest or authenticated); GET — admin list
 		LOOKUP: (orderNumber: string) => `/orders/lookup/${orderNumber}`, // GET ?token= — public payment status by order number + access token
+		LOOKUP_PAYMENT_METHOD: (orderNumber: string) =>
+			`/orders/lookup/${orderNumber}/payment-method`, // PATCH ?token= — public: switch an unpaid order to COD/IBAN/CASH
+		ME_PAYMENT_METHOD: (id: string) => `/orders/me/${id}/payment-method`, // PATCH — the same for the current user's own order
 		BY_ID: (id: string) => `/orders/${id}`, // GET — admin detail; PATCH — admin update
 		ME: `/orders/me`, // GET — current user orders list
 		ME_BY_ID: (id: string) => `/orders/me/${id}`, // GET — current user order detail
