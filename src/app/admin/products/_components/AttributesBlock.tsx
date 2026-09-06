@@ -43,6 +43,13 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 		else update(row.index, entry)
 	}
 
+	/** A second (third…) value of the same dimension — its own row, so it can be edited or dropped. */
+	const setExtraValue = (row: (typeof required)[number], index: number, value: string) =>
+		update(index, { k: toAttrKey(row.attr.label), l: row.attr.label, v: value })
+
+	const addExtraValue = (row: (typeof required)[number]) =>
+		append({ k: toAttrKey(row.attr.label), l: row.attr.label, v: '' })
+
 	const handleAddClick = () => {
 		const trimmedLabel = staging.label.trim()
 		const trimmedValue = staging.value.trim()
@@ -102,6 +109,39 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 										<p className='text-destructive text-xs'>
 											{errors.attributes[row.index]?.v?.message as string}
 										</p>
+									)}
+									{row.extra.map(({ field, index }) => (
+										<div
+											key={`${field.k}-${index}`}
+											className='flex items-center gap-2'
+										>
+											<Input
+												placeholder='Ще одне значення'
+												value={String(field.v ?? '')}
+												onChange={e =>
+													setExtraValue(row, index, e.target.value)
+												}
+												aria-label={`${attr.label}, додаткове значення`}
+											/>
+											<Button
+												type='button'
+												size='icon-xs'
+												variant='ghost'
+												onClick={() => remove(index)}
+												aria-label={`Видалити значення ${String(field.v ?? '')}`}
+											>
+												<XIcon className='size-3' />
+											</Button>
+										</div>
+									))}
+									{row.index !== null && (
+										<button
+											type='button'
+											onClick={() => addExtraValue(row)}
+											className='text-muted-foreground hover:text-foreground w-fit text-xs underline-offset-2 hover:underline'
+										>
+											+ ще значення
+										</button>
 									)}
 								</div>
 							</div>

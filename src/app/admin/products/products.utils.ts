@@ -56,6 +56,13 @@ export interface AttributeRow {
 	/** Index in the field array, or `null` when the product has no such attribute yet. */
 	index: number | null
 	value: string
+	/**
+	 * Further rows carrying the same key. A multi-valued dimension is stored as several
+	 * attribute entries (`reinforcement: CF` and `reinforcement: GF`; `finish: Matte` and
+	 * `finish: Rainbow`) — that is what `$elemMatch` filters on — and each of them must be
+	 * visible and removable, or an admin sees «Matte», never «Rainbow», and cannot fix it.
+	 */
+	extra: { field: AttributeField; index: number }[]
 }
 
 export interface AttributeLayout {
@@ -88,11 +95,15 @@ export function layoutAttributes(
 
 	const required = requiredAttrs.map(attr => {
 		const key = toAttrKey(attr.label)
-		const index = fields.findIndex(field => field.k === key)
+		const matches = fields
+			.map((field, index) => ({ field, index }))
+			.filter(({ field }) => field.k === key)
+		const first = matches[0]
 		return {
 			attr,
-			index: index === -1 ? null : index,
-			value: index === -1 ? '' : String(fields[index].v ?? '')
+			index: first ? first.index : null,
+			value: first ? String(first.field.v ?? '') : '',
+			extra: matches.slice(1)
 		}
 	})
 

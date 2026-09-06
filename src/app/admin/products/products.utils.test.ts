@@ -90,6 +90,22 @@ describe('parseAttachmentFilename', () => {
 })
 
 describe('layoutAttributes', () => {
+	it('keeps every row of a multi-valued dimension visible: first as the value, the rest as extra', () => {
+		const requiredAttrs: RequiredAttributeLike[] = [{ key: 'finish', label: 'Ефект поверхні' }]
+		const fields: AttributeField[] = [
+			{ k: 'polymer', l: 'Тип пластику', v: 'PLA' },
+			{ k: 'finish', l: 'Ефект поверхні', v: 'Matte' },
+			{ k: 'finish', l: 'Ефект поверхні', v: 'Rainbow' }
+		]
+
+		const { required, custom } = layoutAttributes(requiredAttrs, fields)
+
+		expect(required[0]).toMatchObject({ index: 1, value: 'Matte' })
+		expect(required[0].extra).toEqual([{ field: fields[2], index: 2 }])
+		// The second value is not a "custom" attribute either — it belongs to its dimension.
+		expect(custom.map(c => c.field.k)).toEqual(['polymer'])
+	})
+
 	const required: RequiredAttributeLike[] = [
 		{ key: 'vyrobnyk', label: 'Виробник', unit: null },
 		{ key: 'series', label: 'Серія', unit: null }
@@ -115,7 +131,7 @@ describe('layoutAttributes', () => {
 
 		const { required: rows } = layoutAttributes(required, fields)
 
-		expect(rows[1]).toEqual({ attr: required[1], index: null, value: '' })
+		expect(rows[1]).toEqual({ attr: required[1], index: null, value: '', extra: [] })
 	})
 
 	it('never points two required attributes at the same row', () => {
