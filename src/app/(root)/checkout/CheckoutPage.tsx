@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
+	AlertTriangle,
 	Banknote,
 	Building2,
 	CreditCard,
@@ -74,7 +75,24 @@ type DisplayLine = {
 const DEBOUNCE_MS = 320
 const couponCodeRegex = /^[A-Z0-9]{10}$/
 
-type OrderError = Error & { status?: number }
+type OrderError = Error & {
+	status?: number
+	/** Raw error body from the API; `code` makes the stock error machine-readable. */
+	details?: { code?: string; variant_id?: string; sku?: string; available?: number }
+}
+
+type StockIssue = { variant_id: string; available: number }
+
+/** The backend answers 409 INSUFFICIENT_STOCK with the variant it is about — that is what
+ *  lets the message sit under the right cart line instead of only in a toast. */
+function stockIssueOf(err: OrderError): StockIssue | null {
+	const d = err.details
+	if (d?.code !== 'INSUFFICIENT_STOCK' || typeof d.variant_id !== 'string') return null
+	return {
+		variant_id: d.variant_id,
+		available: typeof d.available === 'number' ? d.available : 0
+	}
+}
 
 /** `httpService` surfaces backend errors as `Error { message, status }`; coupon failures at
  *  order creation arrive as these two English strings from the backend's order.service. */
@@ -407,11 +425,15 @@ export function CheckoutPage() {
 		return displayItems.map(i => ({ variant_id: i.variant_id, quantity: i.quantity }))
 	}, [displayItems])
 
+	/** The cart line the last order attempt failed on; cleared once that line is edited. */
+	const [stockIssue, setStockIssue] = useState<StockIssue | null>(null)
+
 	const applyQuantity = useCallback(
 		(variantId: string, raw: number, stock?: number) => {
 			const normalizedBase = Math.max(1, Math.floor(raw))
 			const normalized =
 				stock !== undefined ? Math.min(normalizedBase, stock) : normalizedBase
+			setStockIssue(prev => (prev?.variant_id === variantId ? null : prev))
 			if (isAuth) {
 				void updateQuantity(variantId, normalized)
 			} else {
@@ -482,8 +504,9 @@ export function CheckoutPage() {
 			router.push(`${UI_URLS.CHECKOUT_SUCCESS}?${params.toString()}`)
 		},
 		onError: (err: OrderError) => {
-			// Only coupon failures belong on the coupon field; stock/validation errors
-			// (e.g. "Only 3 units available for SKU …") must not be pinned to it.
+			// A field-level error is shown only where changing that field can fix it: coupon
+			// failures under the coupon input, a stock shortfall under its own cart line.
+			// Everything else stays a toast.
 			const isCouponError = /coupon/i.test(err.message)
 			if (isCouponError) {
 				setError('coupon_code', {
@@ -491,6 +514,11 @@ export function CheckoutPage() {
 					message: mapServerCouponError(err.message)
 				})
 				setFocus('coupon_code')
+			}
+			const issue = stockIssueOf(err)
+			if (issue) {
+				setStockIssue(issue)
+				scrollFirstInvalidIntoView()
 			}
 			toast.error(isCouponError ? mapServerCouponError(err.message) : humanizeOrderError(err))
 		}
@@ -1175,89 +1203,118 @@ export function CheckoutPage() {
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						<ul className='space-y-3'>
-							{displayItems.map(line => (
-								<li
-									key={line.variant_id}
-									className='flex gap-3 border-b border-dashed pb-3 last:border-0 last:pb-0'
-								>
-									<div className='bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-lg'>
-										{line.thumbnail ? (
-											<Image
-												src={line.thumbnail}
-												alt={line.name}
-												fill
-												className='object-cover'
-												sizes='56px'
-											/>
-										) : (
-											<div className='flex h-full w-full items-center justify-center'>
-												<Package className='text-muted-foreground h-5 w-5' />
-											</div>
+							{displayItems.map(line => {
+								const lineIssue =
+									stockIssue?.variant_id === line.variant_id ? stockIssue : null
+								return (
+									<li
+										key={line.variant_id}
+										data-invalid={lineIssue ? '' : undefined}
+										className={cn(
+											'flex gap-3 border-b border-dashed pb-3 last:border-0 last:pb-0',
+											lineIssue &&
+												'border-destructive/40 bg-destructive/5 -mx-2 rounded-lg px-2 pt-2'
 										)}
-									</div>
-									<div className='min-w-0 flex-1'>
-										<p className='line-clamp-2 text-sm font-medium'>
-											{line.name}
-										</p>
-										<div className='mt-1 flex items-center gap-2'>
-											<div className='border-border bg-card flex items-center overflow-hidden rounded-md border shadow-xs'>
-												<button
-													type='button'
-													onClick={() =>
-														applyQuantity(
-															line.variant_id,
-															line.quantity - 1,
-															line.stock
-														)
-													}
-													disabled={line.quantity <= 1}
-													className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors disabled:opacity-40'
-													aria-label='Зменшити кількість'
-												>
-													<Minus className='h-3 w-3' />
-												</button>
-												<input
-													type='number'
-													min={1}
-													step={1}
-													value={line.quantity}
-													onChange={e => {
-														const next = Number(e.target.value)
-														if (!Number.isFinite(next)) return
-														applyQuantity(
-															line.variant_id,
-															next,
-															line.stock
-														)
-													}}
-													className='w-11 border-x border-zinc-300 bg-white text-center text-xs font-medium text-black outline-none'
-													aria-label='Кількість'
+									>
+										<div className='bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-lg'>
+											{line.thumbnail ? (
+												<Image
+													src={line.thumbnail}
+													alt={line.name}
+													fill
+													className='object-cover'
+													sizes='56px'
 												/>
-												<button
-													type='button'
-													onClick={() =>
-														applyQuantity(
-															line.variant_id,
-															line.quantity + 1,
-															line.stock
-														)
-													}
-													className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors'
-													aria-label='Збільшити кількість'
-												>
-													<Plus className='h-3 w-3' />
-												</button>
-											</div>
-											<p className='text-muted-foreground text-xs'>
-												× {line.price.toLocaleString('uk-UA')} ₴
-											</p>
+											) : (
+												<div className='flex h-full w-full items-center justify-center'>
+													<Package className='text-muted-foreground h-5 w-5' />
+												</div>
+											)}
 										</div>
-									</div>
-									<p className='text-sm font-semibold whitespace-nowrap'>
-										{(line.price * line.quantity).toLocaleString('uk-UA')} ₴
-									</p>
-								</li>
-							))}
+										<div className='min-w-0 flex-1'>
+											<p className='line-clamp-2 text-sm font-medium'>
+												{line.name}
+											</p>
+											<div className='mt-1 flex items-center gap-2'>
+												<div className='border-border bg-card flex items-center overflow-hidden rounded-md border shadow-xs'>
+													<button
+														type='button'
+														onClick={() =>
+															applyQuantity(
+																line.variant_id,
+																line.quantity - 1,
+																line.stock
+															)
+														}
+														disabled={line.quantity <= 1}
+														className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors disabled:opacity-40'
+														aria-label='Зменшити кількість'
+													>
+														<Minus className='h-3 w-3' />
+													</button>
+													<input
+														type='number'
+														min={1}
+														step={1}
+														value={line.quantity}
+														onChange={e => {
+															const next = Number(e.target.value)
+															if (!Number.isFinite(next)) return
+															applyQuantity(
+																line.variant_id,
+																next,
+																line.stock
+															)
+														}}
+														className='w-11 border-x border-zinc-300 bg-white text-center text-xs font-medium text-black outline-none'
+														aria-label='Кількість'
+													/>
+													<button
+														type='button'
+														onClick={() =>
+															applyQuantity(
+																line.variant_id,
+																line.quantity + 1,
+																line.stock
+															)
+														}
+														className='bg-muted text-foreground hover:bg-muted/80 flex h-6 w-6 items-center justify-center transition-colors'
+														aria-label='Збільшити кількість'
+													>
+														<Plus className='h-3 w-3' />
+													</button>
+												</div>
+												<p className='text-muted-foreground text-xs'>
+													× {line.price.toLocaleString('uk-UA')} ₴
+												</p>
+											</div>
+											{lineIssue && (
+												<p
+													role='alert'
+													className='text-destructive mt-1.5 flex items-start gap-1.5 text-xs'
+												>
+													<AlertTriangle
+														className='mt-0.5 h-3.5 w-3.5 shrink-0'
+														aria-hidden
+													/>
+													<span>
+														Доступно лише {lineIssue.available} шт. —
+														зменште кількість, щоб оформити замовлення
+													</span>
+												</p>
+											)}
+										</div>
+										<p
+											className={cn(
+												'text-sm font-semibold whitespace-nowrap',
+												lineIssue && 'text-destructive'
+											)}
+										>
+											{(line.price * line.quantity).toLocaleString('uk-UA')} ₴
+										</p>
+									</li>
+								)
+							})}
 						</ul>
 						<div className='space-y-2 rounded-lg border p-3'>
 							{hasAppliedDiscount && (

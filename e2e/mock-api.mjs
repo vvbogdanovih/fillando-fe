@@ -58,7 +58,17 @@ const isAlreadyPaidScenario = orderNumber => lastLookupToken.get(orderNumber)?.a
 
 function createOrder(body) {
 	if (body?.comment === 'FAIL_STOCK') {
-		return json(400, { message: 'Only 3 units available for SKU FIL-0001' })
+		// The real API also sends `variant_id`; the e2e cart's ids are not stable enough to
+		// echo one back, so this exercises the toast-only fallback of the same contract.
+		return json(409, {
+			statusCode: 409,
+			error: 'Conflict',
+			code: 'INSUFFICIENT_STOCK',
+			message: 'Доступно лише 3 шт. (FIL-0001) — зменште кількість, щоб оформити замовлення',
+			sku: 'FIL-0001',
+			available: 3,
+			requested: 4
+		})
 	}
 	if (body?.coupon_code === 'BADCOUPON1') {
 		return json(400, { message: 'Invalid coupon code' })

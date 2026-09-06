@@ -28,7 +28,7 @@ test.describe('/checkout — server-side order errors', () => {
 		await expect(submitButton(page)).toBeEnabled()
 		await submitButton(page).click()
 
-		const message = 'Only 3 units available for SKU FIL-0001'
+		const message = 'Доступно лише 3 шт. (FIL-0001) — зменште кількість, щоб оформити замовлення'
 		await expect(page.getByRole('status').filter({ hasText: message })).toBeVisible()
 		// Exactly one occurrence on the page — the toast — nothing under the coupon input.
 		await expect(page.getByText(message)).toHaveCount(1)

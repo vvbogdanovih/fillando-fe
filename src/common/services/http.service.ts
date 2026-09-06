@@ -43,8 +43,11 @@ apiClient.interceptors.response.use(
 		if (!originalRequest?.skipErrorToast) {
 			toast.error(errorMessage)
 		}
-		const err = new Error(errorMessage) as Error & { status?: number }
+		// `details` is the raw error body, so a caller can read a machine-readable `code`
+		// (e.g. INSUFFICIENT_STOCK with its variant_id) instead of parsing the message.
+		const err = new Error(errorMessage) as Error & { status?: number; details?: unknown }
 		err.status = error.response?.status
+		err.details = error?.response?.data
 		throw err
 	}
 )

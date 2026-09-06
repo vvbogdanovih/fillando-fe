@@ -42,7 +42,7 @@ loaded by Vitest fails with _"Playwright Test did not expect test() to be called
 | `GET /payment-providers/active/LIQPAY` | `{ provider: 'LIQPAY', sandbox: true }` → the LiqPay radio is rendered                                                                     |
 | `POST /discount-coupons/validate`      | `{ valid: false, reason: 'NOT_FOUND' }`                                                                                                    |
 | `POST /orders`                         | `201 { order_number: 'FO-0000123', total_price: 700, … , payment_access_token? }` (token only for LIQPAY, like the backend)                |
-|                                        | `body.comment === 'FAIL_STOCK'` → `400 { message: 'Only 3 units available for SKU FIL-0001' }`                                             |
+|                                        | `body.comment === 'FAIL_STOCK'` → `409 { code: 'INSUFFICIENT_STOCK', message: 'Доступно лише 3 шт. (FIL-0001) — …', sku, available, requested }` (без `variant_id`, тож перевіряється лише тост)                                             |
 |                                        | `body.coupon_code === 'BADCOUPON1'` → `400 { message: 'Invalid coupon code' }`                                                             |
 | `POST /liqpay/checkout`                | `{ data, signature, action_url: 'http://localhost:9001/liqpay-sink' }`                                                                     |
 |                                        | `400 { message: 'Order is already paid' }` when the order was last looked up with a `…p` token (the body only carries the order number)    |

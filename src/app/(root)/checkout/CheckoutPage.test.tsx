@@ -365,6 +365,28 @@ describe('CheckoutPage — оформлення замовлення', () => {
 		expect(submitButton()).toBeEnabled()
 	})
 
+	it('pins a stock shortfall under its own cart line, in Ukrainian, and marks it invalid', async () => {
+		const serverMessage =
+			'Доступно лише 3 шт. (FL-000001) — зменште кількість, щоб оформити замовлення'
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error(serverMessage), {
+				status: 409,
+				details: { code: 'INSUFFICIENT_STOCK', variant_id: 'variant-1', available: 3 }
+			})
+		)
+
+		renderCheckout()
+		fillPickupOrder()
+		await submitOrder()
+
+		const lineError = await screen.findByRole('alert')
+		expect(lineError).toHaveTextContent(/Доступно лише 3 шт\./)
+		expect(lineError.closest('li')).toHaveAttribute('data-invalid')
+		expect(toast.error).toHaveBeenCalledWith(serverMessage)
+		expect(document.getElementById('coupon_code-error')).toBeNull()
+		expect(clearAfterOrderMock()).not.toHaveBeenCalled()
+	})
+
 	it('explains rate limiting instead of echoing the raw 429 message', async () => {
 		vi.mocked(createOrder).mockRejectedValue(
 			Object.assign(new Error('ThrottlerException: Too Many Requests'), { status: 429 })

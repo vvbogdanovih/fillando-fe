@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
@@ -91,7 +91,7 @@ function resolveLiqpayView(args: {
 					tone: 'failed',
 					title: 'Оплата не пройшла',
 					description:
-						'Банк відхилив платіж — кошти не списано. Замовлення збережено, товари зарезервовані.'
+						'Банк відхилив платіж — кошти не списано. Замовлення збережено, товари зарезервовані: можна спробувати ще раз або обрати інший спосіб оплати.'
 				}
 			case 'REFUNDED':
 				return {
@@ -296,8 +296,10 @@ export function CheckoutSuccessContent() {
 								disabled={retryMutation.isPending}
 								onClick={() => retryMutation.mutate()}
 							>
-								{retryMutation.isPending && (
+								{retryMutation.isPending ? (
 									<Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+								) : (
+									<RefreshCw className='h-4 w-4' aria-hidden />
 								)}
 								Повторити оплату карткою
 							</Button>
