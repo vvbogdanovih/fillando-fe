@@ -7,6 +7,7 @@ import { API_URLS } from '@/common/constants/api-routes.constants'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { variantLabel } from '@/common/utils/color.utils'
+import { productPageTitle } from './product-title.utils'
 
 interface PageProps {
 	params: Promise<{ slug: string }>
@@ -28,7 +29,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 	const { variant, product } = data
 	const variantValue = variantLabel(variant)
-	const title = variantValue ? `${product.name} — ${variantValue}` : variant.name
+	// Short product names (migration 3k) carry no category word, so the title adds it — see
+	// `productPageTitle`; the H1 and the JSON-LD name stay the plain form the artboards draw.
+	const title = variantValue ? productPageTitle(product.name, variantValue) : variant.name
 	const rawDescription = product.description?.html?.replace(/<[^>]*>/g, '').slice(0, 155) ?? null
 	const description = rawDescription ?? `Купити ${title} у Fillando`
 	const image = variant.images?.[0]
