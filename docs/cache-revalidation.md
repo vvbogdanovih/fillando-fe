@@ -111,11 +111,13 @@ touching any cache, and in development it is localhost.
 
 ### Turning it on in production
 
-The intended production trigger is server-to-server, not the browser: `fillando-be` — which does
-know the caller is an ADMIN — POSTs this endpoint after landing writes, carrying the secret. That
-mirrors the `INTERNAL_API_TOKEN` shape the backend already uses. **This contract needs no changes
-on the frontend side to adopt it.** Until then, set `REVALIDATE_SECRET` (≥32 chars) in `.env.prod`
-and nothing else changes.
+The production trigger is server-to-server, not the browser, and **the backend now makes the
+call**: `LandingService` in `fillando-be` POSTs this endpoint after every landing create, update
+and delete, with `x-revalidate-secret` taken from its own `REVALIDATE_SECRET` (see
+`fillando-be/src/docs/STOREFRONT_REVALIDATION.md`). The call is fire-and-forget on its side — a
+failure is a warning in the backend log, never a failed save. To turn it on: set the **same**
+`REVALIDATE_SECRET` (≥32 chars) in `.env.prod` here and in the backend's environment. Nothing
+else on the frontend changes.
 
 Never name it `NEXT_PUBLIC_*`. `PrivateRoute` is a client-side UX guard, so admin chunks are
 served to unauthenticated visitors — a `NEXT_PUBLIC_` secret is not a secret. It must not go into

@@ -38,6 +38,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 		title,
 		description,
 		alternates: { canonical },
+		// A discontinued product stays reachable for live ads and backlinks but leaves the index;
+		// its links still pass on (TD-0006 §5.4). A draft never gets here — the API answers 404.
+		...(variant.status === 'archived' ? { robots: { index: false, follow: true } } : {}),
 		openGraph: {
 			title,
 			description,

@@ -4,11 +4,21 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Check, Handshake, Loader2, Minus, Plus, ShoppingCart } from 'lucide-react'
+import {
+	AlertTriangle,
+	Check,
+	Handshake,
+	Loader2,
+	Minus,
+	Plus,
+	ShoppingCart,
+	Truck
+} from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 import { Badge } from '@/common/components/ui/badge'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
+import { estimateShipping } from '@/common/utils/shipping.utils'
 import { useCartStore } from '@/common/store/useCartStore'
 import { getVariantBySlug, type ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { JsonLd } from '@/common/components/JsonLd'
@@ -170,6 +180,10 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	const isOutOfStock = availableStock <= 0
 	const isLowStock = availableStock > 0 && availableStock <= 5
 	const priceAsOf = isOutOfStock ? formatPriceAsOf(variant.price_updated_at) : null
+	// «Знято з продажу»: the page stays up for a live ad or backlink, but nothing on it sells
+	// (TD-0006 §5.4, artboard «Архівний товар»). The cart refuses an archived variant anyway.
+	const isArchived = variant.status === 'archived'
+	const shipping = estimateShipping(variant.weight_g)
 
 	const handleAddToCart = async () => {
 		if (isInCart) {
@@ -235,7 +249,8 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 											fill
 											className={cn(
 												'object-contain transition-opacity duration-300',
-												i === currentIndex ? 'opacity-100' : 'opacity-0'
+												i === currentIndex ? 'opacity-100' : 'opacity-0',
+												isArchived && 'grayscale'
 											)}
 											sizes='(max-width: 1024px) 100vw, 50vw'
 											preload={i === 0}
@@ -321,6 +336,12 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 
 				{/* Product info */}
 				<div className='flex flex-col gap-5 lg:w-1/2'>
+					{/* The brand, from the «Виробник» attribute — never the vendor (TD-0006 §5.4). */}
+					{product.manufacturer && (
+						<Badge variant='outline' className='w-fit text-xs font-medium'>
+							{product.manufacturer}
+						</Badge>
+					)}
 					<h1 className='text-2xl font-bold'>{displayName}</h1>
 
 					<Badge
@@ -332,14 +353,19 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 						)}
 						variant='outline'
 					>
-						{availableStock > 0 ? 'В наявності' : 'Немає в наявності'}
+						{isArchived
+							? 'Знято з продажу'
+							: availableStock > 0
+								? 'В наявності'
+								: 'Немає в наявності'}
 					</Badge>
 
 					<div>
 						<p
 							className={cn(
 								'text-3xl font-bold',
-								isOutOfStock ? 'text-muted-foreground' : 'text-primary-strong'
+								isOutOfStock ? 'text-muted-foreground' : 'text-primary-strong',
+								isArchived && 'text-muted-foreground line-through'
 							)}
 						>
 							{formatUah(variant.price)}
@@ -363,11 +389,13 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 
 					{/* Above the buy button: the colour is part of the decision, and a shopper who
 					    picks one after pressing «Додати в кошик» has added the wrong thing. */}
-					<VariantSwitcher
-						variants={siblings}
-						currentSlug={variant.slug}
-						axisLabel={product.variant_type?.label ?? 'Варіація'}
-					/>
+					{!isArchived && (
+						<VariantSwitcher
+							variants={siblings}
+							currentSlug={variant.slug}
+							axisLabel={product.variant_type?.label ?? 'Варіація'}
+						/>
+					)}
 
 					{/* Add to cart */}
 					<div className='flex flex-col gap-3'>
@@ -444,10 +472,10 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							</div>
 							<button
 								onClick={handleAddToCart}
-								disabled={isOutOfStock || isAdding}
+								disabled={isArchived || isOutOfStock || isAdding}
 								className={cn(
 									'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
-									isOutOfStock
+									isArchived || isOutOfStock
 										? 'bg-muted text-muted-foreground cursor-not-allowed'
 										: isInCart
 											? 'border border-green-500/30 bg-green-500/20 text-black hover:bg-green-500/30'
@@ -461,16 +489,54 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 								) : (
 									<ShoppingCart className='h-4 w-4' />
 								)}
-								{isOutOfStock
-									? 'Немає в наявності'
-									: isInCart
-										? 'В кошику'
-										: 'Додати в кошик'}
+								{isArchived
+									? 'Знято з продажу'
+									: isOutOfStock
+										? 'Немає в наявності'
+										: isInCart
+											? 'В кошику'
+											: 'Додати в кошик'}
 							</button>
 						</div>
 						{stockHint && <p className='text-xs text-amber-700'>{stockHint}</p>}
 						{addError && <p className='text-destructive text-sm'>{addError}</p>}
 					</div>
+
+					{isArchived && (
+						<div className='border-border bg-muted/40 rounded-xl border p-4 text-sm'>
+							<p className='font-medium'>Цей товар знято з продажу</p>
+							<p className='text-muted-foreground mt-1'>
+								Ми його більше не возимо. Схожі товари —{' '}
+								<Link href={catalogPath} className='underline underline-offset-2'>
+									у категорії «{category_name}»
+								</Link>
+								.
+							</p>
+						</div>
+					)}
+
+					{/* Delivery estimate from the shipping weight (TD-0006 §5.4). No weight — no
+					    number: an invented ₴ figure is worse than an honest «за тарифом». */}
+					{!isArchived && (
+						<div className='border-border bg-card flex items-center gap-3 rounded-xl border p-4'>
+							<div className='bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg'>
+								<Truck className='h-4 w-4' />
+							</div>
+							<div>
+								<p className='text-sm font-medium'>
+									Нова Пошта —{' '}
+									{shipping
+										? `орієнтовно ${formatUah(shipping.rate_uah)}, ${shipping.transit_days.min}–${shipping.transit_days.max} дні`
+										: 'за тарифом перевізника, 1–3 дні'}
+								</p>
+								<p className='text-muted-foreground text-xs'>
+									{shipping && variant.weight_g !== null
+										? `Розраховано за вагою ${(variant.weight_g / 1000).toLocaleString('uk-UA')} кг, відділення–відділення по Україні`
+										: 'Вага товару ще не вказана — точну суму порахує відділення'}
+								</p>
+							</div>
+						</div>
+					)}
 
 					{/* Wholesale note */}
 					<Link

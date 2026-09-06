@@ -12,14 +12,15 @@
  * the script and paste its output here.
  */
 export const SHIPPING_RATE_TABLE = {
-	/** ISO date the numbers were pulled; null while the table is still a placeholder. */
-	generated_at: null as string | null,
-	source: 'placeholder' as 'placeholder' | 'nova-post-api',
+	/** Date the numbers were pulled by `shipping-rates.js` (fillando-be, scripts/shipping-rates.json). */
+	generated_at: '2026-09-06' as string | null,
+	source: 'nova-post-api' as 'placeholder' | 'nova-post-api',
 	/** Declared value the quote was requested with — the insurance fee depends on it. */
 	declared_value_uah: 600,
+	/** Львів → Львів («по місту») and Львів → Київ («по Україні»), Стандарт, відділення–відділення. */
 	tiers: [
-		{ max_weight_g: 2000, city_uah: 97, ukraine_uah: 97 },
-		{ max_weight_g: 10000, city_uah: 97, ukraine_uah: 97 }
+		{ max_weight_g: 2000, city_uah: 73, ukraine_uah: 93 },
+		{ max_weight_g: 10000, city_uah: 118, ukraine_uah: 138 }
 	]
 } as const
 
