@@ -107,6 +107,9 @@ export const VariantsSection = ({
 									Кількість
 								</th>
 								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
+									Вага
+								</th>
+								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
 									Статус
 								</th>
 								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
@@ -132,6 +135,9 @@ export const VariantsSection = ({
 									</td>
 									<td className='py-3 pr-4 text-gray-700'>₴{variant.price}</td>
 									<td className='py-3 pr-4 text-gray-700'>{variant.stock}</td>
+									<td className='py-3 pr-4 text-gray-700'>
+										{variant.weight_g != null ? `${variant.weight_g} г` : '—'}
+									</td>
 									<td className='py-3 pr-4'>
 										<Badge
 											variant='outline'

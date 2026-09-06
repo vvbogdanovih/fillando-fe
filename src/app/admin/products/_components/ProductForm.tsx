@@ -225,7 +225,8 @@ export const ProductForm = () => {
 				vendor_product_sku: v.vendor_product_sku || undefined,
 				prom_id: v.prom_id || undefined,
 				// Only for a colour-varied product; the API derives `color_family` from it.
-				color_id: values.has_variants ? (v.color_id ?? null) : null
+				color_id: values.has_variants ? (v.color_id ?? null) : null,
+				weight_g: v.weight_g ? Number(v.weight_g) : null
 			}))
 		}
 

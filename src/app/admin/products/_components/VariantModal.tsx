@@ -85,7 +85,8 @@ export const VariantModal = ({
 				status: variant.status,
 				vendor_product_sku: variant.vendor_product_sku ?? '',
 				prom_id: variant.prom_id ?? '',
-				color_id: variant.color_id ?? null
+				color_id: variant.color_id ?? null,
+				weight_g: variant.weight_g != null ? String(variant.weight_g) : ''
 			})
 			setImageUploads(
 				variant.images.map(url => ({
@@ -103,7 +104,8 @@ export const VariantModal = ({
 				status: 'active',
 				vendor_product_sku: '',
 				prom_id: '',
-				color_id: null
+				color_id: null,
+				weight_g: ''
 			})
 			setImageUploads([])
 		}
@@ -149,7 +151,9 @@ export const VariantModal = ({
 				prom_id: values.prom_id || undefined,
 				images,
 				// Sent on every save so clearing the colour actually clears it server-side.
-				color_id: hasVariants ? (values.color_id ?? null) : null
+				color_id: hasVariants ? (values.color_id ?? null) : null,
+				// Same for the weight: an emptied field must clear it, not keep the old value.
+				weight_g: values.weight_g ? Number(values.weight_g) : null
 			}
 
 			if (isEdit && variant) {
@@ -260,6 +264,26 @@ export const VariantModal = ({
 							/>
 							{errors.stock && (
 								<p className='text-destructive text-xs'>{errors.stock.message}</p>
+							)}
+						</div>
+
+						<div className='flex flex-1 flex-col gap-1.5'>
+							<Label htmlFor='weight_g'>Вага, г</Label>
+							<Input
+								id='weight_g'
+								type='number'
+								min={0}
+								step={1}
+								placeholder='напр. 1220'
+								{...register('weight_g')}
+								aria-invalid={!!errors.weight_g}
+							/>
+							{errors.weight_g ? (
+								<p className='text-destructive text-xs'>{errors.weight_g.message}</p>
+							) : (
+								<p className='text-muted-foreground text-xs'>
+									Разом із котушкою. Живить доставку і Google-фід.
+								</p>
 							)}
 						</div>
 					</div>

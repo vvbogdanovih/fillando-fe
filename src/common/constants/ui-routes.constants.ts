@@ -43,6 +43,7 @@ export const UI_URLS = {
 		CATEGORIES: '/admin/categories',
 		COLORS: '/admin/colors',
 		LANDINGS: '/admin/landings',
+		FEED: '/admin/feed',
 		VENDORS: '/admin/vendors',
 		USERS: '/admin/users',
 		PRODUCTS: '/admin/products',

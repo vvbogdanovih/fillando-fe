@@ -22,6 +22,7 @@ import {
 	Banknote,
 	Handshake,
 	Truck,
+	Rss,
 	Menu,
 	X
 } from 'lucide-react'
@@ -55,7 +56,8 @@ const catalogueItems = [
 	{ label: 'Categories', href: UI_URLS.ADMIN.CATEGORIES, icon: Tag },
 	{ label: 'Vendors', href: UI_URLS.ADMIN.VENDORS, icon: Store },
 	{ label: 'Colors', href: UI_URLS.ADMIN.COLORS, icon: Palette, badge: 'нове' },
-	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText, badge: 'нове' }
+	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText, badge: 'нове' },
+	{ label: 'Google Feed', href: UI_URLS.ADMIN.FEED, icon: Rss, badge: 'нове' }
 ]
 
 const bottomNavItems = [{ label: 'Style Guide', href: UI_URLS.ADMIN.STYLE_GUIDE, icon: Palette }]

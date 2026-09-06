@@ -24,7 +24,25 @@ import {
 	SelectValue
 } from '@/common/components/ui/select'
 import { categoriesApi } from '../categories.api'
-import { categoryFormSchema, type CategoryFormValues, type Category } from '../categories.schema'
+import {
+	categoryFormSchema,
+	type CategoryFormValues,
+	type CategoryPayload,
+	type Category
+} from '../categories.schema'
+
+/**
+ * The one node of Google's taxonomy that filament falls under (TD-0006 §5.2). There is no
+ * "filament" node — 499682 is the leaf for printer accessories, and `g:product_type` adds the
+ * detail. The artboard's 2496 was wrong: in the real taxonomy that is Business & Industrial >
+ * Medical, so the hint carries the checked value instead.
+ */
+const FILAMENT_GOOGLE_CATEGORY = {
+	id: '499682',
+	path: 'Electronics > Print, Copy, Scan & Fax > 3D Printer Accessories'
+}
+const GOOGLE_TAXONOMY_URL =
+	'https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt'
 
 interface CategoryFormProps {
 	initial: Category | null // null = create mode
@@ -66,7 +84,11 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 					label: a.label,
 					filter_type: a.filter_type,
 					unit: a.unit
-				})) ?? []
+				})) ?? [],
+			google_product_category_id: initial?.google_product_category
+				? String(initial.google_product_category.id)
+				: '',
+			google_product_category_path: initial?.google_product_category?.path ?? ''
 		}
 	})
 
@@ -143,11 +165,16 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 
 	const { mutate: saveCategory, isPending: isSaving } = useMutation({
 		mutationFn: async (values: CategoryFormValues) => {
-			const payload: CategoryFormValues = {
+			const gpcId = values.google_product_category_id?.trim()
+			const payload: CategoryPayload = {
 				name: values.name,
 				slug: values.slug,
 				required_attributes: values.required_attributes,
-				...(values.order !== undefined ? { order: values.order } : {})
+				...(values.order !== undefined ? { order: values.order } : {}),
+				// An emptied id clears the node; the feed then omits g:google_product_category.
+				google_product_category: gpcId
+					? { id: Number(gpcId), path: values.google_product_category_path?.trim() ?? '' }
+					: null
 			}
 
 			let savedCategory: Category
@@ -387,6 +414,71 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 							className='hidden'
 							onChange={handleFileSelect}
 						/>
+					</div>
+
+					{/* SEO та Google Merchant (TD-0006 §5.2, artboard «Нові поля у формах») */}
+					<div className='flex flex-col gap-2 rounded-lg border border-gray-200 p-3'>
+						<div className='flex items-center justify-between'>
+							<div className='flex items-center gap-2'>
+								<Label>SEO та Google Merchant</Label>
+								<span className='rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700'>
+									нове
+								</span>
+							</div>
+							<Button
+								type='button'
+								size='xs'
+								variant='outline'
+								onClick={() => {
+									setValue('google_product_category_id', FILAMENT_GOOGLE_CATEGORY.id, {
+										shouldDirty: true
+									})
+									setValue('google_product_category_path', FILAMENT_GOOGLE_CATEGORY.path, {
+										shouldDirty: true
+									})
+								}}
+							>
+								Підставити для філаменту
+							</Button>
+						</div>
+						<div className='flex gap-3'>
+							<div className='flex w-40 shrink-0 flex-col gap-1.5'>
+								<Label htmlFor='google_product_category_id'>Google-категорія (ID)</Label>
+								<Input
+									id='google_product_category_id'
+									inputMode='numeric'
+									placeholder={FILAMENT_GOOGLE_CATEGORY.id}
+									{...register('google_product_category_id')}
+									aria-invalid={!!errors.google_product_category_id}
+								/>
+								{errors.google_product_category_id && (
+									<p className='text-destructive text-xs'>
+										{errors.google_product_category_id.message}
+									</p>
+								)}
+							</div>
+							<div className='flex flex-1 flex-col gap-1.5'>
+								<Label htmlFor='google_product_category_path'>Шлях таксономії</Label>
+								<Input
+									id='google_product_category_path'
+									placeholder={FILAMENT_GOOGLE_CATEGORY.path}
+									{...register('google_product_category_path')}
+								/>
+							</div>
+						</div>
+						<p className='text-muted-foreground text-xs'>
+							Іде у фід як g:google_product_category; шлях — лише підказка для адміна.
+							Для філаменту — {FILAMENT_GOOGLE_CATEGORY.id}: окремого вузла «filament» у
+							Google немає, деталізацію дає product_type.{' '}
+							<a
+								href={GOOGLE_TAXONOMY_URL}
+								target='_blank'
+								rel='noreferrer'
+								className='underline underline-offset-2'
+							>
+								Таксономія Google
+							</a>
+						</p>
 					</div>
 
 					{/* Required attributes (catalog filters) */}

@@ -101,6 +101,11 @@ export const API_URLS = {
 	PROM: {
 		SYNC_AVAILABILITY: `/prom/sync-availability` // GET — admin SSE stream: per-variant availability sync progress, then done | error
 	},
+	FEEDS: {
+		GOOGLE_SHOPPING_XML: `/feeds/google-shopping.xml`, // GET — public Google Shopping feed; register in Merchant Center
+		GOOGLE_SHOPPING_STATUS: `/feeds/google-shopping/status`, // GET — admin: last generation summary, readiness, last error
+		GOOGLE_SHOPPING_REGENERATE: `/feeds/google-shopping/regenerate` // POST — admin: rebuild now, returns the summary; 409 while running
+	},
 	WHOLESALE: {
 		BASE: `/wholesale-inquiries`, // POST — public inquiry form; GET — admin paginated list
 		STATUS: (id: string) => `/wholesale-inquiries/${id}/status` // PATCH — admin change inquiry status

@@ -26,7 +26,15 @@ export const variantFormItemSchema = z.object({
 	vendor_product_sku: z.string().optional(),
 	prom_id: z.string().optional(),
 	// Dictionary colour. `color_family` is never sent — the API derives it (TD-0002 §5.2.2).
-	color_id: z.string().nullable().optional()
+	color_id: z.string().nullable().optional(),
+	// Shipping weight in grams, kept as a string like price/stock; '' means "unknown" → null.
+	weight_g: z
+		.string()
+		.optional()
+		.refine(
+			v => !v || (Number.isInteger(Number(v)) && Number(v) >= 0),
+			'Вага — ціле число грамів'
+		),
 })
 
 // --- Main product form schema (create) ---
@@ -87,7 +95,15 @@ export const variantEditFormSchema = z.object({
 	status: z.enum(['draft', 'active', 'archived']),
 	vendor_product_sku: z.string().optional(),
 	prom_id: z.string().optional(),
-	color_id: z.string().nullable().optional()
+	color_id: z.string().nullable().optional(),
+	// Shipping weight in grams, kept as a string like price/stock; '' means "unknown" → null.
+	weight_g: z
+		.string()
+		.optional()
+		.refine(
+			v => !v || (Number.isInteger(Number(v)) && Number(v) >= 0),
+			'Вага — ціле число грамів'
+		),
 })
 
 // --- API response schemas ---
@@ -119,6 +135,8 @@ export const productVariantFullResponseSchema = z.object({
 	status: z.enum(['draft', 'active', 'archived']),
 	// Optional so an older backend response still validates; the picker seeds from it.
 	color_id: z.string().nullable().optional(),
+	// Shipping weight in grams (TD-0006); optional for the same reason.
+	weight_g: z.number().nullable().optional(),
 	createdAt: z.string(),
 	updatedAt: z.string()
 })

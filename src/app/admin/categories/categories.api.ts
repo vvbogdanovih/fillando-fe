@@ -1,6 +1,6 @@
 import { httpService } from '@/common/services/http.service'
 import { API_URLS } from '@/common/constants'
-import { categorySchema, categoriesListSchema, type CategoryFormValues } from './categories.schema'
+import { categorySchema, categoriesListSchema, type CategoryPayload } from './categories.schema'
 
 // --- Category CRUD ---
 
@@ -10,13 +10,13 @@ export const categoriesApi = {
 			schema: categoriesListSchema
 		}),
 
-	create: (data: CategoryFormValues) =>
+	create: (data: CategoryPayload) =>
 		httpService.post(API_URLS.CATEGORIES.BASE, data, {
 			schema: categorySchema,
 			skipErrorToast: true
 		}),
 
-	update: (id: string, data: Partial<CategoryFormValues> & { image?: string | null }) =>
+	update: (id: string, data: Partial<CategoryPayload> & { image?: string | null }) =>
 		httpService.patch(API_URLS.CATEGORIES.BY_ID(id), data, {
 			schema: categorySchema,
 			skipErrorToast: true

@@ -50,6 +50,8 @@ interface CreateProductPayload {
 		vendor_product_sku?: string
 		prom_id?: string
 		color_id?: string | null
+		/** Shipping weight in grams; null = unknown (no delivery estimate, no feed weight). */
+		weight_g?: number | null
 	}>
 }
 
@@ -82,6 +84,7 @@ interface AddVariantPayload {
 	status?: 'draft' | 'active' | 'archived'
 	/** Dictionary colour; the API derives `color_family` from it and never accepts that. */
 	color_id?: string | null
+	weight_g?: number | null
 }
 
 interface UpdateVariantPayload {
@@ -95,6 +98,7 @@ interface UpdateVariantPayload {
 	prom_id?: string
 	status?: 'draft' | 'active' | 'archived'
 	color_id?: string | null
+	weight_g?: number | null
 }
 
 interface ValidatePayload {

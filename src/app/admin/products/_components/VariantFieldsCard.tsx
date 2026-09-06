@@ -148,6 +148,26 @@ export const VariantFieldsCard = ({
 				</div>
 
 				<div className='flex flex-1 flex-col gap-1.5'>
+					<Label htmlFor={`weight_g_${index}`}>Вага, г</Label>
+					<Input
+						id={`weight_g_${index}`}
+						type='number'
+						min={0}
+						step={1}
+						placeholder='напр. 1220'
+						{...register(`variants.${index}.weight_g`)}
+						aria-invalid={!!variantErrors?.weight_g}
+					/>
+					{variantErrors?.weight_g ? (
+						<p className='text-destructive text-xs'>{variantErrors.weight_g.message}</p>
+					) : (
+						<p className='text-muted-foreground text-xs'>
+							Разом із котушкою. Живить доставку і Google-фід.
+						</p>
+					)}
+				</div>
+
+				<div className='flex flex-1 flex-col gap-1.5'>
 					<Label htmlFor={`vendor_product_sku_${index}`}>Артикул вендора</Label>
 					<Input
 						id={`vendor_product_sku_${index}`}
