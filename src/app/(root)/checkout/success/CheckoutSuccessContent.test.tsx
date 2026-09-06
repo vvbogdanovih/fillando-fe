@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchOrderPaymentStatus, initLiqpayCheckout } from '../checkout.api'
 import type { OrderPaymentStatus } from '../checkout.api.schemas'
 import { gtag } from '@/common/lib/gtag'
+import { trackPurchase } from '@/common/lib/ga4-events'
 import { CheckoutSuccessContent } from './CheckoutSuccessContent'
 
 const navigation = vi.hoisted(() => ({ search: new URLSearchParams() }))
@@ -26,6 +27,10 @@ vi.mock('../checkout.api', () => ({
 
 vi.mock('@/common/lib/gtag', () => ({
 	gtag: vi.fn()
+}))
+
+vi.mock('@/common/lib/ga4-events', () => ({
+	trackPurchase: vi.fn()
 }))
 
 vi.mock('react-hot-toast', () => ({
@@ -98,6 +103,9 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 		expect(screen.getByText(`#${ORDER}`)).toBeInTheDocument()
 
 		await waitFor(() => expect(gtag).toHaveBeenCalledTimes(1))
+		expect(trackPurchase).toHaveBeenCalledWith(
+			expect.objectContaining({ transaction_id: ORDER })
+		)
 		expect(gtag).toHaveBeenCalledWith(
 			'event',
 			'conversion',

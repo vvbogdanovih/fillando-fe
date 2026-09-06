@@ -11,6 +11,7 @@ import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { gtag } from '@/common/lib/gtag'
+import { trackPurchase } from '@/common/lib/ga4-events'
 import { GOOGLE_ADS_PURCHASE_CONVERSION } from '@/common/constants/analytics.constants'
 import { formatOrderNumber } from '../checkout.schema'
 import { fetchOrderPaymentStatus } from '../checkout.api'
@@ -204,6 +205,9 @@ export function CheckoutSuccessContent() {
 			transaction_id: raw ?? '',
 			...(conversionValue !== undefined ? { value: conversionValue, currency: 'UAH' } : {})
 		})
+		// GA4 purchase rides on the same guard, so it fires exactly when the Ads conversion does.
+		// Aggregated on purpose: the cart is already cleared and the line items are not here.
+		trackPurchase({ transaction_id: raw ?? '', value: conversionValue })
 	}, [shouldConvert, conversionValue, raw])
 
 	const view: View = isLiqpay

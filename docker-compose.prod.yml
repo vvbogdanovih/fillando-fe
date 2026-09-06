@@ -16,6 +16,11 @@ services:
                 # override here for a staging build so it cannot pollute production data.
                 NEXT_PUBLIC_GOOGLE_ADS_ID: AW-18332229942
                 NEXT_PUBLIC_GOOGLE_ADS_PURCHASE_CONVERSION: AW-18332229942/vho6CLCit9McELbCvqVE
+                # GA4 property (Performance Max signals) and the Search Console verification
+                # token. Both are inert while empty: no GA4 config line, no verification tag.
+                # Fill in once the owner has created the property / passed verification.
+                NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ''
+                NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ''
         container_name: fillando-fe
         restart: unless-stopped
         env_file: .env.prod

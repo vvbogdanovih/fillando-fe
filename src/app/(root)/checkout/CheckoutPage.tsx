@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
+import { trackBeginCheckout } from '@/common/lib/ga4-events'
 import { UI_URLS } from '@/common/constants'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { Button } from '@/common/components/ui/button'
@@ -215,6 +216,24 @@ export function CheckoutPage() {
 			router.replace(UI_URLS.CATALOG.FILAMENT)
 		}
 	}, [cartReady, displayItems.length, isLoadingCart, router])
+
+	// GA4 begin_checkout once per visit, and only once the cart is really known — before
+	// `cartReady` the lines are still [] for a guest on a hard load.
+	const beginCheckoutSent = useRef(false)
+	useEffect(() => {
+		if (!cartReady || isLoadingCart || displayItems.length === 0) return
+		if (beginCheckoutSent.current) return
+		beginCheckoutSent.current = true
+		trackBeginCheckout({
+			value: total,
+			items: displayItems.map(i => ({
+				item_id: i.variant_id,
+				item_name: i.name,
+				price: i.price,
+				quantity: i.quantity
+			}))
+		})
+	}, [cartReady, isLoadingCart, displayItems, total])
 
 	const form = useForm<CheckoutFormValues>({
 		resolver: zodResolver(checkoutFormSchema),

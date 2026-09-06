@@ -31,9 +31,12 @@ export interface ProductDetailData {
 		quantity?: number
 		images: string[]
 		v_value: string | null
-		status: string
+		/** `archived` renders as «Знято з продажу»; a draft never reaches the storefront (404). */
+		status: 'draft' | 'active' | 'archived'
 		/** Resolved dictionary colour; null for categories with no colour axis. */
 		color: PublicColor | null
+		/** Shipping weight in grams (filament + spool); null until set. Drives the delivery estimate. */
+		weight_g: number | null
 	}
 	product: {
 		id: string
@@ -41,6 +44,8 @@ export interface ProductDetailData {
 		description: { html: string; json: any } | null
 		attributes: { k: string; l: string; v: string | number | boolean }[]
 		variant_type: { key: string; label: string } | null
+		/** The «Виробник» attribute — the brand. Never the vendor, which is the supplier. */
+		manufacturer: string | null
 	}
 	siblings: {
 		id: string

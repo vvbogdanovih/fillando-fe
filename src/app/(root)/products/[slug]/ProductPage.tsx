@@ -3,41 +3,21 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import {
-	AlertTriangle,
-	Check,
-	ChevronDown,
-	Handshake,
-	Loader2,
-	Minus,
-	Plus,
-	ShoppingCart
-} from 'lucide-react'
+import { AlertTriangle, Check, Handshake, Loader2, Minus, Plus, ShoppingCart } from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 import { Badge } from '@/common/components/ui/badge'
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuTrigger
-} from '@/common/components/ui/dropdown-menu'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
 import { useCartStore } from '@/common/store/useCartStore'
 import { getVariantBySlug, type ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { JsonLd } from '@/common/components/JsonLd'
 import { Breadcrumbs } from '@/common/components/Breadcrumbs'
-import {
-	MERCHANT_RETURN_POLICY,
-	OFFER_SHIPPING_DETAILS,
-	SITE_NAME
-} from '@/common/constants/seo.constants'
+import { trackAddToCart, trackViewItem } from '@/common/lib/ga4-events'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 import { variantLabel } from '@/common/utils/color.utils'
 import { buildSpecRows } from './product-attributes'
+import { buildProductJsonLd } from './product-jsonld.utils'
 import { findSpooledSibling } from './refill.utils'
 import { VariantSwitcher } from './VariantSwitcher'
 import {
@@ -64,7 +44,6 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	const [addError, setAddError] = useState<string | null>(null)
 	const [stockHint, setStockHint] = useState<string | null>(null)
 	const stockHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const router = useRouter()
 	const addItem = useCartStore(s => s.addItem)
 	const openCart = useCartStore(s => s.openCart)
 
@@ -83,6 +62,21 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	)
 	const isInCart = inAuthCart || inGuestCart
 	const availableStock = variant?.quantity ?? variant?.stock ?? 0
+
+	// Keyed on the variant id, not on mount: switching colour re-renders this component with
+	// another variant instead of remounting it, and each variant is its own GA4 item.
+	const viewedVariantId = variant?.id
+	useEffect(() => {
+		if (!variant || !product || !viewedVariantId) return
+		trackViewItem({
+			item_id: variant.sku,
+			item_name: variant.name,
+			price: variant.price,
+			item_brand: product.manufacturer ?? undefined,
+			item_category: data?.category_name
+		})
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [viewedVariantId])
 
 	const prev = useCallback(
 		() => setCurrentIndex(i => (i - 1 + images.length) % images.length),
@@ -191,6 +185,14 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 				thumbnail: variant.images[0] ?? null,
 				slug: variant.slug
 			})
+			trackAddToCart({
+				item_id: variant.sku,
+				item_name: variant.name,
+				price: variant.price,
+				quantity,
+				item_brand: product.manufacturer ?? undefined,
+				item_category: category_name
+			})
 		} catch (err) {
 			setAddError(mapCartErrorMessage(err instanceof Error ? err.message : undefined))
 		} finally {
@@ -198,23 +200,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 		}
 	}
 
-	const productSchema = {
-		'@context': 'https://schema.org',
-		'@type': 'Product',
-		name: displayName,
-		description: product.description?.html?.replace(/<[^>]*>/g, '') ?? undefined,
-		image: images,
-		brand: { '@type': 'Brand', name: SITE_NAME },
-		offers: {
-			'@type': 'Offer',
-			price: variant.price,
-			priceCurrency: 'UAH',
-			availability:
-				availableStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-			shippingDetails: OFFER_SHIPPING_DETAILS,
-			hasMerchantReturnPolicy: MERCHANT_RETURN_POLICY
-		}
-	}
+	const productSchema = buildProductJsonLd(data, displayName)
 
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>

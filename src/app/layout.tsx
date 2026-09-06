@@ -25,7 +25,10 @@ export const metadata: Metadata = {
 		locale: 'uk_UA',
 		type: 'website'
 	},
-	twitter: { card: 'summary_large_image' }
+	twitter: { card: 'summary_large_image' },
+	// Next omits the tag while the value is undefined, so this is inert until the owner
+	// completes Search Console verification and sets the build arg (TD-0006 §5.6).
+	verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
 }
 
 export default function RootLayout({
