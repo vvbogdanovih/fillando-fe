@@ -1,10 +1,27 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import {
+	DndContext,
+	closestCenter,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent
+} from '@dnd-kit/core'
+import {
+	SortableContext,
+	arrayMove,
+	sortableKeyboardCoordinates,
+	useSortable,
+	verticalListSortingStrategy
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/common/components/ui/button'
 import { Input } from '@/common/components/ui/input'
@@ -43,6 +60,48 @@ interface ColorFormProps {
 
 /** Six is where a 24px circle stops being readable, so the dictionary caps stops there. */
 const MAX_STOPS = 6
+
+/** Stops are bare strings and may repeat, so the sortable id is the position, not the value. */
+const stopId = (index: number) => `stop-${index}`
+
+/**
+ * One draggable stop row (artboard «Діалог кольору»: «Перетягуванням змінюється порядок»).
+ * The grip is the only drag handle, so the colour picker and the HEX input keep their own
+ * pointer behaviour; the arrow buttons stay as the keyboard-reachable way to reorder.
+ */
+const SortableStopRow = ({ id, children }: { id: string; children: ReactNode }) => {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		setActivatorNodeRef,
+		transform,
+		transition,
+		isDragging
+	} = useSortable({ id })
+	return (
+		<div
+			ref={setNodeRef}
+			style={{ transform: CSS.Transform.toString(transform), transition }}
+			className={
+				isDragging ? 'flex items-center gap-2 opacity-60' : 'flex items-center gap-2'
+			}
+		>
+			<button
+				type='button'
+				ref={setActivatorNodeRef}
+				{...attributes}
+				{...listeners}
+				className='text-muted-foreground hover:text-foreground flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing'
+				aria-label='Перетягнути, щоб змінити порядок'
+				title='Перетягуванням змінюється порядок'
+			>
+				<GripVerticalIcon className='size-4' />
+			</button>
+			{children}
+		</div>
+	)
+}
 const DEFAULT_STOP = '#000000'
 
 export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
@@ -97,6 +156,19 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 		const next = [...stops]
 		;[next[index], next[target]] = [next[target], next[index]]
 		setStops(next)
+	}
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+	)
+
+	const handleStopDragEnd = ({ active, over }: DragEndEvent) => {
+		if (!over || active.id === over.id) return
+		const from = Number(String(active.id).replace('stop-', ''))
+		const to = Number(String(over.id).replace('stop-', ''))
+		if (Number.isNaN(from) || Number.isNaN(to)) return
+		setStops(arrayMove(stops, from, to))
 	}
 
 	const { mutate: save } = useMutation({
@@ -249,68 +321,86 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 								</Button>
 							</div>
 
-							{stops.map((stop, index) => (
-								<div key={index} className='flex items-center gap-2'>
-									<span className='w-6 shrink-0 text-xs text-gray-400'>
-										{index + 1}
-									</span>
-									<input
-										type='color'
-										aria-label={`Колір ${index + 1}`}
-										value={/^#[0-9a-fA-F]{6}$/.test(stop) ? stop : DEFAULT_STOP}
-										onChange={e => {
-											const next = [...stops]
-											next[index] = e.target.value
-											setStops(next)
-										}}
-										className='h-9 w-12 shrink-0 cursor-pointer rounded border border-gray-200 bg-white'
-									/>
-									<Input
-										value={stop}
-										aria-label={`HEX ${index + 1}`}
-										onChange={e => {
-											const next = [...stops]
-											next[index] = e.target.value
-											setStops(next)
-										}}
-										className='font-mono'
-									/>
-									{/* Arrows rather than drag-and-drop: no DnD library is in the project,
-							    and a keyboard-reachable control is worth more than the gesture. */}
-									<Button
-										type='button'
-										size='icon-sm'
-										variant='ghost'
-										title='Вище'
-										disabled={index === 0}
-										onClick={() => moveStop(index, -1)}
-									>
-										<ArrowUpIcon className='size-3.5' />
-									</Button>
-									<Button
-										type='button'
-										size='icon-sm'
-										variant='ghost'
-										title='Нижче'
-										disabled={index === stops.length - 1}
-										onClick={() => moveStop(index, 1)}
-									>
-										<ArrowDownIcon className='size-3.5' />
-									</Button>
-									<Button
-										type='button'
-										size='icon-sm'
-										variant='ghost'
-										title='Видалити'
-										disabled={stops.length <= 1}
-										onClick={() =>
-											setStops(stops.filter((_, i) => i !== index))
-										}
-									>
-										<Trash2Icon className='text-destructive size-3.5' />
-									</Button>
-								</div>
-							))}
+							<p className='text-muted-foreground text-xs'>
+								Перетягуванням за ручку змінюється порядок; стрілки роблять те саме
+								з клавіатури.
+							</p>
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								onDragEnd={handleStopDragEnd}
+							>
+								<SortableContext
+									items={stops.map((_, index) => stopId(index))}
+									strategy={verticalListSortingStrategy}
+								>
+									{stops.map((stop, index) => (
+										<SortableStopRow key={stopId(index)} id={stopId(index)}>
+											<span className='w-6 shrink-0 text-xs text-gray-400'>
+												{index + 1}
+											</span>
+											<input
+												type='color'
+												aria-label={`Колір ${index + 1}`}
+												value={
+													/^#[0-9a-fA-F]{6}$/.test(stop)
+														? stop
+														: DEFAULT_STOP
+												}
+												onChange={e => {
+													const next = [...stops]
+													next[index] = e.target.value
+													setStops(next)
+												}}
+												className='h-9 w-12 shrink-0 cursor-pointer rounded border border-gray-200 bg-white'
+											/>
+											<Input
+												value={stop}
+												aria-label={`HEX ${index + 1}`}
+												onChange={e => {
+													const next = [...stops]
+													next[index] = e.target.value
+													setStops(next)
+												}}
+												className='font-mono'
+											/>
+											{/* Arrows beside the drag handle: the keyboard-reachable way to reorder. */}
+											<Button
+												type='button'
+												size='icon-sm'
+												variant='ghost'
+												title='Вище'
+												disabled={index === 0}
+												onClick={() => moveStop(index, -1)}
+											>
+												<ArrowUpIcon className='size-3.5' />
+											</Button>
+											<Button
+												type='button'
+												size='icon-sm'
+												variant='ghost'
+												title='Нижче'
+												disabled={index === stops.length - 1}
+												onClick={() => moveStop(index, 1)}
+											>
+												<ArrowDownIcon className='size-3.5' />
+											</Button>
+											<Button
+												type='button'
+												size='icon-sm'
+												variant='ghost'
+												title='Видалити'
+												disabled={stops.length <= 1}
+												onClick={() =>
+													setStops(stops.filter((_, i) => i !== index))
+												}
+											>
+												<Trash2Icon className='text-destructive size-3.5' />
+											</Button>
+										</SortableStopRow>
+									))}
+								</SortableContext>
+							</DndContext>
 							{errors.hex_stops && (
 								<p className='text-destructive text-xs'>
 									{errors.hex_stops.message ??
