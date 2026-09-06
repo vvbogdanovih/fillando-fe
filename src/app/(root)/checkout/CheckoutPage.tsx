@@ -1118,10 +1118,10 @@ export function CheckoutPage() {
 						<CardTitle className='text-lg'>Купон на знижку</CardTitle>
 					</CardHeader>
 					<CardContent className='space-y-2'>
-						<Label htmlFor='coupon_code'>Промокод</Label>
+						<Label htmlFor='coupon_code'>Знижковий купон</Label>
 						<Input
 							id='coupon_code'
-							placeholder='Наприклад: ZY64GM08WT'
+							placeholder='Введіть код купона'
 							maxLength={10}
 							autoCapitalize='characters'
 							{...register('coupon_code')}

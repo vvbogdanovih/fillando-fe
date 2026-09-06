@@ -336,7 +336,7 @@ describe('CheckoutPage — оформлення замовлення', () => {
 		const fieldError = await screen.findByText('Купон не знайдено або він неактивний')
 		expect(fieldError).toHaveAttribute('id', 'coupon_code-error')
 
-		const couponInput = screen.getByLabelText('Промокод')
+		const couponInput = screen.getByLabelText('Знижковий купон')
 		expect(couponInput).toHaveAttribute('aria-invalid', 'true')
 		expect(couponInput).toHaveAttribute('aria-describedby', 'coupon_code-error')
 		expect(couponInput).toHaveFocus()
@@ -359,7 +359,7 @@ describe('CheckoutPage — оформлення замовлення', () => {
 
 		expect(document.getElementById('coupon_code-error')).toBeNull()
 		expect(screen.queryByText('Only 3 units available for SKU X')).not.toBeInTheDocument()
-		expect(screen.getByLabelText('Промокод')).not.toHaveAttribute('aria-invalid', 'true')
+		expect(screen.getByLabelText('Знижковий купон')).not.toHaveAttribute('aria-invalid', 'true')
 		expect(clearAfterOrderMock()).not.toHaveBeenCalled()
 		// The form is usable again for another attempt.
 		expect(submitButton()).toBeEnabled()

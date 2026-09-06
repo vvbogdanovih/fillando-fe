@@ -135,5 +135,5 @@ export async function fillPickupContact(page: Page) {
 export const submitButton = (page: Page) =>
 	page.getByRole('button', { name: 'Замовити', exact: true })
 
-export const couponInput = (page: Page) => page.getByLabel('Промокод')
+export const couponInput = (page: Page) => page.getByLabel('Знижковий купон')
 export const couponError = (page: Page) => page.locator('#coupon_code-error')
