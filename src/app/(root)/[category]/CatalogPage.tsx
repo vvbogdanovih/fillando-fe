@@ -2,15 +2,21 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, X } from 'lucide-react'
-import { getCatalogProducts, getCategoryBySlug, type CatalogResponse } from './catalog.api'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { SlidersHorizontal } from 'lucide-react'
+import {
+	catalogFacets,
+	getCatalogProducts,
+	getCategoryBySlug,
+	type CatalogResponse
+} from './catalog.api'
 import { FilterSidebar } from './components/FilterSidebar'
+import { FilterDrawer } from './components/FilterDrawer'
 import { ProductGrid } from './components/ProductGrid'
 import { Pagination } from './components/Pagination'
 import { PerPageSelector } from './components/PerPageSelector'
 import { SORT_OPTIONS, SortSelector, type SortValue } from './components/SortSelector'
-import { ActiveFilterChips } from './components/ActiveFilterChips'
+import { ActiveFilterChips, clearableFilterKeys } from './components/ActiveFilterChips'
 import { PopularLandings, type PopularLanding } from './components/PopularLandings'
 import { FAMILY_LABELS } from './components/ColorFilter'
 import { attributeValueLabel } from './filter-labels'
@@ -73,11 +79,24 @@ export const CatalogPage = ({
 		initialData: initialCategory ?? undefined
 	})
 
-	const { data, isLoading } = useQuery({
+	/**
+	 * The SSR response seeds the cache for the parameters it was fetched with — and only those.
+	 * `initialData` applies to every new query key, and the key holds `params`, so without the
+	 * guard each click would create the new key already "successful" with the unfiltered SSR
+	 * catalogue: the grid, the facet counts and the number on the drawer button would flash the
+	 * whole category before the real response replaced it (TD-0008 §5.4.3). With the guard a new
+	 * key keeps the previous narrowing on screen as placeholder data instead, and `isFetching`
+	 * says that it is stale.
+	 */
+	const [initialParamsKey] = useState(() => JSON.stringify(params))
+	const isInitialParams = JSON.stringify(params) === initialParamsKey
+
+	const { data, isLoading, isFetching } = useQuery({
 		queryKey: ['catalog', category?._id, params],
 		queryFn: () => getCatalogProducts({ category_id: category!._id, ...params }),
 		enabled: !!category,
-		initialData: initialCatalog ?? undefined
+		initialData: isInitialParams ? (initialCatalog ?? undefined) : undefined,
+		placeholderData: keepPreviousData
 	})
 
 	/**
@@ -164,11 +183,14 @@ export const CatalogPage = ({
 		allAttributes: category.required_attributes,
 		pinnedFilters: pinned,
 		priceRange: data?.price_range ?? { min: 0, max: 0 },
-		filterOptions: data?.filter_options ?? {},
+		facets: catalogFacets(data),
 		colorOptions: data?.color_options ?? [],
 		searchParams: params,
 		onParamsChange: updateParams
 	}
+
+	const clearable = clearableFilterKeys(params, pinned)
+	const clearAll = () => updateParams(Object.fromEntries(clearable.map(key => [key, null])))
 
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
@@ -238,33 +260,16 @@ export const CatalogPage = ({
 				/>
 			)}
 
-			{/* Mobile filter overlay */}
-			<div
-				className={`fixed inset-0 z-50 ${landing ? '' : 'md:hidden'} ${
-					isFilterOpen ? 'pointer-events-auto' : 'pointer-events-none'
-				}`}
+			<FilterDrawer
+				open={isFilterOpen}
+				onClose={() => setIsFilterOpen(false)}
+				total={data?.pagination.total}
+				isFetching={isFetching}
+				onClearAll={clearable.length > 0 ? clearAll : undefined}
+				alwaysAvailable={!!landing}
 			>
-				<div
-					className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${isFilterOpen ? 'opacity-100' : 'opacity-0'}`}
-					onClick={() => setIsFilterOpen(false)}
-				/>
-				<div
-					className={`bg-background absolute top-0 bottom-0 left-0 w-80 max-w-[85vw] overflow-y-auto shadow-2xl transition-transform duration-300 ease-in-out ${isFilterOpen ? 'translate-x-0' : '-translate-x-full'}`}
-				>
-					<div className='border-border/50 flex items-center justify-end border-b px-4 py-3'>
-						<button
-							className='text-muted-foreground hover:text-foreground transition-colors'
-							onClick={() => setIsFilterOpen(false)}
-							aria-label='Закрити фільтри'
-						>
-							<X size={20} />
-						</button>
-					</div>
-					<div className='p-4'>
-						<FilterSidebar {...filterSidebarProps} idPrefix='mobile-' />
-					</div>
-				</div>
-			</div>
+				<FilterSidebar {...filterSidebarProps} idPrefix='mobile-' />
+			</FilterDrawer>
 
 			{/* Entry points into the landings: a shopper looking for "PLA Silk" gets there in one
 			    click, and the crawler gets an internal link to every published landing. */}

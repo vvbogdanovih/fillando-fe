@@ -48,9 +48,16 @@ vi.mock('@/app/admin/categories/categories.api', () => ({
 	}
 }))
 
-// The publish guard asks the catalogue how many products the pinned filters match.
-vi.mock('@/app/(root)/[category]/catalog.api', () => ({
-	getCatalogProducts: () => Promise.resolve({ items: [], pagination: { total: 38 } })
+// The publish guard asks the catalogue how many products the pinned filters match; the pinned
+// filters editor reads the same response's `facets`. `catalogFacets` stays real.
+vi.mock('@/app/(root)/[category]/catalog.api', async importOriginal => ({
+	...(await importOriginal<typeof import('@/app/(root)/[category]/catalog.api')>()),
+	getCatalogProducts: () =>
+		Promise.resolve({
+			items: [],
+			pagination: { total: 38 },
+			facets: { polymer: [{ value: 'PLA', count: 38 }] }
+		})
 }))
 
 const LANDING: Landing = {

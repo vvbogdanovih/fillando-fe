@@ -74,6 +74,17 @@ export interface ProductDetailData {
 	} | null
 }
 
+/**
+ * One value of a filter dimension. `count` is how many variants of the current narrowing carry
+ * it, counted with every active filter except this dimension's own (TD-0008 §5.3) — so ticking
+ * one value never empties its siblings. `null` only when the backend predates facets and the
+ * list was rebuilt from `filter_options`; the sidebar then shows no numbers.
+ */
+export interface FacetValue {
+	value: string
+	count: number | null
+}
+
 export interface CatalogResponse {
 	items: CatalogItem[]
 	pagination: {
@@ -82,10 +93,37 @@ export interface CatalogResponse {
 		limit: number
 		totalPages: number
 	}
+	/** Over the whole category, not the narrowing: the slider's bounds must not jump. */
 	price_range: { min: number; max: number }
-	filter_options: Record<string, string[]>
-	/** One entry per colour family present in the category, with a swatch to paint. */
+	/**
+	 * Every value of every `required_attributes` dimension, in the category's order, with a
+	 * count per the rule on `FacetValue`. Optional only for the deploy window in which the
+	 * storefront is newer than the backend — read it through `catalogFacets`.
+	 */
+	facets?: Record<string, FacetValue[]>
+	/** @deprecated The same values without counts; removed after the next release (Plan-0007). */
+	filter_options?: Record<string, string[]>
+	/**
+	 * One entry per colour family present in the category, with a swatch to paint. `count`
+	 * follows the facet rule: narrowed by everything except colour, zero kept.
+	 */
 	color_options: { family: string; count: number; hex_stops: string[] }[]
+}
+
+/**
+ * The facet lists of a response, whichever shape the backend sent. A backend older than the
+ * storefront has no `facets`; rebuilding the lists from `filter_options` keeps every dimension
+ * in the sidebar (without numbers) instead of hiding them all as "fewer than two values".
+ */
+export const catalogFacets = (
+	response: Pick<CatalogResponse, 'facets' | 'filter_options'> | null | undefined
+): Record<string, FacetValue[]> => {
+	if (response?.facets) return response.facets
+	const rebuilt: Record<string, FacetValue[]> = {}
+	for (const [key, values] of Object.entries(response?.filter_options ?? {})) {
+		rebuilt[key] = values.map(value => ({ value, count: null }))
+	}
+	return rebuilt
 }
 
 export type CatalogQueryParams = Record<string, string> & { category_id: string }

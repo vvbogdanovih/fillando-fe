@@ -14,7 +14,7 @@ import {
 	SelectValue
 } from '@/common/components/ui/select'
 import { categoriesApi } from '@/app/admin/categories/categories.api'
-import { getCatalogProducts } from '@/app/(root)/[category]/catalog.api'
+import { catalogFacets, getCatalogProducts } from '@/app/(root)/[category]/catalog.api'
 import { attributeLabel, buildAttributeLabels } from './landing-attributes'
 import { useLandingMatchCount } from './useLandingMatchCount'
 
@@ -30,14 +30,16 @@ interface PinnedFiltersProps {
  * The counter is the point: a landing that matches nothing is an empty SEO page, the API
  * refuses to publish it, and seeing "0" while editing is the only moment that is cheap to fix.
  *
- * Values come from the catalogue's own `filter_options`, so a combination that matches nothing
- * is not offered at all, and the dimension is named the way its category names it rather than
- * by the derived key the query happens to use. «Значення» stays a multi-select rather than the
- * single dropdown of the artboard because the data has multi-value filters — `reinforcement:
- * CF, GF` — that one dropdown cannot express.
+ * Values come from the catalogue's own `facets` — the category's dimensions and every value the
+ * category holds — so a combination that matches nothing is not offered at all, and the
+ * dimension is named the way its category names it rather than by the derived key the query
+ * happens to use. Only dimensions can be pinned (TD-0008 §5.3); a landing saved earlier with
+ * some other key keeps its card and its values, so it stays editable. «Значення» stays a
+ * multi-select rather than the single dropdown of the artboard because the data has multi-value
+ * filters — `reinforcement: CF, GF` — that one dropdown cannot express.
  */
 export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProps) => {
-	// Unfiltered, one item: all we need is `filter_options` and the category's dimensions.
+	// Unfiltered, one item: all we need is `facets` — the category's dimensions and values.
 	const { data: options, isLoading } = useQuery({
 		queryKey: ['catalog-filter-options', categoryId],
 		queryFn: () => getCatalogProducts({ category_id: categoryId, limit: '1' }),
@@ -52,8 +54,13 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 
 	const { total, isCounting } = useLandingMatchCount(categoryId, value)
 
-	const filterOptions = options?.filter_options ?? {}
-	const dimensions = Object.keys(filterOptions).filter(key => filterOptions[key].length > 0)
+	const facets = catalogFacets(options)
+	const dimensions = Object.keys(facets).filter(key => facets[key].length > 0)
+	// The category's values for a key, plus whatever the landing already pins under it — a saved
+	// key the category no longer lists must still be shown, or it could never be removed.
+	const valuesFor = (key: string) => [
+		...new Set([...(facets[key] ?? []).map(entry => entry.value), ...(value[key] ?? [])])
+	]
 
 	/**
 	 * A card whose attribute is chosen but whose values are still empty has nothing to store —
@@ -158,7 +165,7 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{dimensions
+										{[...new Set([...dimensions, key])]
 											.filter(
 												option => option === key || !cards.includes(option)
 											)
@@ -174,7 +181,7 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 							<div className='flex flex-col gap-1.5'>
 								<Label className='text-xs'>Значення</Label>
 								<div className='flex flex-wrap gap-1.5'>
-									{(filterOptions[key] ?? []).map(option => {
+									{valuesFor(key).map(option => {
 										const isOn = (value[key] ?? []).includes(option)
 										return (
 											<button

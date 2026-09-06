@@ -1,6 +1,7 @@
 'use client'
 
 import { ColorSwatch } from '@/common/components/ColorSwatch'
+import { productsCount } from '@/common/utils'
 
 /** One family present in the category, as the catalogue API returns it. */
 export interface ColorOption {
@@ -34,6 +35,8 @@ interface ColorFilterProps {
 	currentValue: string
 	onChange: (value: string) => void
 	idPrefix?: string
+	/** Off when the heading is the accordion trigger around the filter. */
+	showLegend?: boolean
 }
 
 /**
@@ -43,12 +46,17 @@ interface ColorFilterProps {
  * colour gaining a fifth stop needs no change here (TD-0002 §5.2.2). Selection is expressed in
  * the same comma-separated form the other filters use, so `ProductService.getCatalog` parses it
  * identically.
+ *
+ * `count` is a facet count (TD-0008 §5.3): variants of the current narrowing with that family,
+ * counted without the colour filter itself, so ticking «Чорний» leaves the other numbers where
+ * they were. A family at zero stays, dimmed, for the same reason the attribute lists keep theirs.
  */
 export const ColorFilter = ({
 	options,
 	currentValue,
 	onChange,
-	idPrefix = ''
+	idPrefix = '',
+	showLegend = true
 }: ColorFilterProps) => {
 	const selected = currentValue ? currentValue.split(',').filter(Boolean) : []
 
@@ -63,7 +71,7 @@ export const ColorFilter = ({
 
 	return (
 		<fieldset>
-			<legend className='mb-3 text-sm font-medium'>Колір</legend>
+			<legend className={showLegend ? 'mb-3 text-sm font-medium' : 'sr-only'}>Колір</legend>
 			<div className='flex flex-wrap gap-2'>
 				{options.map(option => {
 					const isOn = selected.includes(option.family)
@@ -75,12 +83,12 @@ export const ColorFilter = ({
 							type='button'
 							onClick={() => toggle(option.family)}
 							aria-pressed={isOn}
-							title={`${label} — ${option.count}`}
+							title={`${label} — ${productsCount(option.count)} із цим кольором`}
 							className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition-colors ${
 								isOn
 									? 'border-primary bg-primary/10 text-foreground'
 									: 'border-border/60 text-muted-foreground hover:border-primary/50'
-							}`}
+							} ${option.count === 0 && !isOn ? 'opacity-70' : ''}`}
 						>
 							<ColorSwatch
 								hexStops={option.hex_stops}

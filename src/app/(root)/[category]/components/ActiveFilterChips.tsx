@@ -17,6 +17,24 @@ interface ActiveFilterChipsProps {
 
 const CHIP = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm'
 
+/** Parameters that shape the listing without narrowing it. Everything else is a filter. */
+const NON_FILTER_KEYS = new Set(['page', 'limit', 'sort', 'category_id'])
+const PRICE_KEYS = ['price_min', 'price_max']
+
+/**
+ * Every query parameter that narrows the listing and is the shopper's to remove. The backend
+ * treats any key it does not reserve as an attribute filter, so a `?material=PLA` from an old
+ * link narrows the grid just as `?polymer=PLA` does — and «Очистити все» has to remove it too,
+ * or the shopper is left with a filtered page and no filter in sight.
+ */
+export const clearableFilterKeys = (
+	searchParams: Record<string, string>,
+	pinnedFilters: Record<string, string[]>
+): string[] =>
+	Object.keys(searchParams).filter(
+		key => !NON_FILTER_KEYS.has(key) && !(key in pinnedFilters) && searchParams[key] !== ''
+	)
+
 /**
  * What is currently narrowing the listing, as a row above the grid.
  *
@@ -24,6 +42,9 @@ const CHIP = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 tex
  * the address — removing one would put the visitor on a listing the URL does not describe — so
  * they carry a lock and no ✕. Everything the visitor chose themselves is removable from here,
  * which on mobile is the only place it is visible at all: the sidebar lives behind a drawer.
+ *
+ * «Очистити все» removes every removable chip at once — including a key the category does not
+ * list as a dimension, which gets a chip with its raw name so the narrowing is never invisible.
  */
 export const ActiveFilterChips = ({
 	attributes,
@@ -62,7 +83,18 @@ export const ActiveFilterChips = ({
 
 	const hasPrice = searchParams.price_min !== undefined || searchParams.price_max !== undefined
 
+	// Narrowing the sidebar cannot name: not a dimension, not colour, not price.
+	const known = new Set([...attributes.map(a => a.key), 'color_family', ...PRICE_KEYS])
+	for (const key of clearableFilterKeys(searchParams, pinnedFilters)) {
+		if (!known.has(key)) {
+			chosen.push({ key, label: key, text: searchParams[key].split(',').join(', ') })
+		}
+	}
+
 	if (pinned.length === 0 && chosen.length === 0 && !hasPrice) return null
+
+	const clearable = clearableFilterKeys(searchParams, pinnedFilters)
+	const clearAll = () => onParamsChange(Object.fromEntries(clearable.map(key => [key, null])))
 
 	return (
 		<div className='mb-4 space-y-2'>
@@ -101,6 +133,16 @@ export const ActiveFilterChips = ({
 						Ціна: {formatUah(Number(searchParams.price_min ?? 0))} –{' '}
 						{formatUah(Number(searchParams.price_max ?? 0))}
 						<XIcon className='size-3' aria-hidden />
+					</button>
+				)}
+
+				{clearable.length > 0 && (
+					<button
+						type='button'
+						onClick={clearAll}
+						className='text-muted-foreground hover:text-primary ml-1 text-sm underline-offset-4 transition-colors hover:underline'
+					>
+						Очистити все
 					</button>
 				)}
 			</div>
