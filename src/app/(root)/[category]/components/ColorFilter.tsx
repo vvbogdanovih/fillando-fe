@@ -2,6 +2,7 @@
 
 import { ColorSwatch } from '@/common/components/ColorSwatch'
 import { productsCount } from '@/common/utils'
+import { ColorSearchDropdown } from './ColorSearchDropdown'
 
 /** One family present in the category, as the catalogue API returns it. */
 export interface ColorOption {
@@ -29,6 +30,12 @@ export const FAMILY_LABELS: Record<string, string> = {
 	multicolor: 'Багатокольоровий'
 }
 
+/**
+ * The searchable dropdown appears once the family list is this long. Below it the chips alone
+ * are quicker than any search; the filament category has fifteen, so it shows there.
+ */
+export const SEARCH_DROPDOWN_THRESHOLD = 6
+
 interface ColorFilterProps {
 	options: ColorOption[]
 	/** Comma-separated families from the URL, exactly as `?color_family=` carries them. */
@@ -50,6 +57,11 @@ interface ColorFilterProps {
  * `count` is a facet count (TD-0008 §5.3): variants of the current narrowing with that family,
  * counted without the colour filter itself, so ticking «Чорний» leaves the other numbers where
  * they were. A family at zero stays, dimmed, for the same reason the attribute lists keep theirs.
+ *
+ * Above the chips, once the list is long enough, sits `ColorSearchDropdown` — a searchable
+ * multi-select over the same families. The chips are not replaced by it: seeing every colour at
+ * a glance and typing the one you want are different jobs, and the owner asked for both
+ * (2026-09-07). Both controls share `toggle`, so they are one filter with two handles.
  */
 export const ColorFilter = ({
 	options,
@@ -69,13 +81,26 @@ export const ColorFilter = ({
 
 	if (options.length === 0) return null
 
+	const labelOf = (family: string) => FAMILY_LABELS[family] ?? family
+
 	return (
 		<fieldset>
 			<legend className={showLegend ? 'mb-3 text-sm font-medium' : 'sr-only'}>Колір</legend>
+			{options.length >= SEARCH_DROPDOWN_THRESHOLD && (
+				<div className='mb-3'>
+					<ColorSearchDropdown
+						options={options}
+						selected={selected}
+						onToggle={toggle}
+						labelOf={labelOf}
+						idPrefix={idPrefix}
+					/>
+				</div>
+			)}
 			<div className='flex flex-wrap gap-2'>
 				{options.map(option => {
 					const isOn = selected.includes(option.family)
-					const label = FAMILY_LABELS[option.family] ?? option.family
+					const label = labelOf(option.family)
 					return (
 						<button
 							key={option.family}
