@@ -268,7 +268,7 @@ export const VariantModal = ({
 						</div>
 
 						<div className='flex flex-1 flex-col gap-1.5'>
-							<Label htmlFor='weight_g'>Вага брутто, г</Label>
+							<Label htmlFor='weight_g'>Повна вага для пошти, г</Label>
 							<Input
 								id='weight_g'
 								type='number'
@@ -284,10 +284,10 @@ export const VariantModal = ({
 								</p>
 							) : (
 								<p className='text-muted-foreground text-xs'>
-									Вага відправлення: філамент + котушка + пакування. З неї
-									рахується тариф Нової Пошти на сторінці товару і shipping_weight
-									у Google-фіді. Це не атрибут «Вага (кг)» — той описує сам
-									філамент для покупця.
+									Повна вага посилки разом з упаковкою. З неї рахується тариф
+									Нової Пошти на сторінці товару і shipping_weight у Google-фіді.
+									Атрибути товару (наприклад «Вага (кг)») описують сам товар для
+									покупця й на доставку не впливають.
 								</p>
 							)}
 						</div>

@@ -107,7 +107,7 @@ export const VariantsSection = ({
 									Кількість
 								</th>
 								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
-									Брутто, г
+									Вага для пошти, г
 								</th>
 								<th className='py-2 pr-4 text-left text-xs font-medium text-gray-500'>
 									Статус
