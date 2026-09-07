@@ -6,7 +6,7 @@ const attr = (k: string, l: string, v: string): ProductAttribute => ({ k, l, v }
 describe('buildSpecRows', () => {
 	it('puts the characteristics in the order the mock reads them', () => {
 		const rows = buildSpecRows([
-			attr('series', 'Серія', 'Standard'),
+			attr('series', 'Серія', 'Basic'),
 			attr('polymer', 'Тип пластику', 'PLA'),
 			attr('spool_included', 'Котушка в комплекті', 'Так'),
 			attr('finish', 'Ефект поверхні', 'Silk')

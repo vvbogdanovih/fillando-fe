@@ -38,7 +38,7 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
 		GF: 'Скловолокно (GF)'
 	},
 	series: {
-		Standard: 'Стандарт (Standard)',
+		Basic: 'Базова (Basic)',
 		'High Speed': 'Швидкісний (High Speed)'
 	}
 }
