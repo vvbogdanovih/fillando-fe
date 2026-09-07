@@ -268,7 +268,7 @@ export const VariantModal = ({
 						</div>
 
 						<div className='flex flex-1 flex-col gap-1.5'>
-							<Label htmlFor='weight_g'>Вага, г</Label>
+							<Label htmlFor='weight_g'>Вага брутто, г</Label>
 							<Input
 								id='weight_g'
 								type='number'
@@ -279,10 +279,15 @@ export const VariantModal = ({
 								aria-invalid={!!errors.weight_g}
 							/>
 							{errors.weight_g ? (
-								<p className='text-destructive text-xs'>{errors.weight_g.message}</p>
+								<p className='text-destructive text-xs'>
+									{errors.weight_g.message}
+								</p>
 							) : (
 								<p className='text-muted-foreground text-xs'>
-									Разом із котушкою. Живить доставку і Google-фід.
+									Вага відправлення: філамент + котушка + пакування. З неї
+									рахується тариф Нової Пошти на сторінці товару і shipping_weight
+									у Google-фіді. Це не атрибут «Вага (кг)» — той описує сам
+									філамент для покупця.
 								</p>
 							)}
 						</div>

@@ -148,7 +148,7 @@ export const VariantFieldsCard = ({
 				</div>
 
 				<div className='flex flex-1 flex-col gap-1.5'>
-					<Label htmlFor={`weight_g_${index}`}>Вага, г</Label>
+					<Label htmlFor={`weight_g_${index}`}>Вага брутто, г</Label>
 					<Input
 						id={`weight_g_${index}`}
 						type='number'
@@ -162,7 +162,9 @@ export const VariantFieldsCard = ({
 						<p className='text-destructive text-xs'>{variantErrors.weight_g.message}</p>
 					) : (
 						<p className='text-muted-foreground text-xs'>
-							Разом із котушкою. Живить доставку і Google-фід.
+							Вага відправлення: філамент + котушка + пакування. З неї рахується тариф
+							Нової Пошти на сторінці товару і shipping_weight у Google-фіді. Це не
+							атрибут «Вага (кг)» — той описує сам філамент для покупця.
 						</p>
 					)}
 				</div>
