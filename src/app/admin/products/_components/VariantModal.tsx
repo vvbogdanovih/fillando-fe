@@ -268,7 +268,7 @@ export const VariantModal = ({
 						</div>
 
 						<div className='flex flex-1 flex-col gap-1.5'>
-							<Label htmlFor='weight_g'>Повна вага для пошти, г</Label>
+							<Label htmlFor='weight_g'>Вага для пошти, г</Label>
 							<Input
 								id='weight_g'
 								type='number'
@@ -283,15 +283,17 @@ export const VariantModal = ({
 									{errors.weight_g.message}
 								</p>
 							) : (
-								<p className='text-muted-foreground text-xs'>
-									Повна вага посилки разом з упаковкою. З неї рахується тариф
-									Нової Пошти на сторінці товару і shipping_weight у Google-фіді.
-									Атрибути товару (наприклад «Вага (кг)») описують сам товар для
-									покупця й на доставку не впливають.
-								</p>
+								<p className='text-muted-foreground text-xs'>Посилка з упаковкою</p>
 							)}
 						</div>
 					</div>
+					{/* Spans the whole row: in one narrow column this paragraph made the row twice as tall. */}
+					<p className='text-muted-foreground -mt-2 text-xs'>
+						<span className='text-foreground font-medium'>Вага для пошти</span> — повна
+						вага посилки разом з упаковкою; з неї рахується тариф Нової Пошти на
+						сторінці товару і shipping_weight у Google-фіді. Атрибути товару (наприклад
+						«Вага (кг)») описують сам товар для покупця й на доставку не впливають.
+					</p>
 
 					{/* Status */}
 					<div className='flex flex-col gap-1.5'>

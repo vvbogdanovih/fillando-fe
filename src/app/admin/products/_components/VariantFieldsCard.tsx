@@ -148,7 +148,7 @@ export const VariantFieldsCard = ({
 				</div>
 
 				<div className='flex flex-1 flex-col gap-1.5'>
-					<Label htmlFor={`weight_g_${index}`}>Повна вага для пошти, г</Label>
+					<Label htmlFor={`weight_g_${index}`}>Вага для пошти, г</Label>
 					<Input
 						id={`weight_g_${index}`}
 						type='number'
@@ -161,12 +161,7 @@ export const VariantFieldsCard = ({
 					{variantErrors?.weight_g ? (
 						<p className='text-destructive text-xs'>{variantErrors.weight_g.message}</p>
 					) : (
-						<p className='text-muted-foreground text-xs'>
-							Повна вага посилки разом з упаковкою. З неї рахується тариф Нової Пошти
-							на сторінці товару і shipping_weight у Google-фіді. Атрибути товару
-							(наприклад «Вага (кг)») описують сам товар для покупця й на доставку не
-							впливають.
-						</p>
+						<p className='text-muted-foreground text-xs'>Посилка з упаковкою</p>
 					)}
 				</div>
 
@@ -188,6 +183,13 @@ export const VariantFieldsCard = ({
 					/>
 				</div>
 			</div>
+			{/* Spans the whole row: in one narrow column this paragraph made the row twice as tall. */}
+			<p className='text-muted-foreground -mt-2 text-xs'>
+				<span className='text-foreground font-medium'>Вага для пошти</span> — повна вага
+				посилки разом з упаковкою; з неї рахується тариф Нової Пошти на сторінці товару і
+				shipping_weight у Google-фіді. Атрибути товару (наприклад «Вага (кг)») описують сам
+				товар для покупця й на доставку не впливають.
+			</p>
 
 			{/* Images */}
 			<div className='flex flex-col gap-1.5'>
