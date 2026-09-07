@@ -11,23 +11,43 @@ export interface ColorOption {
 	hex_stops: string[]
 }
 
-/** Family → Ukrainian label; shared with the active-filter chips above the grid. */
+/**
+ * Family → label, shared with the active-filter chips above the grid and the catalogue heading.
+ *
+ * Ukrainian first, the English family in brackets — the same shape as a variant name («Чорний
+ * (Black)») and the series labels («Швидкісний (High Speed)»). The English is not decoration:
+ * every supplier invoice names colours in English only (Kingroon «Gray», Sunlu «Grey», Bambu
+ * «Clear»), so a buyer who knows a colour by that name can find it in the dropdown search and
+ * recognise it on the chip (the owner's call, 2026-09-07).
+ */
 export const FAMILY_LABELS: Record<string, string> = {
-	black: 'Чорний',
-	white: 'Білий',
-	gray: 'Сірий',
-	red: 'Червоний',
-	orange: 'Помаранчевий',
-	yellow: 'Жовтий',
-	green: 'Зелений',
-	blue: 'Синій',
-	purple: 'Фіолетовий',
-	pink: 'Рожевий',
-	brown: 'Коричневий',
-	gold: 'Золотий',
-	silver: 'Срібний',
-	transparent: 'Прозорий',
-	multicolor: 'Багатокольоровий'
+	black: 'Чорний (Black)',
+	white: 'Білий (White)',
+	gray: 'Сірий (Gray)',
+	red: 'Червоний (Red)',
+	orange: 'Помаранчевий (Orange)',
+	yellow: 'Жовтий (Yellow)',
+	green: 'Зелений (Green)',
+	blue: 'Синій (Blue)',
+	purple: 'Фіолетовий (Purple)',
+	pink: 'Рожевий (Pink)',
+	brown: 'Коричневий (Brown)',
+	gold: 'Золотий (Gold)',
+	silver: 'Срібний (Silver)',
+	transparent: 'Прозорий (Transparent)',
+	multicolor: 'Багатокольоровий (Multicolor)'
+}
+
+/**
+ * Spellings the search should also accept, per family: the label already covers the Ukrainian
+ * name and the family key, this covers the other names suppliers use for the same family.
+ */
+export const FAMILY_SEARCH_ALIASES: Record<string, string[]> = {
+	gray: ['grey'],
+	transparent: ['clear', 'natural'],
+	purple: ['violet'],
+	pink: ['magenta'],
+	multicolor: ['multi', 'rainbow', 'веселка']
 }
 
 /**

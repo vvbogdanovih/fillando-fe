@@ -8,7 +8,7 @@ import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/common/components/ui/popover'
 import { productsCount } from '@/common/utils'
-import type { ColorOption } from './ColorFilter'
+import { FAMILY_SEARCH_ALIASES, type ColorOption } from './ColorFilter'
 
 interface ColorSearchDropdownProps {
 	options: ColorOption[]
@@ -31,8 +31,9 @@ interface ColorSearchDropdownProps {
  * below at once and vice versa.
  *
  * The popover stays open across ticks (Radix closes it only on an outside click or Escape), which
- * is what a multi-select needs; the search matches the Ukrainian label and the family key, so
- * «син» and «blue» both find «Синій». Zero-count families stay listed and tickable for the same
+ * is what a multi-select needs; the search matches the label (Ukrainian and English), the family
+ * key and the supplier spellings in `FAMILY_SEARCH_ALIASES`, so «син», «blue», «grey» and «clear»
+ * all land on a family. Zero-count families stay listed and tickable for the same
  * reason the chips keep them.
  */
 export const ColorSearchDropdown = ({
@@ -50,7 +51,8 @@ export const ColorSearchDropdown = ({
 		option =>
 			needle === '' ||
 			labelOf(option.family).toLowerCase().includes(needle) ||
-			option.family.toLowerCase().includes(needle)
+			option.family.toLowerCase().includes(needle) ||
+			(FAMILY_SEARCH_ALIASES[option.family] ?? []).some(alias => alias.includes(needle))
 	)
 
 	return (

@@ -76,6 +76,18 @@ describe('ColorFilter — search dropdown', () => {
 		expect(within(panel).getByText('Нічого не знайдено')).toBeInTheDocument()
 	})
 
+	it('accepts the spellings suppliers use for a family', () => {
+		renderFilter([...many, option('gray'), option('transparent')])
+		const panel = openDropdown()
+		const search = within(panel).getByRole('searchbox', { name: 'Пошук кольору' })
+
+		fireEvent.change(search, { target: { value: 'grey' } })
+		expect(within(panel).getByLabelText(/Сірий \(Gray\)/)).toBeInTheDocument()
+
+		fireEvent.change(search, { target: { value: 'clear' } })
+		expect(within(panel).getByLabelText(/Прозорий \(Transparent\)/)).toBeInTheDocument()
+	})
+
 	it('ticks through the same toggle as the chips and stays open for the next tick', () => {
 		const onChange = renderFilter(many, 'black')
 		const panel = openDropdown()
@@ -92,7 +104,7 @@ describe('ColorFilter — search dropdown', () => {
 	it('names the ticked families on the trigger', () => {
 		renderFilter(many, 'black,blue')
 		expect(screen.getByRole('button', { name: 'Знайти колір за назвою' })).toHaveTextContent(
-			'Обрано: Чорний, Синій'
+			'Обрано: Чорний (Black), Синій (Blue)'
 		)
 	})
 })
