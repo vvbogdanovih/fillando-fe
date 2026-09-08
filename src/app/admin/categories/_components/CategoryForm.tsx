@@ -8,6 +8,7 @@ import {
 	XIcon,
 	UploadIcon,
 	AlertCircleIcon,
+	InfoIcon,
 	RefreshCwIcon,
 	PlusIcon,
 	Trash2Icon
@@ -479,6 +480,15 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 								Таксономія Google
 							</a>
 						</p>
+						{/* The empty field is a valid state, and nothing said so (Plan-0005 I-31). */}
+						<div className='flex items-start gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3'>
+							<InfoIcon className='mt-0.5 size-4 shrink-0 text-gray-500' />
+							<p className='text-xs text-gray-600'>
+								Порожнє поле не блокує фід — товари категорії просто йдуть без{' '}
+								<span className='font-mono'>google_product_category</span>, а у
+								звіті генерації з'явиться попередження.
+							</p>
+						</div>
 					</div>
 
 					{/* Required attributes (catalog filters) */}

@@ -24,6 +24,7 @@ import {
 	SelectValue
 } from '@/common/components/ui/select'
 import { ImageDropzone, type ImageUploadItem } from './ImageDropzone'
+import { WeightInfoNote } from './WeightInfoNote'
 import { productsApi } from '../products.api'
 import {
 	variantEditFormSchema,
@@ -294,6 +295,8 @@ export const VariantModal = ({
 						сторінці товару і shipping_weight у Google-фіді. Атрибути товару (наприклад
 						«Вага (кг)») описують сам товар для покупця й на доставку не впливають.
 					</p>
+
+					<WeightInfoNote />
 
 					{/* Status */}
 					<div className='flex flex-col gap-1.5'>

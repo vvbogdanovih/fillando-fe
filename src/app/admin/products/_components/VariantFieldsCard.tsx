@@ -14,6 +14,7 @@ import { Button } from '@/common/components/ui/button'
 import { toSlug } from '@/common/utils'
 import { ColorSelect } from './ColorSelect'
 import { ImageDropzone, type ImageUploadItem } from './ImageDropzone'
+import { WeightInfoNote } from './WeightInfoNote'
 import type { ProductFormValues } from '../products.schema'
 
 interface VariantFieldsCardProps {
@@ -190,6 +191,8 @@ export const VariantFieldsCard = ({
 				shipping_weight у Google-фіді. Атрибути товару (наприклад «Вага (кг)») описують сам
 				товар для покупця й на доставку не впливають.
 			</p>
+
+			<WeightInfoNote />
 
 			{/* Images */}
 			<div className='flex flex-col gap-1.5'>

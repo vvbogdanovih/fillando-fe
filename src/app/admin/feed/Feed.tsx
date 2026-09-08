@@ -1,15 +1,29 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CheckIcon, ExternalLinkIcon, RefreshCwIcon } from 'lucide-react'
+import { AlertTriangle, CheckIcon, CopyIcon, ExternalLinkIcon, RefreshCwIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
+import { productsCount } from '@/common/utils'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { feedApi } from './feed.api'
-import { EXCLUSION_LABELS, WARNING_COPY, type FeedStatus } from './feed.schema'
+import {
+	EXCLUSION_LABELS,
+	FAILURE_COPY,
+	WARNING_COPY,
+	warningCountLabel,
+	type FeedStatus,
+	type FeedWarning
+} from './feed.schema'
 
 const QUERY_KEY = ['feed', 'status'] as const
+
+/** A generation is transient state: without polling the screen sits on «генерується» forever. */
+export const GENERATING_POLL_MS = 3000
+
+/** The cron fires at the top of every hour; a few minutes of slack for a run still in flight. */
+const STALE_GRACE_MS = 5 * 60 * 1000
 
 const formatGeneratedAt = (iso: string) =>
 	new Intl.DateTimeFormat('uk-UA', {
@@ -20,26 +34,95 @@ const formatGeneratedAt = (iso: string) =>
 	}).format(new Date(iso))
 
 /** «12:04, 2 вересня» → the next full hour after it, when the cron runs again. */
-const nextHourAfter = (iso: string) => {
+const nextRunAfter = (iso: string) => {
 	const d = new Date(iso)
 	d.setMinutes(0, 0, 0)
 	d.setHours(d.getHours() + 1)
-	return new Intl.DateTimeFormat('uk-UA', { hour: '2-digit', minute: '2-digit' }).format(d)
+	return d
+}
+
+const formatHour = (date: Date) =>
+	new Intl.DateTimeFormat('uk-UA', { hour: '2-digit', minute: '2-digit' }).format(date)
+
+/**
+ * The scheduled run that should have replaced this XML has come and gone. Without this state the
+ * header stayed green «Фід актуальний» after a failed cron and «Наступна автогенерація о …»
+ * printed a time in the past (Plan-0005 I-38).
+ */
+const isStale = (status: FeedStatus, now = Date.now()) =>
+	!!status.summary &&
+	status.scheduled &&
+	nextRunAfter(status.summary.generated_at).getTime() + STALE_GRACE_MS < now
+
+/** «Діаметр»: 3 — the label the category form shows, never the raw attribute key (I-12). */
+const warningDetail = (warning: FeedWarning): string | null => {
+	if (warning.attributes && warning.attributes.length > 0) {
+		return warning.attributes.map(a => `«${a.label}»: ${a.count}`).join(', ')
+	}
+	if (warning.detail && Object.keys(warning.detail).length > 0) {
+		return Object.entries(warning.detail)
+			.map(([key, n]) => `${key}: ${n}`)
+			.join(', ')
+	}
+	return null
+}
+
+/** Merchant Center needs an origin — a relative path cannot be pasted into the cabinet. */
+const FeedAddress = ({ path }: { path: string }) => {
+	const url = feedApi.absoluteUrl(path)
+
+	const copy = async () => {
+		try {
+			if (!navigator.clipboard) throw new Error('clipboard unavailable')
+			await navigator.clipboard.writeText(url)
+			toast.success('Адресу фіда скопійовано')
+		} catch {
+			toast.error('Не вдалося скопіювати — виділіть адресу вручну')
+		}
+	}
+
+	return (
+		<div className='flex shrink-0 items-center gap-1'>
+			<code className='text-xs'>{url}</code>
+			<Button
+				type='button'
+				size='icon-xs'
+				variant='ghost'
+				onClick={copy}
+				aria-label='Скопіювати адресу фіда'
+			>
+				<CopyIcon className='size-3' />
+			</Button>
+		</div>
+	)
 }
 
 const StatusBanner = ({ status }: { status: FeedStatus }) => {
-	if (status.last_error && !status.xml_ready) {
+	if (status.generating) {
 		return (
-			<div className='flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900'>
-				<AlertTriangle className='mt-0.5 size-5 shrink-0' />
+			<div className='flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900'>
+				<RefreshCwIcon className='mt-0.5 size-5 shrink-0 animate-spin' />
 				<div>
-					<p className='font-medium'>Фід не згенерувався</p>
-					<p className='text-sm'>{status.last_error}</p>
+					<p className='font-medium'>Фід генерується</p>
+					<p className='text-sm'>
+						Статус оновлюється автоматично — дочекайтеся завершення генерації.
+					</p>
 				</div>
 			</div>
 		)
 	}
 	if (!status.xml_ready || !status.summary) {
+		if (status.last_error) {
+			return (
+				<div className='flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900'>
+					<AlertTriangle className='mt-0.5 size-5 shrink-0' />
+					<div>
+						<p className='font-medium'>Фід не згенерувався</p>
+						<p className='text-sm'>{status.last_error}</p>
+					</div>
+				</div>
+			)
+		}
 		return (
 			<div className='flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900'>
 				<RefreshCwIcon className='mt-0.5 size-5 shrink-0 animate-spin' />
@@ -52,28 +135,47 @@ const StatusBanner = ({ status }: { status: FeedStatus }) => {
 			</div>
 		)
 	}
+
+	const stale = isStale(status)
+	const nextRun = formatHour(nextRunAfter(status.summary.generated_at))
+
 	return (
-		<div className='flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900'>
+		<div
+			className={cn(
+				'flex items-start justify-between gap-3 rounded-xl border p-4',
+				stale
+					? 'border-amber-200 bg-amber-50 text-amber-900'
+					: 'border-emerald-200 bg-emerald-50 text-emerald-900'
+			)}
+		>
 			<div className='flex items-start gap-3'>
-				<CheckIcon className='mt-0.5 size-5 shrink-0' />
+				{stale ? (
+					<AlertTriangle className='mt-0.5 size-5 shrink-0' />
+				) : (
+					<CheckIcon className='mt-0.5 size-5 shrink-0' />
+				)}
 				<div>
 					<p className='font-medium'>
-						Фід актуальний — згенеровано {formatGeneratedAt(status.summary.generated_at)}
+						{stale ? 'Фід застарілий' : 'Фід актуальний'} — згенеровано{' '}
+						{formatGeneratedAt(status.summary.generated_at)}
 					</p>
 					<p className='text-sm'>
-						{status.scheduled
-							? `Наступна автогенерація о ${nextHourAfter(status.summary.generated_at)} (щогодини). `
-							: 'Автогенерація в цьому процесі вимкнена (RUN_CRON). '}
+						{!status.scheduled
+							? 'Автогенерація в цьому процесі вимкнена (RUN_CRON). '
+							: stale
+								? `Автогенерація о ${nextRun} не спрацювала — перегенеруйте вручну. `
+								: `Наступна автогенерація о ${nextRun} (щогодини). `}
 						Google фетчить за власним розкладом — налаштовується в Merchant Center.
 					</p>
 					{status.last_error && (
 						<p className='mt-1 text-sm text-amber-800'>
-							Остання спроба не вдалася: {status.last_error}. Показано попередній фід.
+							Останній прогін не вдався: {status.last_error}. Google досі отримує XML
+							від {formatGeneratedAt(status.summary.generated_at)}.
 						</p>
 					)}
 				</div>
 			</div>
-			<code className='shrink-0 text-xs text-emerald-800'>{status.feed_path}</code>
+			<FeedAddress path={status.feed_path} />
 		</div>
 	)
 }
@@ -104,20 +206,39 @@ const Kpi = ({
 
 export const Feed = () => {
 	const queryClient = useQueryClient()
-	const { data: status, isLoading, isError, refetch } = useQuery({
+	const {
+		data: status,
+		isLoading,
+		isError,
+		refetch
+	} = useQuery({
 		queryKey: QUERY_KEY,
-		queryFn: () => feedApi.getStatus()
+		queryFn: () => feedApi.getStatus(),
+		refetchInterval: query => (query.state.data?.generating ? GENERATING_POLL_MS : false)
 	})
 
 	const regenerate = useMutation({
 		mutationFn: () => feedApi.regenerate(),
 		onSuccess: summary => {
+			// A 2xx with `ok: false` is a refused publish: the served XML and the summary that
+			// describes it stay exactly as they were, so only the error is new.
+			if (!summary.ok) {
+				const message =
+					summary.error ??
+					(summary.failure_reason ? FAILURE_COPY[summary.failure_reason] : null) ??
+					'Фід не перегенеровано'
+				queryClient.setQueryData<FeedStatus>(QUERY_KEY, prev =>
+					prev ? { ...prev, generating: false, last_error: message } : prev
+				)
+				toast.error(message)
+				return
+			}
 			queryClient.setQueryData<FeedStatus>(QUERY_KEY, prev =>
 				prev
 					? { ...prev, xml_ready: true, generating: false, last_error: null, summary }
 					: prev
 			)
-			toast.success(`Фід перегенеровано: ${summary.item_count} товарів`)
+			toast.success(`Фід перегенеровано: ${productsCount(summary.item_count)}`)
 		},
 		onError: (err: Error) => {
 			toast.error(err.message || 'Не вдалося перегенерувати фід')
@@ -126,7 +247,7 @@ export const Feed = () => {
 	})
 
 	const summary = status?.summary ?? null
-	const warningCount = summary?.warnings.reduce((s, w) => s + w.count, 0) ?? 0
+	const xmlReady = !!status?.xml_ready
 
 	return (
 		<div className='p-6'>
@@ -140,15 +261,33 @@ export const Feed = () => {
 							</span>
 						</CardTitle>
 						<div className='flex items-center gap-2'>
-							<Button variant='outline' asChild>
-								<a href={feedApi.publicXmlUrl()} target='_blank' rel='noreferrer'>
+							{xmlReady ? (
+								<Button variant='outline' asChild>
+									<a href={feedApi.publicXmlUrl()} target='_blank' rel='noreferrer'>
+										<ExternalLinkIcon className='size-4' />
+										Відкрити XML
+									</a>
+								</Button>
+							) : (
+								// Before the first generation the public URL answers 503, so the
+								// link would only show the shopper's Retry-After body.
+								<Button
+									variant='outline'
+									disabled
+									title='Фід ще не згенерований — публічна адреса відповідає 503'
+								>
 									<ExternalLinkIcon className='size-4' />
 									Відкрити XML
-								</a>
-							</Button>
+								</Button>
+							)}
 							<Button
 								onClick={() => regenerate.mutate()}
-								disabled={regenerate.isPending || isLoading || isError}
+								disabled={
+									regenerate.isPending ||
+									isLoading ||
+									isError ||
+									!!status?.generating
+								}
 							>
 								<RefreshCwIcon
 									className={cn('size-4', regenerate.isPending && 'animate-spin')}
@@ -181,7 +320,9 @@ export const Feed = () => {
 											value={summary.in_stock}
 											label={`в наявності · ${summary.out_of_stock} немає`}
 										/>
-										<Kpi value={warningCount} label='попереджень' tone='warn' />
+										{/* Kinds, not positions: the label says «попереджень», and
+										    summing `count` across kinds is neither number. */}
+										<Kpi value={summary.warning_kinds} label='попереджень' tone='warn' />
 										<Kpi value={summary.excluded.length} label='виключено з фіда' tone='bad' />
 									</div>
 
@@ -232,48 +373,50 @@ export const Feed = () => {
 												Попереджень немає.
 											</p>
 										) : (
-											<ul className='space-y-2'>
-												{summary.warnings.map(w => (
-													<li
-														key={w.code}
-														className='flex items-start justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900'
-													>
-														<div className='flex items-start gap-2'>
-															<AlertTriangle className='mt-0.5 size-4 shrink-0' />
-															<div>
-																<p className='font-medium'>{WARNING_COPY[w.code].title}</p>
-																<p className='text-sm'>
-																	{WARNING_COPY[w.code].text}
-																	{w.detail && Object.keys(w.detail).length > 0 && (
-																		<>
-																			{' — '}
-																			{Object.entries(w.detail)
-																				.map(([key, n]) => `${key}: ${n}`)
-																				.join(', ')}
-																		</>
-																	)}
-																</p>
-																{w.skus.length > 0 && (
-																	<p className='mt-1 font-mono text-xs text-amber-800'>
-																		{w.skus.join(', ')}
-																		{w.count > w.skus.length ? ` … ще ${w.count - w.skus.length}` : ''}
-																	</p>
-																)}
-															</div>
-														</div>
-														<span className='shrink-0 text-sm font-medium'>
-															{w.count}{' '}
-															{w.code === 'no_google_product_category'
-																? w.count === 1
-																	? 'категорія'
-																	: 'категорій'
-																: w.count === 1
-																	? 'товар'
-																	: 'товарів'}
-														</span>
-													</li>
-												))}
-											</ul>
+											<>
+												<p className='text-sm text-gray-500'>
+													Позицій із попередженнями: {summary.warned_items} з{' '}
+													{summary.item_count}.
+												</p>
+												<ul className='space-y-2'>
+													{summary.warnings.map(w => {
+														const detail = warningDetail(w)
+														return (
+															<li
+																key={w.code}
+																className='flex items-start justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900'
+															>
+																<div className='flex items-start gap-2'>
+																	<AlertTriangle className='mt-0.5 size-4 shrink-0' />
+																	<div>
+																		<p className='font-medium'>{WARNING_COPY[w.code].title}</p>
+																		<p className='text-sm'>
+																			{WARNING_COPY[w.code].text}
+																			{detail && (
+																				<>
+																					{' — '}
+																					{detail}
+																				</>
+																			)}
+																		</p>
+																		{w.skus.length > 0 && (
+																			<p className='mt-1 font-mono text-xs text-amber-800'>
+																				{w.skus.join(', ')}
+																				{w.item_count > w.skus.length
+																					? ` … ще ${w.item_count - w.skus.length}`
+																					: ''}
+																			</p>
+																		)}
+																	</div>
+																</div>
+																<span className='shrink-0 text-sm font-medium'>
+																	{warningCountLabel(w.count, w.unit)}
+																</span>
+															</li>
+														)
+													})}
+												</ul>
+											</>
 										)}
 									</section>
 								</>
