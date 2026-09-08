@@ -26,31 +26,62 @@ export const SHIPPING_RATE_TABLE = {
 
 export type ShippingZone = 'city' | 'ukraine'
 
-export type ShippingEstimate = {
+export type ShippingTransitDays = { min: number; max: number }
+
+/** A parcel the table prices — the only state that carries a ₴ figure. */
+export type ShippingQuote = {
+	kind: 'quoted'
 	rate_uah: number
 	zone: ShippingZone
 	/** Upper bound of the tier the parcel fell into, grams. */
 	max_weight_g: number
-	transit_days: { min: number; max: number }
+	transit_days: ShippingTransitDays
 }
+
+/** No usable weight on the variant, so nothing about the parcel can be said honestly. */
+export type ShippingWeightUnknown = {
+	kind: 'weight_unknown'
+	transit_days: ShippingTransitDays
+}
+
+/** The weight is known — the contract table simply stops below it. */
+export type ShippingAboveTable = {
+	kind: 'above_table'
+	/** Top step of the table the parcel is heavier than, grams. */
+	over_weight_g: number
+	transit_days: ShippingTransitDays
+}
+
+export type ShippingEstimate = ShippingQuote | ShippingWeightUnknown | ShippingAboveTable
 
 const TRANSIT_DAYS = { min: 1, max: 3 } as const
 
+/** Heaviest parcel the contract table prices, grams. */
+const TOP_WEIGHT_G = Math.max(...SHIPPING_RATE_TABLE.tiers.map(t => t.max_weight_g))
+
 /**
- * The tier a parcel of `weightG` grams falls into, or null when there is no weight or it is
- * heavier than the table covers. Null is the signal to omit the estimate entirely — never to
- * show a default number.
+ * Which of three states the variant's shipping weight puts the page in.
+ *
+ * Three, because two of them used to share one `null` and every caller read that as «no weight»:
+ * a stored 0 g quoted the cheapest tier as if it had been measured, and a parcel over the top
+ * step told the shopper the weight was not specified while it was (Plan-0005 I-14). Only
+ * `kind: 'quoted'` may be turned into a number — the other two are the signal to say so, never
+ * to show a default figure.
  */
 export const estimateShipping = (
 	weightG: number | null | undefined,
 	zone: ShippingZone = 'ukraine'
-): ShippingEstimate | null => {
-	if (weightG === null || weightG === undefined || !Number.isFinite(weightG) || weightG < 0) {
-		return null
+): ShippingEstimate => {
+	// A non-positive weight is data, not a parcel: 0 is what an unfilled field backfills to.
+	if (weightG === null || weightG === undefined || !Number.isFinite(weightG) || weightG <= 0) {
+		return { kind: 'weight_unknown', transit_days: TRANSIT_DAYS }
 	}
 	const tier = SHIPPING_RATE_TABLE.tiers.find(t => weightG <= t.max_weight_g)
-	if (!tier) return null
+	if (!tier) {
+		return { kind: 'above_table', over_weight_g: TOP_WEIGHT_G, transit_days: TRANSIT_DAYS }
+	}
 	return {
+		kind: 'quoted',
 		rate_uah: zone === 'city' ? tier.city_uah : tier.ukraine_uah,
 		zone,
 		max_weight_g: tier.max_weight_g,
@@ -58,10 +89,10 @@ export const estimateShipping = (
 	}
 }
 
-/** schema.org OfferShippingDetails for the estimate, or undefined when there is none. */
+/** schema.org OfferShippingDetails, or undefined unless the table actually prices the parcel. */
 export const buildShippingDetails = (weightG: number | null | undefined) => {
 	const estimate = estimateShipping(weightG)
-	if (!estimate) return undefined
+	if (estimate.kind !== 'quoted') return undefined
 	return {
 		'@type': 'OfferShippingDetails',
 		shippingRate: {

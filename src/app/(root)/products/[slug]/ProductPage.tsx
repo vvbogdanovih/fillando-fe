@@ -41,11 +41,22 @@ interface ProductPageProps {
 	initialData?: ProductDetailData | null
 }
 
+/** A product page changes at the pace of a price import, not of a click. */
+const PRODUCT_STALE_TIME = 5 * 60 * 1000
+
+const formatKg = (grams: number) => (grams / 1000).toLocaleString('uk-UA')
+
 export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
-	const { data, isLoading, isError } = useQuery({
+	// `staleTime` is what stops the server-rendered page from refetching itself the moment it
+	// hydrates — one request per view saved, and one fewer chance for a 5xx to arrive while the
+	// shopper is reading. `isError` is deliberately not read: a failed refetch leaves the last
+	// good `data` in place, and swapping a priced page for «Товар не знайдено» loses the sale
+	// (Plan-0005 I-d).
+	const { data, isLoading } = useQuery({
 		queryKey: ['product', slug],
 		queryFn: () => getVariantBySlug(slug),
-		initialData: initialData ?? undefined
+		initialData: initialData ?? undefined,
+		staleTime: PRODUCT_STALE_TIME
 	})
 
 	const [currentIndex, setCurrentIndex] = useState(0)
@@ -121,7 +132,9 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 		)
 	}
 
-	if (isError || !data || !variant || !product) {
+	// Only an empty page is «not found»: while there is data to render, a request failure is the
+	// background's problem, not the shopper's.
+	if (!data || !variant || !product) {
 		return (
 			<div className='container mx-auto max-w-7xl px-4 py-32 text-center'>
 				<p className='text-muted-foreground'>Товар не знайдено</p>
@@ -135,6 +148,8 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	// The dictionary colour, not `v_value`: after the colour migration the raw value is the
 	// English name, and every one of these five places would switch the shop to English.
 	const variantValue = variantLabel(variant)
+	/** «Колір», «Довжина» — whatever this product calls its axis. */
+	const axisLabel = product.variant_type?.label ?? 'Варіація'
 
 	// Above the buy button, never in the description: the description renders below the CTA,
 	// i.e. after the decision (TD-0002 §5.2.1).
@@ -183,7 +198,25 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 	// «Знято з продажу»: the page stays up for a live ad or backlink, but nothing on it sells
 	// (TD-0006 §5.4, artboard «Архівний товар»). The cart refuses an archived variant anyway.
 	const isArchived = variant.status === 'archived'
+
+	/**
+	 * The delivery block's two lines, written from the shipping state (Plan-0005 I-14).
+	 *
+	 * Three states, not two: a parcel heavier than the contract table has a known weight, so
+	 * telling the shopper it is «ще не вказана» is the lie the old single `null` made easy.
+	 */
 	const shipping = estimateShipping(variant.weight_g)
+	const transitLine = `доставка ${shipping.transit_days.min}–${shipping.transit_days.max} дні`
+	const shippingHeadline =
+		shipping.kind === 'quoted'
+			? `орієнтовно ${formatUah(shipping.rate_uah)}, ${transitLine}`
+			: `за тарифом перевізника, ${transitLine}`
+	const shippingNote =
+		shipping.kind === 'quoted' && variant.weight_g
+			? `Розраховано за вагою ${formatKg(variant.weight_g)} кг, відділення–відділення по Україні`
+			: shipping.kind === 'above_table'
+				? `Вага понад ${formatKg(shipping.over_weight_g)} кг — точну суму порахує відділення`
+				: 'Вага товару ще не вказана — точну суму порахує відділення'
 
 	const handleAddToCart = async () => {
 		if (isInCart) {
@@ -344,10 +377,13 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					)}
 					<h1 className='text-2xl font-bold'>{displayName}</h1>
 
+					{/* Archived beats the stock count: a discontinued variant can still have a
+					    non-empty warehouse figure, and painting «Знято з продажу» green sold it
+					    (Plan-0005 I-i). */}
 					<Badge
 						className={cn(
 							'w-fit px-3 py-1 text-sm',
-							availableStock > 0
+							!isArchived && availableStock > 0
 								? 'border-green-700 bg-green-700 text-white'
 								: 'border-border bg-muted text-muted-foreground'
 						)}
@@ -388,14 +424,27 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					</div>
 
 					{/* Above the buy button: the colour is part of the decision, and a shopper who
-					    picks one after pressing «Додати в кошик» has added the wrong thing. */}
-					{!isArchived && (
-						<VariantSwitcher
-							variants={siblings}
-							currentSlug={variant.slug}
-							axisLabel={product.variant_type?.label ?? 'Варіація'}
-						/>
-					)}
+					    picks one after pressing «Додати в кошик» has added the wrong thing.
+					    Below the switcher's own threshold there is nothing to switch between, but
+					    the mock still names the colour — the H1 alone is not a caption
+					    (Plan-0005 I-29). */}
+					{!isArchived &&
+						(siblings.length > 1 ? (
+							<VariantSwitcher
+								variants={siblings}
+								currentSlug={variant.slug}
+								axisLabel={axisLabel}
+							/>
+						) : (
+							variantValue && (
+								<p className='text-muted-foreground text-sm'>
+									{axisLabel}:{' '}
+									<span className='text-foreground font-medium'>
+										{variantValue}
+									</span>
+								</p>
+							)
+						))}
 
 					{/* Add to cart */}
 					<div className='flex flex-col gap-3'>
@@ -426,50 +475,55 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							</div>
 						)}
 						<div className='flex items-center gap-3'>
-							<div className='border-border bg-card flex items-center overflow-hidden rounded-lg border shadow-sm'>
-								<button
-									onClick={() => setQuantity(q => Math.max(1, q - 1))}
-									disabled={quantity <= 1 || isOutOfStock}
-									className='bg-muted text-foreground hover:bg-muted/80 flex h-9 w-9 items-center justify-center transition-colors disabled:opacity-40'
-									aria-label='Зменшити кількість'
-								>
-									<Minus className='h-3.5 w-3.5' />
-								</button>
-								<input
-									type='number'
-									min={1}
-									step={1}
-									value={quantity}
-									onChange={e => {
-										const next = Number(e.target.value)
-										if (!Number.isFinite(next)) return
-										const normalized = Math.max(1, Math.floor(next))
-										setQuantity(normalized)
-									}}
-									onBlur={() => showStockHint(quantity)}
-									onKeyDown={e => {
-										if (e.key === 'Enter') {
-											e.preventDefault()
-											showStockHint(quantity)
-										}
-									}}
-									disabled={isOutOfStock}
-									className='w-14 border-x border-zinc-300 bg-white text-center text-sm font-medium text-black outline-none'
-									aria-label='Кількість'
-								/>
-								<button
-									onClick={() => {
-										const nextQuantity = Math.max(1, quantity + 1)
-										setQuantity(nextQuantity)
-										showStockHint(nextQuantity)
-									}}
-									disabled={isOutOfStock}
-									className='bg-muted text-foreground hover:bg-muted/80 flex h-9 w-9 items-center justify-center transition-colors disabled:opacity-40'
-									aria-label='Збільшити кількість'
-								>
-									<Plus className='h-3.5 w-3.5' />
-								</button>
-							</div>
+							{/* Nothing to count for a discontinued variant: the warehouse figure can
+							    still be non-zero, and a live counter beside a dead button reads as a
+							    shop that is merely out of stock (Plan-0005 I-i). */}
+							{!isArchived && (
+								<div className='border-border bg-card flex items-center overflow-hidden rounded-lg border shadow-sm'>
+									<button
+										onClick={() => setQuantity(q => Math.max(1, q - 1))}
+										disabled={quantity <= 1 || isOutOfStock}
+										className='bg-muted text-foreground hover:bg-muted/80 flex h-9 w-9 items-center justify-center transition-colors disabled:opacity-40'
+										aria-label='Зменшити кількість'
+									>
+										<Minus className='h-3.5 w-3.5' />
+									</button>
+									<input
+										type='number'
+										min={1}
+										step={1}
+										value={quantity}
+										onChange={e => {
+											const next = Number(e.target.value)
+											if (!Number.isFinite(next)) return
+											const normalized = Math.max(1, Math.floor(next))
+											setQuantity(normalized)
+										}}
+										onBlur={() => showStockHint(quantity)}
+										onKeyDown={e => {
+											if (e.key === 'Enter') {
+												e.preventDefault()
+												showStockHint(quantity)
+											}
+										}}
+										disabled={isOutOfStock}
+										className='w-14 border-x border-zinc-300 bg-white text-center text-sm font-medium text-black outline-none'
+										aria-label='Кількість'
+									/>
+									<button
+										onClick={() => {
+											const nextQuantity = Math.max(1, quantity + 1)
+											setQuantity(nextQuantity)
+											showStockHint(nextQuantity)
+										}}
+										disabled={isOutOfStock}
+										className='bg-muted text-foreground hover:bg-muted/80 flex h-9 w-9 items-center justify-center transition-colors disabled:opacity-40'
+										aria-label='Збільшити кількість'
+									>
+										<Plus className='h-3.5 w-3.5' />
+									</button>
+								</div>
+							)}
 							<button
 								onClick={handleAddToCart}
 								disabled={isArchived || isOutOfStock || isAdding}
@@ -489,8 +543,11 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 								) : (
 									<ShoppingCart className='h-4 w-4' />
 								)}
+								{/* Not «Знято з продажу» a second time: that is the badge's job, and
+								    the artboard puts «Немає в продажу» on the button (Plan-0005
+								    I-30). */}
 								{isArchived
-									? 'Знято з продажу'
+									? 'Немає в продажу'
 									: isOutOfStock
 										? 'Немає в наявності'
 										: isInCart
@@ -524,16 +581,9 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 							</div>
 							<div>
 								<p className='text-sm font-medium'>
-									Нова Пошта —{' '}
-									{shipping
-										? `орієнтовно ${formatUah(shipping.rate_uah)}, ${shipping.transit_days.min}–${shipping.transit_days.max} дні`
-										: 'за тарифом перевізника, 1–3 дні'}
+									Нова Пошта — {shippingHeadline}
 								</p>
-								<p className='text-muted-foreground text-xs'>
-									{shipping && variant.weight_g !== null
-										? `Розраховано за вагою ${(variant.weight_g / 1000).toLocaleString('uk-UA')} кг, відділення–відділення по Україні`
-										: 'Вага товару ще не вказана — точну суму порахує відділення'}
-								</p>
+								<p className='text-muted-foreground text-xs'>{shippingNote}</p>
 							</div>
 						</div>
 					)}

@@ -59,6 +59,48 @@ describe('buildSpecRows', () => {
 		expect(rows.map(r => r.key)).toEqual(['polymer', 'finish'])
 	})
 
+	/** The brand is the chip above the H1; the mock's table has no «Виробник» row. */
+	it('drops the manufacturer row it would repeat from the brand chip', () => {
+		const rows = buildSpecRows([
+			attr('vyrobnyk', 'Виробник', 'Kingroon'),
+			attr('polymer', 'Тип пластику', 'PLA')
+		])
+
+		expect(rows.map(r => r.key)).toEqual(['polymer'])
+	})
+
+	/** The weight is stored in kilograms as a bare `1`; the unit comes from the category. */
+	it('prints the unit the attribute carries', () => {
+		const rows = buildSpecRows([{ k: 'vaha', l: 'Вага', v: 1, unit: 'кг' }])
+
+		expect(rows[0].value).toBe('1 кг')
+	})
+
+	it('drops a unit-bearing dimension whose unit the payload does not carry yet', () => {
+		const rows = buildSpecRows([
+			{ k: 'vaha', l: 'Вага', v: 1 },
+			attr('polymer', 'Тип пластику', 'PLA')
+		])
+
+		// «Вага | 1» reads as one gram, one spool or one metre — a bare number is not a fact.
+		expect(rows.map(r => r.key)).toEqual(['polymer'])
+	})
+
+	it('keeps a unit-bearing dimension whose value spells the unit out itself', () => {
+		const rows = buildSpecRows([attr('vaha', 'Вага', '1000 г')])
+
+		expect(rows[0].value).toBe('1000 г')
+	})
+
+	it('appends the unit to every value of a multi-valued dimension', () => {
+		const rows = buildSpecRows([
+			{ k: 'diameter', l: 'Діаметр', v: '1.75', unit: 'мм' },
+			{ k: 'diameter', l: 'Діаметр', v: '2.85', unit: 'мм' }
+		])
+
+		expect(rows[0].value).toBe('1.75 мм, 2.85 мм')
+	})
+
 	it('prints the value the shopper chose on the variant axis, not the stored one', () => {
 		const rows = buildSpecRows([attr('color', 'Колір', 'Black')], { color: 'Чорний (Black)' })
 
