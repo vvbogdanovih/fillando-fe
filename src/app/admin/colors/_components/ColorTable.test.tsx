@@ -161,6 +161,14 @@ describe('ColorTable — the dictionary as a table', () => {
 		})
 	})
 
+	/** I-34: with `title` alone every row's buttons read the same two words. */
+	it('names each row action button after its colour', () => {
+		renderTable([color({ name_en: 'Bambu Green', variant_count: 1 })])
+
+		expect(screen.getByRole('button', { name: 'Редагувати Bambu Green' })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: 'Видалити Bambu Green' })).toBeInTheDocument()
+	})
+
 	it('sorts by order, then by the canonical name', () => {
 		renderTable([
 			color({ name_en: 'Zinc', order: 10, variant_count: 1 }),

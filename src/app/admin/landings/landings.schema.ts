@@ -4,10 +4,16 @@ import * as z from 'zod'
 export const LANDING_STATUSES = ['draft', 'active'] as const
 export type LandingStatus = (typeof LANDING_STATUSES)[number]
 
-/** Ukrainian labels for the admin — the stored value stays the English enum. */
+/**
+ * Ukrainian labels for the admin — the stored value stays the English enum.
+ *
+ * «Активний», not «Опубліковано» (artboards AdminLandings / AdminLandingForm): the listing header
+ * counts «активних K» and the search box matches on this very label, so a third word for the same
+ * state made the screen disagree with itself and left «Активний» finding nothing.
+ */
 export const LANDING_STATUS_LABELS: Record<LandingStatus, string> = {
 	draft: 'Чернетка',
-	active: 'Опубліковано'
+	active: 'Активний'
 }
 
 /**

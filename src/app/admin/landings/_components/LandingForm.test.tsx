@@ -122,3 +122,84 @@ describe('LandingForm', () => {
 		expect(revalidateStorefront).not.toHaveBeenCalled()
 	})
 })
+
+/**
+ * The section a control lives in is part of what the artboard specifies, and `Section` is a Card
+ * whose title sits in the header div — so the card is the header's parent.
+ */
+const sectionOf = (title: string) =>
+	screen.getByRole('heading', { name: title }).closest('div')?.parentElement as HTMLElement
+
+/** I-30: the copy of the artboard, which the owner proofreads word by word against the screen. */
+describe('LandingForm — the copy the artboard asks for', () => {
+	it('spells out the finished address and that it must be unique in the category', async () => {
+		renderForm()
+
+		await waitFor(() =>
+			expect(screen.getByText(/Готова адреса/)).toHaveTextContent(
+				'Готова адреса: /filament/pla-silk — унікальна в межах категорії.'
+			)
+		)
+	})
+
+	it('counts characters in words, and judges the reading only where there is one', async () => {
+		renderForm({ ...LANDING, title: 'т'.repeat(59), meta_description: 'о'.repeat(116) })
+
+		expect(await screen.findByText('59 / 60 символів — оптимально.')).toBeInTheDocument()
+		expect(screen.getByText('116 / 160 символів.')).toBeInTheDocument()
+	})
+
+	it('warns instead of praising once Google would cut the title', async () => {
+		renderForm({ ...LANDING, title: 'т'.repeat(61) })
+
+		expect(await screen.findByText('61 / 60 символів — Google обріже.')).toBeInTheDocument()
+	})
+
+	it('labels the FAQ pair on screen, not only in a placeholder that vanishes', async () => {
+		renderForm()
+
+		expect(await screen.findByText('Питання 1')).toBeInTheDocument()
+		expect(screen.getByText('Питання')).toBeInTheDocument()
+		expect(screen.getByText('Відповідь')).toBeInTheDocument()
+		// The visible label repeats per card, so the accessible name still numbers the pair.
+		expect(screen.getByLabelText('Питання 1')).toHaveValue('а?')
+		expect(screen.getByLabelText('Відповідь 1')).toHaveValue('б')
+	})
+
+	it('says the FAQ pairs become FAQPage markup, and keeps the sanitizer note', async () => {
+		renderForm()
+
+		const hint = await screen.findByText(/FAQPage/)
+		expect(hint).toHaveTextContent(
+			'З цих пар генерується FAQPage-розмітка для Google — та сама, що вже працює на /faq.'
+		)
+		expect(hint).toHaveTextContent('Розмітка з відповідей вирізається сервером')
+	})
+
+	it('states the match count as a sentence, with the number declined', async () => {
+		renderForm()
+
+		expect(await screen.findByText('Під фільтр підпадає 38 товарів')).toBeInTheDocument()
+	})
+
+	it('keeps the tile image in «Публікація», and names the formats on its button', async () => {
+		renderForm()
+
+		const button = await screen.findByRole('button', {
+			name: 'Вибрати файл (JPEG, PNG, WebP)'
+		})
+		expect(sectionOf('Публікація')).toContainElement(button)
+		expect(sectionOf('Контент')).not.toContainElement(button)
+	})
+
+	/** I-34: a <Label> bound to nothing left the trigger announcing only its value. */
+	it('gives every select and the value group an accessible name', async () => {
+		renderForm()
+
+		expect(await screen.findByRole('combobox', { name: 'Категорія' })).toBeInTheDocument()
+		expect(screen.getByRole('combobox', { name: 'Статус' })).toBeInTheDocument()
+		// The pinned filter card waits for the category's facets.
+		expect(await screen.findByRole('combobox', { name: 'Атрибут' })).toBeInTheDocument()
+		expect(screen.getByRole('group', { name: 'Значення' })).toBeInTheDocument()
+	})
+})

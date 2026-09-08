@@ -160,12 +160,15 @@ export const ColorTable = ({ colors, query = '', onSelect }: ColorTableProps) =>
 									{color.order}
 								</td>
 
+								{/* Named after the row: `title` alone left a screen reader with a
+								    hundred buttons all reading «Редагувати». */}
 								<td className='px-3 py-2' onClick={e => e.stopPropagation()}>
 									<div className='flex justify-end gap-1'>
 										<Button
 											size='icon-sm'
 											variant='ghost'
 											onClick={() => onSelect(color)}
+											aria-label={`Редагувати ${color.name_en}`}
 											title='Редагувати'
 										>
 											<PencilIcon className='size-3.5' />
@@ -174,6 +177,7 @@ export const ColorTable = ({ colors, query = '', onSelect }: ColorTableProps) =>
 											size='icon-sm'
 											variant='ghost'
 											onClick={() => setDeletingId(color._id)}
+											aria-label={`Видалити ${color.name_en}`}
 											title='Видалити'
 										>
 											<Trash2Icon className='text-destructive size-3.5' />

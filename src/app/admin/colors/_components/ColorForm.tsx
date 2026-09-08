@@ -286,7 +286,9 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 								</p>
 							</div>
 							<div className='flex flex-col gap-1.5'>
-								<Label>Родина</Label>
+								{/* Bound to the trigger: a bare <Label> is attached to nothing, so
+								    a screen reader read out the family and never the field. */}
+								<Label htmlFor='color-family'>Родина</Label>
 								<Select
 									value={family}
 									onValueChange={value =>
@@ -295,7 +297,10 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 										})
 									}
 								>
-									<SelectTrigger className='bg-white text-black'>
+									<SelectTrigger
+										id='color-family'
+										className='bg-white text-black'
+									>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -306,7 +311,18 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 										))}
 									</SelectContent>
 								</Select>
-								<p className='text-xs text-gray-400'>За нею фільтрує каталог</p>
+								<p className='text-xs text-gray-400'>
+									Одна з {COLOR_FAMILIES.length} родин — саме вона стає фільтром.
+								</p>
+								{/*
+								 * The paragraph above the table says this too, but that is another
+								 * screen: the bulk write is triggered from this select, and it has
+								 * no undo.
+								 */}
+								<p className='text-xs text-amber-600'>
+									Зміна родини одразу перезаписує її на всіх варіантах товарів із
+									цим кольором.
+								</p>
 							</div>
 						</div>
 
@@ -369,11 +385,14 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 												}}
 												className='font-mono'
 											/>
-											{/* Arrows beside the drag handle: the keyboard-reachable way to reorder. */}
+											{/* Arrows beside the drag handle: the keyboard-reachable way to reorder.
+											    `aria-label` says which stop, since `title` alone made every
+											    row's three buttons read the same. */}
 											<Button
 												type='button'
 												size='icon-sm'
 												variant='ghost'
+												aria-label={`Підняти колір ${index + 1}`}
 												title='Вище'
 												disabled={index === 0}
 												onClick={() => moveStop(index, -1)}
@@ -384,6 +403,7 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 												type='button'
 												size='icon-sm'
 												variant='ghost'
+												aria-label={`Опустити колір ${index + 1}`}
 												title='Нижче'
 												disabled={index === stops.length - 1}
 												onClick={() => moveStop(index, 1)}
@@ -394,6 +414,7 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 												type='button'
 												size='icon-sm'
 												variant='ghost'
+												aria-label={`Видалити колір ${index + 1}`}
 												title='Видалити'
 												disabled={stops.length <= 1}
 												onClick={() =>
@@ -416,11 +437,19 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 							<p className='text-xs text-gray-400'>
 								Перший колір — основний: його бере фід і будь-яке місце, де потрібен
 								один колір.{' '}
-								{stops.length === 1
-									? 'Один колір — суцільний кружечок.'
-									: family === 'multicolor'
-										? 'Кілька кольорів у родині «Багатокольорові» — конічний градієнт.'
-										: 'Кілька кольорів — лінійний градієнт.'}{' '}
+								{/*
+								 * The transparent branch comes first, exactly as it does in
+								 * `swatchBackground`: there the family beats the stop count, so a
+								 * single-stop transparent colour is a checkerboard and «суцільний
+								 * кружечок» would describe a swatch the preview never draws.
+								 */}
+								{family === 'transparent'
+									? 'Родина «Прозорі» малюється шаховим візерунком незалежно від кількості кольорів.'
+									: stops.length === 1
+										? 'Один колір — суцільний кружечок.'
+										: family === 'multicolor'
+											? 'Кілька кольорів у родині «Багатокольорові» — конічний градієнт.'
+											: 'Кілька кольорів — лінійний градієнт.'}{' '}
 								Порядок кольорів — це порядок градієнта: для Dual-Silk два, для
 								Tri-Silk три, для градієнтних скільки треба (до {MAX_STOPS}).
 							</p>

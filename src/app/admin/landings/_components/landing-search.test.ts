@@ -36,10 +36,16 @@ describe('filterLandings', () => {
 		['title', 'без котушки', [REFILL]],
 		['slug', 'refill', [REFILL]],
 		['status key', 'draft', [REFILL]],
-		['status label', 'Опубліковано', [SILK]],
-		['status label, partial and lower-case', 'чернетк', [REFILL]]
+		['status label', 'Активний', [SILK]],
+		['status label, partial and lower-case', 'актив', [SILK]],
+		['the other status label, partial', 'чернетк', [REFILL]]
 	])('matches by %s', (_what, query, expected) => {
 		expect(filterLandings(ALL, query)).toEqual(expected)
+	})
+
+	/** The label the screen used to show, before it was brought in line with «активних K». */
+	it('no longer knows the word «Опубліковано»', () => {
+		expect(filterLandings(ALL, 'Опубліковано')).toEqual([])
 	})
 
 	it('does not match the public address, which the list does not carry', () => {

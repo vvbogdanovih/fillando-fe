@@ -45,12 +45,30 @@ type ImageState =
 	| { status: 'pending'; file: File; preview: string }
 	| { status: 'removed' }
 
-/** Amber past the length Google truncates at — a warning, not a validation error. */
-const CharCounter = ({ value, limit }: { value: string; limit: number }) => (
-	<span className={`text-xs ${value.length > limit ? 'text-amber-600' : 'text-gray-400'}`}>
-		{value.length}/{limit}
-	</span>
-)
+/**
+ * «59 / 60 символів — оптимально.», in the artboard's own words: the count, the unit, and a
+ * verdict only where there is one to give. A bare «59/60» left the editor to know both what the
+ * numbers were and whether the reading was good.
+ *
+ * A string that fills at least four fifths of what Google shows is using the space it has, so it
+ * earns the verdict; a shorter one is merely counted, because «замало» would be wrong for the
+ * many headings that are simply short (the artboard's own «116 / 160 символів.» carries no
+ * verdict). Past the limit the counter turns amber — a warning, not a validation error: the value
+ * is still saved.
+ */
+const OPTIMAL_SHARE = 0.8
+
+const CharCounter = ({ value, limit }: { value: string; limit: number }) => {
+	const length = value.length
+	const isOver = length > limit
+	const isOptimal = !isOver && length >= Math.ceil(limit * OPTIMAL_SHARE)
+	return (
+		<p className={`text-xs ${isOver ? 'text-amber-600' : 'text-gray-400'}`}>
+			{length} / {limit} символів
+			{isOver ? ' — Google обріже.' : isOptimal ? ' — оптимально.' : '.'}
+		</p>
+	)
+}
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
 	<Card className='h-fit'>
@@ -215,14 +233,19 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 					<Section title='Адреса та заголовки'>
 						<div className='grid gap-4 sm:grid-cols-2'>
 							<div className='flex flex-col gap-1.5'>
-								<Label>Категорія</Label>
+								{/* `htmlFor` + `id` on the trigger: a bare <Label> is bound to
+								    nothing, so a screen reader announced the value alone. */}
+								<Label htmlFor='landing-category'>Категорія</Label>
 								<Select
 									value={categoryId}
 									onValueChange={value =>
 										setValue('category_id', value, { shouldDirty: true })
 									}
 								>
-									<SelectTrigger className='bg-white text-black'>
+									<SelectTrigger
+										id='landing-category'
+										className='bg-white text-black'
+									>
 										<SelectValue placeholder='Оберіть категорію' />
 									</SelectTrigger>
 									<SelectContent>
@@ -246,9 +269,17 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 									placeholder='pla-silk'
 									{...register('slug')}
 								/>
-								<span className='font-mono text-xs text-gray-400'>
-									/{categorySlug ?? '…'}/{slug || '…'}
-								</span>
+								{/* Artboard: «Готова адреса: /filament/pla-silk — унікальна в межах
+								    категорії.» The second half is not decoration — the API answers
+								    409 on a duplicate inside a category, and until it was written
+								    here the editor learnt the rule from that rejection alone. */}
+								<p className='text-xs text-gray-400'>
+									Готова адреса:{' '}
+									<span className='font-mono text-gray-900'>
+										/{categorySlug ?? '…'}/{slug || '…'}
+									</span>{' '}
+									— унікальна в межах категорії.
+								</p>
 								{errors.slug && (
 									<p className='text-destructive text-xs'>
 										{errors.slug.message}
@@ -273,18 +304,15 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 						</div>
 
 						<div className='flex flex-col gap-1.5'>
-							<div className='flex items-center justify-between'>
-								<Label htmlFor='landing-title'>Title</Label>
-								<CharCounter
-									value={watch('title') ?? ''}
-									limit={TITLE_SOFT_LIMIT}
-								/>
-							</div>
+							<Label htmlFor='landing-title'>Title</Label>
 							<Input
 								id='landing-title'
 								placeholder='PLA Silk філамент — купити в Україні | Fillando'
 								{...register('title')}
 							/>
+							{/* Under the field, where the artboard puts it: beside the label the
+							    count read as part of the field's name. */}
+							<CharCounter value={watch('title') ?? ''} limit={TITLE_SOFT_LIMIT} />
 							<p className='text-xs text-gray-400'>
 								Рядок у видачі Google. Довше {TITLE_SOFT_LIMIT} символів — обріже.
 							</p>
@@ -294,18 +322,16 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 						</div>
 
 						<div className='flex flex-col gap-1.5'>
-							<div className='flex items-center justify-between'>
-								<Label htmlFor='landing-meta'>Meta description</Label>
-								<CharCounter
-									value={watch('meta_description') ?? ''}
-									limit={META_DESCRIPTION_SOFT_LIMIT}
-								/>
-							</div>
+							<Label htmlFor='landing-meta'>Meta description</Label>
 							<Textarea
 								id='landing-meta'
 								rows={2}
 								placeholder='PLA Silk філамент з шовковим блиском. Понад 20 кольорів, доставка по Україні.'
 								{...register('meta_description')}
+							/>
+							<CharCounter
+								value={watch('meta_description') ?? ''}
+								limit={META_DESCRIPTION_SOFT_LIMIT}
 							/>
 							{errors.meta_description && (
 								<p className='text-destructive text-xs'>
@@ -349,76 +375,6 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 								товарів. Дозволені лише безпечні теги.
 							</p>
 						</div>
-
-						<div className='flex flex-col gap-1.5'>
-							<Label>Зображення плитки</Label>
-							<div className='flex items-center gap-3'>
-								{image.status === 'existing' || image.status === 'pending' ? (
-									<Image
-										src={
-											image.status === 'existing' ? image.url : image.preview
-										}
-										alt=''
-										width={72}
-										height={72}
-										className='size-18 rounded-lg border border-gray-200 object-cover'
-										unoptimized
-									/>
-								) : (
-									<div className='flex size-18 items-center justify-center rounded-lg border border-dashed border-gray-300 text-xs text-gray-400'>
-										немає
-									</div>
-								)}
-								<div className='flex gap-2'>
-									<Button
-										type='button'
-										size='sm'
-										variant='outline'
-										onClick={() => fileInputRef.current?.click()}
-									>
-										<UploadIcon className='size-3.5' />
-										Обрати
-									</Button>
-									{(image.status === 'existing' ||
-										image.status === 'pending') && (
-										<Button
-											type='button'
-											size='sm'
-											variant='ghost'
-											onClick={() => {
-												// The button says «Прибрати», so the landing has
-												// to end up with no image — including when a
-												// replacement was picked over an existing one.
-												// Falling back to 'none' there showed «немає»
-												// while the save quietly kept the old URL.
-												if (image.status === 'pending') {
-													URL.revokeObjectURL(image.preview)
-												}
-												setImage(
-													initial?.image
-														? { status: 'removed' }
-														: { status: 'none' }
-												)
-											}}
-										>
-											Прибрати
-										</Button>
-									)}
-								</div>
-								<input
-									ref={fileInputRef}
-									type='file'
-									accept='image/webp,image/jpeg,image/png'
-									className='hidden'
-									aria-label='Зображення плитки'
-									onChange={handleFileSelect}
-								/>
-							</div>
-							<p className='text-xs text-gray-400'>
-								Показується плиткою в блоці «Популярні види» на сторінці категорії.
-								Завантажується після збереження лендінга.
-							</p>
-						</div>
 					</Section>
 
 					<Section title={`FAQ (${faqArray.fields.length})`}>
@@ -438,28 +394,53 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 								key={field.id}
 								className='flex flex-col gap-2 rounded-lg border border-gray-200 p-3'
 							>
-								<div className='flex items-start gap-2'>
-									<Input
-										placeholder='Питання'
-										aria-label={`Питання ${index + 1}`}
-										{...register(`faq.${index}.q`)}
-									/>
+								<div className='flex items-center justify-between'>
+									<span className='text-xs font-medium text-gray-500'>
+										Питання {index + 1}
+									</span>
 									<Button
 										type='button'
 										size='icon-sm'
 										variant='ghost'
+										aria-label={`Видалити питання ${index + 1}`}
 										title='Видалити'
 										onClick={() => faqArray.remove(index)}
 									>
 										<Trash2Icon className='text-destructive size-3.5' />
 									</Button>
 								</div>
-								<Textarea
-									rows={2}
-									placeholder='Відповідь'
-									aria-label={`Відповідь ${index + 1}`}
-									{...register(`faq.${index}.a`)}
-								/>
+
+								{/*
+								 * Visible labels rather than placeholders, as the artboard draws
+								 * them: a placeholder is gone at the first keystroke, so a filled
+								 * card said nowhere which field was the question. `aria-label`
+								 * stays on top of the bound label, because «Питання» alone repeats
+								 * once per card and gives a screen reader nothing to tell them
+								 * apart.
+								 */}
+								<div className='flex flex-col gap-1.5'>
+									<Label htmlFor={`faq-${index}-q`} className='text-xs'>
+										Питання
+									</Label>
+									<Input
+										id={`faq-${index}-q`}
+										aria-label={`Питання ${index + 1}`}
+										{...register(`faq.${index}.q`)}
+									/>
+								</div>
+
+								<div className='flex flex-col gap-1.5'>
+									<Label htmlFor={`faq-${index}-a`} className='text-xs'>
+										Відповідь
+									</Label>
+									<Textarea
+										id={`faq-${index}-a`}
+										rows={2}
+										aria-label={`Відповідь ${index + 1}`}
+										{...register(`faq.${index}.a`)}
+									/>
+								</div>
+
 								{errors.faq?.[index] && (
 									<p className='text-destructive text-xs'>
 										Заповніть питання і відповідь
@@ -468,7 +449,9 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 							</div>
 						))}
 						<p className='text-xs text-gray-400'>
-							Розмітка з відповідей вирізається сервером — це звичайний текст.
+							З цих пар генерується FAQPage-розмітка для Google — та сама, що вже
+							працює на /faq. Розмітка з відповідей вирізається сервером — це
+							звичайний текст.
 						</p>
 					</Section>
 				</div>
@@ -490,7 +473,7 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 
 					<Section title='Публікація'>
 						<div className='flex flex-col gap-1.5'>
-							<Label>Статус</Label>
+							<Label htmlFor='landing-status'>Статус</Label>
 							<Select
 								value={status}
 								onValueChange={value =>
@@ -499,7 +482,7 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 									})
 								}
 							>
-								<SelectTrigger className='bg-white text-black'>
+								<SelectTrigger id='landing-status' className='bg-white text-black'>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -540,6 +523,76 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 							/>
 							<p className='text-xs text-gray-400'>
 								Менше число — вище в списку і в блоці «Популярні види».
+							</p>
+						</div>
+
+						<div className='flex flex-col gap-1.5'>
+							<Label>Зображення плитки</Label>
+							<div className='flex flex-wrap items-center gap-3'>
+								{image.status === 'existing' || image.status === 'pending' ? (
+									<Image
+										src={
+											image.status === 'existing' ? image.url : image.preview
+										}
+										alt=''
+										width={72}
+										height={72}
+										className='size-18 rounded-lg border border-gray-200 object-cover'
+										unoptimized
+									/>
+								) : (
+									<div className='flex size-18 items-center justify-center rounded-lg border border-dashed border-gray-300 text-xs text-gray-400'>
+										немає
+									</div>
+								)}
+								<div className='flex gap-2'>
+									<Button
+										type='button'
+										size='sm'
+										variant='outline'
+										onClick={() => fileInputRef.current?.click()}
+									>
+										<UploadIcon className='size-3.5' />
+										Вибрати файл (JPEG, PNG, WebP)
+									</Button>
+									{(image.status === 'existing' ||
+										image.status === 'pending') && (
+										<Button
+											type='button'
+											size='sm'
+											variant='ghost'
+											onClick={() => {
+												// The button says «Прибрати», so the landing has
+												// to end up with no image — including when a
+												// replacement was picked over an existing one.
+												// Falling back to 'none' there showed «немає»
+												// while the save quietly kept the old URL.
+												if (image.status === 'pending') {
+													URL.revokeObjectURL(image.preview)
+												}
+												setImage(
+													initial?.image
+														? { status: 'removed' }
+														: { status: 'none' }
+												)
+											}}
+										>
+											Прибрати
+										</Button>
+									)}
+								</div>
+								<input
+									ref={fileInputRef}
+									type='file'
+									accept='image/webp,image/jpeg,image/png'
+									className='hidden'
+									aria-label='Зображення плитки'
+									onChange={handleFileSelect}
+								/>
+							</div>
+							<p className='text-xs text-gray-400'>
+								Показується плиткою в блоці «Популярні види» на сторінці категорії.
+								Завантажується після збереження лендінга.
 							</p>
 						</div>
 					</Section>

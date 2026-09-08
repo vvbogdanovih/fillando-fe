@@ -120,6 +120,29 @@ describe('LandingTable', () => {
 		expect(await screen.findByText('/filament/pla-silk')).toBeInTheDocument()
 	})
 
+	/**
+	 * The header of the screen counts «активних K» and the search box matches on this label, so
+	 * a third word for the same state («Опубліковано») made the screen disagree with itself.
+	 */
+	it('names the statuses «Активний» and «Чернетка»', () => {
+		renderTable([
+			landing({ h1: 'PLA Silk', status: 'active' }),
+			landing({ h1: 'Нейлон', status: 'draft' })
+		])
+
+		expect(within(rowOf('PLA Silk')).getByText('Активний')).toBeInTheDocument()
+		expect(within(rowOf('Нейлон')).getByText('Чернетка')).toBeInTheDocument()
+		expect(screen.queryByText('Опубліковано')).not.toBeInTheDocument()
+	})
+
+	/** I-34: with `title` alone every row's buttons read the same two words. */
+	it('names each row action button after its landing', () => {
+		renderTable([landing({ h1: 'PLA Silk' })])
+
+		expect(screen.getByRole('button', { name: 'Редагувати PLA Silk' })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: 'Видалити PLA Silk' })).toBeInTheDocument()
+	})
+
 	/** D3: the column that says which landing would be an empty page. */
 	describe('the «Товарів» column', () => {
 		it('shows how many products the pinned filters match', () => {

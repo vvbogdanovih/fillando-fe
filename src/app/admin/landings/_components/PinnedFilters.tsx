@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon, Trash2Icon } from 'lucide-react'
-import { Badge } from '@/common/components/ui/badge'
+import { CheckIcon, PlusIcon, TriangleAlertIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '@/common/components/ui/button'
 import { Label } from '@/common/components/ui/label'
 import {
@@ -15,6 +14,7 @@ import {
 } from '@/common/components/ui/select'
 import { categoriesApi } from '@/app/admin/categories/categories.api'
 import { catalogFacets, getCatalogProducts } from '@/app/(root)/[category]/catalog.api'
+import { productsCount } from '@/common/utils'
 import { attributeLabel, buildAttributeLabels } from './landing-attributes'
 import { useLandingMatchCount } from './useLandingMatchCount'
 
@@ -114,13 +114,6 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 
 	return (
 		<div className='flex flex-col gap-3'>
-			<div className='flex items-center justify-between'>
-				<span className='text-sm text-gray-500'>Підпадає товарів</span>
-				<Badge variant={total === 0 ? 'destructive' : 'secondary'}>
-					{isCounting ? 'рахуємо…' : total}
-				</Badge>
-			</div>
-
 			{isLoading ? (
 				<p className='text-sm text-gray-400'>Завантаження фільтрів…</p>
 			) : dimensions.length === 0 ? (
@@ -148,6 +141,7 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 									type='button'
 									size='icon-sm'
 									variant='ghost'
+									aria-label={`Прибрати фільтр ${index + 1}`}
 									title='Прибрати фільтр'
 									onClick={() => removeCard(key)}
 								>
@@ -156,12 +150,19 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 							</div>
 
 							<div className='flex flex-col gap-1.5'>
-								<Label className='text-xs'>Атрибут</Label>
+								{/* Bound to the trigger: without `htmlFor`/`id` a screen reader
+								    announced the chosen attribute and never the word «Атрибут». */}
+								<Label htmlFor={`pinned-${key}-attribute`} className='text-xs'>
+									Атрибут
+								</Label>
 								<Select
 									value={key}
 									onValueChange={next => changeAttribute(key, next)}
 								>
-									<SelectTrigger className='bg-white text-black'>
+									<SelectTrigger
+										id={`pinned-${key}-attribute`}
+										className='bg-white text-black'
+									>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -179,8 +180,16 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 							</div>
 
 							<div className='flex flex-col gap-1.5'>
-								<Label className='text-xs'>Значення</Label>
-								<div className='flex flex-wrap gap-1.5'>
+								{/* Toggles, not one control: there is no element for `htmlFor` to
+								    bind to, so the label names the group instead. */}
+								<Label id={`pinned-${key}-values`} className='text-xs'>
+									Значення
+								</Label>
+								<div
+									role='group'
+									aria-labelledby={`pinned-${key}-values`}
+									className='flex flex-wrap gap-1.5'
+								>
 									{valuesFor(key).map(option => {
 										const isOn = (value[key] ?? []).includes(option)
 										return (
@@ -217,6 +226,35 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 					)}
 				</>
 			)}
+
+			{/*
+			 * The artboard's green plate, in place of the badge that carried the same number: one
+			 * fact said once, in the sentence the owner reads off the mock. The zero case keeps
+			 * its own tone, because such a landing may not be published at all — and the number
+			 * is declined by the shared plural rule, not glued to a bare «товарів».
+			 */}
+			<div
+				className={`flex items-center gap-2.5 rounded-lg border p-3 text-xs ${
+					isCounting
+						? 'border-gray-200 bg-gray-50 text-gray-500'
+						: total === 0
+							? 'border-destructive/40 bg-destructive/5 text-destructive'
+							: 'border-emerald-200 bg-emerald-50 text-emerald-900'
+				}`}
+			>
+				{isCounting ? null : total === 0 ? (
+					<TriangleAlertIcon className='size-4 shrink-0' />
+				) : (
+					<CheckIcon className='size-4 shrink-0' />
+				)}
+				<p>
+					{isCounting
+						? 'Рахуємо, скільки товарів підпадає під фільтр…'
+						: total === 0
+							? 'Під фільтр не підпадає жоден товар'
+							: `Під фільтр підпадає ${productsCount(total)}`}
+				</p>
+			</div>
 
 			<p className='text-xs text-gray-400'>
 				Кілька значень одного атрибута працюють як «або». На сайті ці фільтри зняти не можна
