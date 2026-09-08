@@ -63,12 +63,17 @@ export const VariantSwitcher = ({ variants, currentSlug, axisLabel }: VariantSwi
 						const label = variantLabel(sibling) ?? sibling.name
 						const isCurrent = sibling.slug === currentSlug
 						const isOut = sibling.stock <= 0
+						// One tooltip string, used on the button and on the chip inside it. The chip
+						// covers 32 of the button's 40 px, and the browser shows the innermost
+						// title under the cursor — so a chip carrying the bare colour name hid the
+						// «немає в наявності» hint exactly where a shopper aims (Plan-0005 I-o).
+						const hint = isOut ? `${label} — немає в наявності` : label
 						return (
 							<button
 								key={sibling.id}
 								type='button'
 								onClick={() => router.push(`/products/${sibling.slug}`)}
-								title={isOut ? `${label} — немає в наявності` : label}
+								title={hint}
 								aria-label={label}
 								aria-current={isCurrent ? 'true' : undefined}
 								className={cn(
@@ -83,7 +88,7 @@ export const VariantSwitcher = ({ variants, currentSlug, axisLabel }: VariantSwi
 									hexStops={sibling.color?.hex_stops ?? []}
 									family={sibling.color?.family}
 									size={32}
-									title={label}
+									title={hint}
 								/>
 							</button>
 						)
