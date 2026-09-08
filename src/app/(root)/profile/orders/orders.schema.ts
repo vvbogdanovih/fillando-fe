@@ -73,7 +73,14 @@ export const myOrderSchema = z
 			.catch('CASH'),
 		payment_status: z.preprocess(value => toUpperValue(value), z.enum(paymentStatusValues)),
 		order_status: z.preprocess(value => toUpperValue(value), z.enum(orderStatusValues)),
-		comment: z.string().nullable().optional()
+		comment: z.string().nullable().optional(),
+		/**
+		 * TD-0009's LiqPay cooldown clock: `null` — no card session was ever opened (offer
+		 * «Оплатити карткою» at once); `0` — one may be opened now; `n` — seconds still to wait.
+		 * Optional because the backend does not send it on this endpoint yet; until it does the
+		 * cabinet reads `undefined` and lets the server decide, exactly as before.
+		 */
+		liqpay_retry_after_seconds: z.number().nullable().optional()
 	})
 	.passthrough()
 	.transform(data => ({

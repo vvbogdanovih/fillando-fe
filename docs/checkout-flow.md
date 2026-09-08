@@ -13,8 +13,11 @@ Files:
 - `src/app/(root)/checkout/liqpay.utils.ts` — `submitLiqpayForm`, `startLiqpayCheckout`
 - `src/app/(root)/checkout/success/page.tsx` — `<Suspense>` shell (the content reads
   `useSearchParams`)
-- `src/app/(root)/checkout/success/CheckoutSuccessContent.tsx` — success page state machine and
-  the purchase conversion
+- `src/app/(root)/checkout/success/CheckoutSuccessContent.tsx` — success page state machine, the
+  local cooldown clock and the purchase conversion
+- `src/common/components/order-payment/` — `PayNowButton`, `ChangePaymentMethodDialog`,
+  `PaymentMethodOptions`, `order-payment.api.ts` (`describePaymentError`) and
+  `payment-state.copy.ts`, all shared with `/profile/orders/[id]`
 - `src/common/store/useCartStore.ts` — `clearAfterOrder`, `hasFetched` (§7)
 - `src/common/lib/gtag.ts`, `src/common/constants/analytics.constants.ts` — conversion plumbing
 - Tests: `checkout/CheckoutPage.test.tsx`, `checkout/success/CheckoutSuccessContent.test.tsx`;
@@ -144,7 +147,9 @@ The order exists as `PENDING` and nobody has paid. On the success page:
 «Оплатити карткою» (`PayNowButton`) at once, without waiting out the polling window: nothing is
 coming from the bank. A `PENDING` order whose session may still be live carries the seconds left;
 the page polls as before and, once the window closes, shows the button **disabled with the minutes
-left** rather than one that is bound to answer 409. The toast on the checkout page promising
+left** — counted down by the page's own clock, so it enables itself when the wait is over
+([§5](#the-cooldown-clock-runs-locally-the-status-is-re-read-on-return)) — rather than one that is
+bound to answer 409. The toast on the checkout page promising
 payment "зі сторінки замовлення" is now true.
 
 ### Retrying a payment
@@ -153,9 +158,12 @@ payment "зі сторінки замовлення" is now true.
 `initLiqpayCheckout` then `submitLiqpayForm` — against the existing order; no new order is created
 and the cart is not involved. The success page exposes it as the **«Повторити оплату карткою»**
 button (`retryMutation`) in the `failed` view, and as `PayNowButton` in the pending views. Errors go
-through `describePaymentError` (`common/components/order-payment/order-payment.api.ts`): a `409
-LIQPAY_SESSION_ACTIVE` becomes «Ви вже відкривали сторінку оплати … через N хв або оберіть інший
-спосіб оплати», anything else shows the server's Ukrainian message; the lookup is then refetched —
+through `describePaymentError` (`common/components/order-payment/order-payment.api.ts`), which
+branches on `details.code` and then on the status, never on the sentence: `LIQPAY_SESSION_ACTIVE`
+becomes «Ви вже відкривали сторінку оплати … через N хв або оберіть інший спосіб оплати»,
+`PAYMENT_METHOD_LOCKED` says the method can no longer change, `429` and `404` get their own wording
+(neither carries a Ukrainian body), a request that got no answer at all becomes «Немає зв’язку з
+сервером…», and only then does the server's own message get shown; the lookup is then refetched —
 a `400` here usually means the order became `PAID` in the meantime (another tab, a late callback),
 and the refetch lets the card catch up.
 
@@ -212,8 +220,10 @@ mount
               ├─ → 'PAID'              → [success]  (conversion fires now)
               ├─ → 'FAILED' | 'VOIDED' → [failed]
               └─ 60 s wall-clock timer fires → pollingExpired = true → [neutral] PAYMENT_NOT_CONFIRMED
-                    + PayNowButton (disabled with the minutes left while liqpay_retry_after_seconds > 0)
+                    + PayNowButton (disabled with the minutes left while cooldownLeft > 0,
+                      which ticks down locally and enables the button at zero)
                     + «Обрати інший спосіб оплати» when can_change_payment_method
+                    + a refetch on focus / visibilitychange while the payment is still open
 ```
 
 The mapping lives in the pure `resolveLiqpayView()`; the component only feeds it `canLookup`,
@@ -240,6 +250,36 @@ button is disabled with the minutes left rather than clickable into a failure. S
 session while the first may still complete is how double charges happen; the cooldown is what makes
 the button safe to show.
 
+### The cooldown clock runs locally; the status is re-read on return
+
+`liqpay_retry_after_seconds` is a snapshot taken when the lookup answered, and polling stops after
+60 s — so a `PENDING` order whose card session had, say, four minutes left kept its «Оплатити
+карткою» button disabled with «можна через 4 хв» for as long as the tab stayed open, minutes after
+those four had passed. The page therefore keeps its own clock: `cooldownLeft` state is seeded from
+each lookup answer and decremented by one `setInterval` while it is a positive number, and
+`PayNowButton` receives `cooldownLeft` rather than the raw field. At zero the button enables itself,
+with no request and no reload. The interval exists only while the number is positive, so a settled
+or never-started payment runs no timer.
+
+The other half of the same problem is the status itself: once the window closes the query is idle,
+so a late `PAID` or `FAILED` would never arrive. `CheckoutSuccessContent` re-reads the lookup on
+`focus` and `visibilitychange` — only while the document is not `hidden`, so leaving the tab does
+not itself fire a request — as long as `canLookup && pollingExpired` and the payment is still open
+(`PENDING` or `FAILED`). Deliberately **events, not a second
+interval**: an abandoned tab must not keep hitting a public endpoint, which is the whole reason the
+60 s window exists. `PAID` / `VOIDED` / `REFUNDED` are terminal and are never asked about again.
+
+### One wording for an unpaid state
+
+The state copy lives in `common/components/order-payment/payment-state.copy.ts` —
+`PAYMENT_FAILED_DESCRIPTION`, `PAYMENT_NOT_CONFIRMED_DESCRIPTION`,
+`PAYMENT_NOT_STARTED_DESCRIPTION` and `describeUnpaidPayment` (which also covers the offline
+methods) — and is read by this page **and** by the cabinet's `OrderDetails`
+(`/profile/orders/[id]`). Both screens offer the same two actions, so both must explain the same
+state in the same words; the cabinet used to say «Статус: Помилка оплати» and nothing more, leaving
+the buyer to guess whether the money had left the account. New wording goes into that module, not
+into a component.
+
 **The token is a capability, not a session.** 32 lowercase hex chars = 128 random bits; whoever
 has the URL can read the order number, payment method, payment status and total — nothing else, no
 PII. It lives only in the URL: never write it to `localStorage`/cookies, never attach it to
@@ -251,14 +291,30 @@ the init-failure path.
 
 ## 6. Error placement on the checkout form
 
-`orderMutation.onError` receives the flattened `Error & { status?: number }` and decides **where**
-the message goes:
+`orderMutation.onError` receives the flattened `Error & { status?: number; details?: {…} }` and
+decides two separate things: **where** the message goes, and **which** message it is.
+
+**Which message: by code and status, never by the sentence.** `humanizeOrderError` reads
+`err.details.code` first (`ORDER_ERROR_BY_CODE`), then `err.status` (`429`, `400`/`404`, `5xx`), and
+only falls back to the server's own text when it is Ukrainian — an English sentence means the
+backend is relaying something internal. A variant archived while the cart sat in `localStorage`
+used to reach the toast as «Variant FL-000123 is not available»; `429` from the throttler has no
+Ukrainian body to relay at all. The one thing still matched on text is the coupon pair — the first
+row of the table below: the backend attaches no `code` to those two, so `/coupon/i.test(message)` is
+all there is. Give a new failure a `code` on the backend rather than a new string test here.
+
+The same rule governs the payment actions: `describePaymentError`
+(`common/components/order-payment/order-payment.api.ts`) branches on `details.code`
+(`LIQPAY_SESSION_ACTIVE`, `PAYMENT_METHOD_LOCKED`), then on the status (`429`, `404`, and a request
+that got no answer at all), and only then on the message.
+
+**Where it goes:**
 
 | Condition                                                                               | Where it is shown                                                                                                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/coupon/i.test(message)` — in practice `'Invalid coupon code'` / `'Coupon is expired'` | `setError('coupon_code', { type: 'server', message })` + `setFocus('coupon_code')`, **and** a toast with the same text. `mapServerCouponError` translates the two known strings to Ukrainian.                                                  |
 | `status === 429`                                                                        | Toast: «Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.» — never the raw throttler message.                                                                                                                                        |
-| `details.code === 'INSUFFICIENT_STOCK'` (409, with `variant_id`, `available`)           | The cart line it names gets `data-invalid`, a red total and «Доступно лише N шт. — зменште кількість, щоб оформити замовлення» under it; the page scrolls to it; the toast repeats the server message. Editing that line's quantity clears it. |
+| `details.code === 'INSUFFICIENT_STOCK'` (409, with `variant_id`, `available`)           | The cart line it names gets `data-invalid`, a red total and «Доступно лише N шт. — зменште кількість, щоб оформити замовлення» under it, and the page scrolls to it. **No toast** — this is the one error shown inline only. Editing that line's quantity clears it. |
 | anything else with a real `message` (validation, 5xx with a body)                       | Toast with the server's message verbatim.                                                                                                                                                                                                      |
 | no usable message (`'Unknown error'` from the interceptor, network)                     | Toast: «Не вдалося оформити замовлення. Спробуйте ще раз.»                                                                                                                                                                                     |
 
@@ -266,6 +322,13 @@ The rule: **a field-level error is shown only when changing that field can fix i
 `onError` called `setError('coupon_code', …)` unconditionally, so an out-of-stock line or a network
 blip appeared as red text under the coupon input and sent visitors off to "fix" a coupon that was
 fine.
+
+Its counterpart: **an error that already has a place on the page does not also get a toast.** A
+shortfall stands under the cart line it is about, where the fix is (the quantity stepper); the
+toast that used to accompany it repeated the same number with a technical SKU in brackets, drew the
+eye away from the line, and covered the summary while it faded. The coupon message is the deliberate
+exception — the coupon input can be scrolled out of view when the button is pressed, so it is
+pinned **and** toasted; the shortfall's own line is scrolled into view instead.
 
 Coupons are also pre-validated live (`POST /discount-coupons/validate`, debounced, mapped by
 `mapCouponReason`), but order creation re-validates server-side, so the two backend strings can still

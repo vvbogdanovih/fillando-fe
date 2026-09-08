@@ -79,3 +79,56 @@ describe('serverFetch', () => {
 		})
 	})
 })
+
+describe('serverFetch — internal token', () => {
+	// Stubbed per test rather than in `beforeEach`: the absence of the variable is itself one of
+	// the cases under test. `API` was captured at module load, so unstubbing here is harmless.
+	afterEach(() => {
+		vi.unstubAllEnvs()
+	})
+
+	const lastInit = () =>
+		fetchMock.mock.lastCall?.[1] as (RequestInit & { next?: unknown }) | undefined
+	const lastHeaders = () => new Headers(lastInit()?.headers)
+
+	it('sends X-Internal-Token when INTERNAL_API_TOKEN is set — SSR must not throttle itself', async () => {
+		vi.stubEnv('INTERNAL_API_TOKEN', 'internal-secret')
+		fetchMock.mockResolvedValue(response(200, { items: [] }))
+		await serverFetch('/products/catalog?category_id=1')
+		expect(lastHeaders().get('x-internal-token')).toBe('internal-secret')
+	})
+
+	it('sends no headers at all when the variable is unset', async () => {
+		vi.stubEnv('INTERNAL_API_TOKEN', undefined)
+		fetchMock.mockResolvedValue(response(200, []))
+		await serverFetch('/categories')
+		expect(fetchMock).toHaveBeenCalledWith('http://api.test/categories', {
+			next: { revalidate: 3600 }
+		})
+	})
+
+	it('treats a blank variable as unset rather than sending an empty token', async () => {
+		vi.stubEnv('INTERNAL_API_TOKEN', '   ')
+		fetchMock.mockResolvedValue(response(200, []))
+		await serverFetch('/categories')
+		expect(lastInit()?.headers).toBeUndefined()
+	})
+
+	it('keeps the caller’s own headers alongside the token', async () => {
+		vi.stubEnv('INTERNAL_API_TOKEN', 'internal-secret')
+		fetchMock.mockResolvedValue(response(200, []))
+		await serverFetch('/categories', { headers: { accept: 'application/json' } })
+		expect(lastHeaders().get('accept')).toBe('application/json')
+		expect(lastHeaders().get('x-internal-token')).toBe('internal-secret')
+	})
+
+	it('leaves the cache policy and the 404-only rule untouched', async () => {
+		vi.stubEnv('INTERNAL_API_TOKEN', 'internal-secret')
+		fetchMock.mockResolvedValue(response(404))
+		await expect(serverFetch('/categories/slug/nope')).resolves.toBeNull()
+		expect(lastInit()?.next).toEqual({ revalidate: 3600 })
+
+		fetchMock.mockResolvedValue(response(429))
+		await expect(serverFetch('/products/catalog')).rejects.toThrow(/Upstream 429/)
+	})
+})

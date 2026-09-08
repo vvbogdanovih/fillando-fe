@@ -198,6 +198,43 @@ when `init.next` is omitted. If you pass an explicit `cache` mode (e.g. `cache: 
 the default revalidate is **not** added — Next treats `cache` + `revalidate` as a conflict and
 discards both with a warning.
 
+### `X-Internal-Token`: a server render is not a visitor
+
+The backend rate-limits `GET /products/catalog` at 120 requests per minute **per IP**
+(`fillando-be/src/docs/API_AND_SWAGGER.md` §4a). Every server render of the catalogue calls that
+endpoint, and every render leaves the container on the same address, so the limit lands on the
+storefront's own rendering long before it lands on a scraper: one popular category is enough to
+start serving `429`s to ourselves — which `serverFetch` correctly turns into an error page
+(see above), so the failure is visible rather than silent, and total.
+
+`serverFetch` therefore sends `X-Internal-Token: $INTERNAL_API_TOKEN` on every call whenever that
+variable is set. The backend's `skipIf` (`src/common/guards/internal-request.util.ts`) compares it
+against its own `INTERNAL_API_TOKEN` in constant time and exempts the request from every throttle.
+Both sides read the same secret from their environment; with no token configured on either side
+nothing is exempted and nothing breaks — the variable is optional, and its absence is the previous
+behaviour exactly.
+
+Four things about it are load-bearing:
+
+- **It is a server-only variable — never `NEXT_PUBLIC_*`.** A `NEXT_PUBLIC_` name is inlined into
+  the client bundle at build time, which would publish a secret that lifts rate limits for anyone
+  who reads it. `serverFetch` is safe to hold it because it is imported from server contexts only
+  (RSC pages, `generateMetadata`, `sitemap.ts`, `getCategoryNavLinks`); before adding an import,
+  check the importer is not a `'use client'` module.
+- **It is read per call, not at module load** — unlike `API`, a `NEXT_PUBLIC_` value baked into
+  the build. `INTERNAL_API_TOKEN` is injected into the running container (`.env.prod` via
+  `env_file`, the same way `REVALIDATE_SECRET` is), so a module-scope read risks being resolved
+  against the build environment instead of the runtime one. A blank or whitespace-only value counts
+  as unset rather than as an empty token.
+- **The caller's own headers survive.** The token is merged through `new Headers(init.headers)`, not
+  an object spread, because `init.headers` may be a `Headers` instance or an array of tuples and
+  spreading either of those would drop them silently.
+- **It changes nothing else.** `null` still means 404 and only 404, the default `revalidate: 3600`
+  still applies, and a `429` from anywhere else still throws.
+
+The frontend needs `INTERNAL_API_TOKEN` in `.env` (local) and `.env.prod` (production runtime,
+_not_ a `Dockerfile.prod` build arg), matching the backend's value.
+
 ### Sitemap: `revalidate: 0` inside `unstable_cache`, and `force-static`
 
 `src/app/sitemap.ts` has two cache layers that must not fight each other, and one route-level flag
