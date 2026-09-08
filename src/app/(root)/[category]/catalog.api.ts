@@ -42,7 +42,11 @@ export interface ProductDetailData {
 		id: string
 		name: string
 		description: { html: string; json: any } | null
-		attributes: { k: string; l: string; v: string | number | boolean }[]
+		/**
+		 * `unit` comes from the category's `required_attributes[].unit` — the value itself is
+		 * stored bare («Вага | 1»), so the specification table needs it to print «1 кг».
+		 */
+		attributes: { k: string; l: string; v: string | number | boolean; unit?: string | null }[]
 		variant_type: { key: string; label: string } | null
 		/** The «Виробник» attribute — the brand. Never the vendor, which is the supplier. */
 		manufacturer: string | null

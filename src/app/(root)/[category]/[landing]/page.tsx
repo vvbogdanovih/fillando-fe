@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CatalogPage } from '../CatalogPage'
+import { readPageNumber } from '../page'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 import { CACHE_TAGS } from '@/common/constants'
 import { listingIndexing } from '@/common/utils/seo.utils'
@@ -64,16 +65,23 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 
 	const { canonical, robots } = listingIndexing(landingPath(category, landing), sp)
 
+	// Page 2 says so in the title, exactly as the category does: `?page=N` is indexable and
+	// self-canonical, so without the number the two indexed URLs carry one and the same
+	// <title>. The stored title is already a finished SEO title, so the number goes after it
+	// rather than in front of the brand.
+	const page = readPageNumber(sp.page)
+	const title = page > 1 ? `${data.title} — сторінка ${page}` : data.title
+
 	return {
 		// `absolute`: the stored title is a finished SEO title that already carries the brand,
 		// which is what the admin's 60-character counter measures. Letting the root layout's
 		// `%s | Fillando` template wrap it again printed «… | Fillando | Fillando».
-		title: { absolute: data.title },
+		title: { absolute: title },
 		description: data.meta_description,
 		alternates: { canonical },
 		...(robots && { robots }),
 		openGraph: {
-			title: data.title,
+			title,
 			description: data.meta_description,
 			url: canonical,
 			type: 'website'

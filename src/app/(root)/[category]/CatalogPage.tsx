@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import {
 	catalogFacets,
 	getCatalogProducts,
@@ -20,7 +21,7 @@ import { ActiveFilterChips, clearableFilterKeys } from './components/ActiveFilte
 import { PopularLandings, type PopularLanding } from './components/PopularLandings'
 import { FAMILY_LABELS } from './components/ColorFilter'
 import { attributeValueLabel } from './filter-labels'
-import { productsCount } from '@/common/utils'
+import { formatUah, productsCount } from '@/common/utils'
 import { catalogItemName } from '@/common/utils/color.utils'
 import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_URL } from '@/common/constants/seo.constants'
@@ -33,6 +34,27 @@ export interface LandingContent {
 	bottom_html: string
 	faq: { q: string; a: string }[]
 	slug: string
+}
+
+/**
+ * One end of a price narrowing, formatted the way every price on the site is. A bound that is
+ * not a number is printed as it stands: the line has to name what the URL actually filters by
+ * rather than print «NaN ₴».
+ */
+const priceBound = (value: string | null): string | null => {
+	if (value === null || value.trim() === '') return null
+	const amount = Number(value)
+	return Number.isFinite(amount) ? formatUah(amount) : value
+}
+
+/** The price narrowing in words: «ціна 240 ₴ – 900 ₴», or one open end. */
+const priceFilterLabels = (min: string | null, max: string | null): string[] => {
+	const from = priceBound(min)
+	const to = priceBound(max)
+	if (from && to) return [`ціна ${from} – ${to}`]
+	if (from) return [`ціна від ${from}`]
+	if (to) return [`ціна до ${to}`]
+	return []
 }
 
 interface CatalogPageProps {
@@ -154,11 +176,25 @@ export const CatalogPage = ({
 
 	if (!category) return null
 
+	const clearable = clearableFilterKeys(params, pinned)
+	const clearAll = () => updateParams(Object.fromEntries(clearable.map(key => [key, null])))
+
 	/**
 	 * What the visitor chose themselves, for the «Знайдено N за фільтром …» line. Pinned
 	 * dimensions are excluded: they are the page, not a narrowing of it, so naming them here
 	 * would read as though the shopper had filtered.
+	 *
+	 * Every narrowing has to be named, not only the category's own dimensions and colour. A
+	 * price range narrows the grid, and so does a key the sidebar cannot name — the backend
+	 * filters by any unreserved key, so an old `?material=PLA` link returns a filtered listing.
+	 * A line that stays silent there is a filtered page that looks unfiltered.
 	 */
+	const namedKeys = new Set([
+		...category.required_attributes.map(attr => attr.key),
+		'color_family',
+		'price_min',
+		'price_max'
+	])
 	const chosenFilterText = [
 		...category.required_attributes
 			.filter(attr => !pinnedKeys.includes(attr.key))
@@ -171,8 +207,44 @@ export const CatalogPage = ({
 		...(searchParams.get('color_family') ?? '')
 			.split(',')
 			.filter(Boolean)
-			.map(family => FAMILY_LABELS[family] ?? family)
+			.map(family => FAMILY_LABELS[family] ?? family),
+		...priceFilterLabels(searchParams.get('price_min'), searchParams.get('price_max')),
+		...clearable
+			.filter(key => !namedKeys.has(key))
+			.flatMap(key => (params[key] ?? '').split(',').filter(Boolean))
 	].join(', ')
+
+	/**
+	 * The number for that line — `null` while the answer for this narrowing is still in flight.
+	 * `keepPreviousData` leaves the previous narrowing's response on screen, so printing its
+	 * total beside the new filter name would state a count for a filter that never returned it
+	 * (the drawer button follows the same rule, TD-0008 §5.4.5).
+	 */
+	const foundTotal = !isFetching && data ? data.pagination.total : null
+
+	/**
+	 * A way out of an empty result. On a category it removes the same keys «Очистити все» does.
+	 * A landing's pinned dimensions are its address and cannot be dropped, so there the action
+	 * leads to the landing itself, without the extra narrowing; with nothing extra to drop there
+	 * is no action at all.
+	 */
+	const emptyAction =
+		clearable.length === 0 ? undefined : landing ? (
+			<Link
+				href={`/${categorySlug}/${landing.slug}`}
+				className='border-border/50 bg-card hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors'
+			>
+				Скинути додаткові фільтри
+			</Link>
+		) : (
+			<button
+				type='button'
+				onClick={clearAll}
+				className='border-border/50 bg-card hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors'
+			>
+				Скинути фільтри
+			</button>
+		)
 
 	const filterSidebarProps = {
 		// A pinned dimension is part of the address, so it is shown as fixed rather than as a
@@ -188,9 +260,6 @@ export const CatalogPage = ({
 		searchParams: params,
 		onParamsChange: updateParams
 	}
-
-	const clearable = clearableFilterKeys(params, pinned)
-	const clearAll = () => updateParams(Object.fromEntries(clearable.map(key => [key, null])))
 
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
@@ -308,15 +377,24 @@ export const CatalogPage = ({
 						onParamsChange={updateParams}
 					/>
 					{/* «Знайдено N за фільтром …» — only once something narrows the listing; the
-					    count next to the H1 already says how many there are in total. */}
-					{data && chosenFilterText && (
-						<p className='text-muted-foreground mb-4 text-sm'>
-							Знайдено {productsCount(data.pagination.total)} за фільтром «
-							{chosenFilterText}»
+					    count next to the H1 already says how many there are in total. It is not
+					    gated on `data`: with the answer still in flight the line still has to
+					    name the filter, it just has no number to give yet. */}
+					{chosenFilterText && (
+						<p className='text-muted-foreground mb-4 text-sm' aria-busy={isFetching}>
+							{foundTotal === null
+								? `Шукаємо товари за фільтром «${chosenFilterText}»`
+								: `Знайдено ${productsCount(foundTotal)} за фільтром «${chosenFilterText}»`}
 						</p>
 					)}
-					<ProductGrid items={data?.items ?? []} isLoading={isLoading} />
-					{data && (
+					<ProductGrid
+						items={data?.items ?? []}
+						isLoading={isLoading}
+						emptyAction={emptyAction}
+					/>
+					{/* Nothing to page through and nothing to resize: an empty listing gets the
+					    empty state alone, without «Показано 0–0 з 0» under it. */}
+					{data && data.pagination.total > 0 && (
 						<div className='mt-8 space-y-4'>
 							<div className='flex items-center justify-between'>
 								<span className='text-muted-foreground text-sm'>
@@ -370,12 +448,22 @@ export const CatalogPage = ({
 
 					{landing && landing.faq.length > 0 && (
 						<section className='bg-card border-border/50 min-w-0 overflow-x-auto rounded-xl border p-6'>
-							<h2 className='mb-4 text-xl font-bold'>Часті питання</h2>
+							<h2 className='mb-4 text-xl font-bold'>Часті запитання</h2>
+							{/* `<details>` keeps every answer in the HTML whether it is open or
+							    not, which is what makes the FAQPage markup below truthful. The
+							    first question opens by default so the block reads as an answer
+							    rather than as three closed rows, and the native marker is
+							    replaced by the chevron the mock draws. */}
 							<div className='divide-border/50 divide-y'>
-								{landing.faq.map(item => (
-									<details key={item.q} className='py-3'>
-										<summary className='cursor-pointer font-medium'>
+								{landing.faq.map((item, index) => (
+									<details key={item.q} className='group py-3' open={index === 0}>
+										<summary className='flex cursor-pointer list-none items-center justify-between gap-3 font-medium [&::-webkit-details-marker]:hidden'>
 											{item.q}
+											<ChevronDown
+												size={16}
+												aria-hidden
+												className='text-muted-foreground shrink-0 transition-transform group-open:rotate-180'
+											/>
 										</summary>
 										<p className='text-muted-foreground mt-2 text-sm'>
 											{item.a}

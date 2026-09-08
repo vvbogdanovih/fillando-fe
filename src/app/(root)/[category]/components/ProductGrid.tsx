@@ -1,9 +1,16 @@
+import type { ReactNode } from 'react'
 import { CatalogItem } from '../catalog.api'
 import { CatalogProductCard } from './CatalogProductCard'
 
 interface ProductGridProps {
 	items: CatalogItem[]
 	isLoading: boolean
+	/**
+	 * The way out of an empty result — «Скинути фільтри» on a category, the landing itself on a
+	 * landing. Omitted when there is nothing to undo, because a dead end with a button that
+	 * changes nothing is worse than one without.
+	 */
+	emptyAction?: ReactNode
 }
 
 // First-row cards render above the fold, so they preload instead of lazy-loading.
@@ -20,7 +27,7 @@ const SkeletonCard = () => (
 	</div>
 )
 
-export const ProductGrid = ({ items, isLoading }: ProductGridProps) => {
+export const ProductGrid = ({ items, isLoading, emptyAction }: ProductGridProps) => {
 	if (isLoading) {
 		return (
 			<div className='grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
@@ -33,8 +40,9 @@ export const ProductGrid = ({ items, isLoading }: ProductGridProps) => {
 
 	if (items.length === 0) {
 		return (
-			<div className='flex items-center justify-center py-24'>
+			<div className='flex flex-col items-center justify-center gap-4 py-24'>
 				<p className='text-muted-foreground'>Товарів не знайдено</p>
+				{emptyAction}
 			</div>
 		)
 	}
