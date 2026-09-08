@@ -11,7 +11,8 @@ const OVERRIDE_TABLE: [label: string, key: string][] = [
 	['Ефект поверхні', 'finish'],
 	['Армування', 'reinforcement'],
 	['Серія', 'series'],
-	['Котушка в комплекті', 'spool_included']
+	['Котушка в комплекті', 'spool_included'],
+	['Вага філаменту', 'vaha']
 ]
 
 /** Keys currently stored in production — the override table must not touch them. */
@@ -111,14 +112,22 @@ describe('toAttrKey', () => {
 })
 
 describe('ATTR_KEY_OVERRIDES invariants', () => {
-	it('holds exactly the five catalogue filter dimensions of TD-0002 §5.2.1', () => {
+	it('holds the five dimensions of TD-0002 §5.2.1 plus the pinned weight label', () => {
 		expect(ATTR_KEY_OVERRIDES).toEqual({
 			'тип пластику': 'polymer',
 			'ефект поверхні': 'finish',
 			армування: 'reinforcement',
 			серія: 'series',
-			'котушка в комплекті': 'spool_included'
+			'котушка в комплекті': 'spool_included',
+			'вага філаменту': 'vaha'
 		})
+	})
+
+	it('sends both weight labels to the one key production already stores', () => {
+		// «Вага філаменту» is what the shopper reads; `vaha` is what the sidebar, the facets
+		// and any landing pinning the dimension keep filtering by (Plan-0005 I-27).
+		expect(toAttrKey('Вага')).toBe('vaha')
+		expect(toAttrKey('Вага філаменту')).toBe('vaha')
 	})
 
 	it('stores every lookup key in normalized form', () => {
