@@ -79,6 +79,8 @@ vi.mock('@/common/store/useCartStore', async () => {
 		clearAfterOrder: () => Promise<void>
 		updateQuantity: () => Promise<void>
 		setGuestItemQuantity: () => void
+		removeItem: () => Promise<void>
+		removeGuestItem: () => void
 	}>(set => ({
 		items: [],
 		guestItems: [GUEST_ITEM],
@@ -86,7 +88,9 @@ vi.mock('@/common/store/useCartStore', async () => {
 		hasFetched: false,
 		clearAfterOrder: vi.fn(async () => set({ guestItems: [] })),
 		updateQuantity: vi.fn(async () => {}),
-		setGuestItemQuantity: vi.fn()
+		setGuestItemQuantity: vi.fn(),
+		removeItem: vi.fn(async () => {}),
+		removeGuestItem: vi.fn()
 	}))
 	// The real store is a persist store; CheckoutPage gates its empty-cart redirect on hydration
 	// (and, for a logged-in user, on the first server cart response — `hasFetched`).
@@ -131,6 +135,7 @@ const codRadio = () => screen.getByRole('radio', { name: /Накладний п�
 const deliveryRadio = (name: RegExp) => screen.getByRole('radio', { name })
 const submitButton = () => screen.getByRole('button', { name: /Замовити|Відправка/ })
 const clearAfterOrderMock = () => vi.mocked(useCartStore.getState().clearAfterOrder)
+const removeGuestItemMock = () => vi.mocked(useCartStore.getState().removeGuestItem)
 
 /** Minimal valid form: contact details + self-pickup (no Nova Post city/warehouse pickers). */
 const fillPickupOrder = () => {
@@ -347,25 +352,27 @@ describe('CheckoutPage — оформлення замовлення', () => {
 	})
 
 	it('shows non-coupon server errors as a toast only, never on the coupon field', async () => {
-		vi.mocked(createOrder).mockRejectedValue(new Error('Only 3 units available for SKU X'))
+		// A Ukrainian server sentence is specific and is trusted as it stands.
+		const serverMessage = 'Накладний платіж недоступний для обраного способу доставки'
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error(serverMessage), { status: 400 })
+		)
 
 		renderCheckout()
 		fillPickupOrder()
 		await submitOrder()
 
-		await waitFor(() =>
-			expect(toast.error).toHaveBeenCalledWith('Only 3 units available for SKU X')
-		)
+		await waitFor(() => expect(toast.error).toHaveBeenCalledWith(serverMessage))
 
 		expect(document.getElementById('coupon_code-error')).toBeNull()
-		expect(screen.queryByText('Only 3 units available for SKU X')).not.toBeInTheDocument()
+		expect(screen.queryByText(serverMessage)).not.toBeInTheDocument()
 		expect(screen.getByLabelText('Знижковий купон')).not.toHaveAttribute('aria-invalid', 'true')
 		expect(clearAfterOrderMock()).not.toHaveBeenCalled()
 		// The form is usable again for another attempt.
 		expect(submitButton()).toBeEnabled()
 	})
 
-	it('pins a stock shortfall under its own cart line, in Ukrainian, and marks it invalid', async () => {
+	it('pins a stock shortfall under its own cart line only — no duplicate toast with the SKU', async () => {
 		const serverMessage =
 			'Доступно лише 3 шт. (FL-000001) — зменште кількість, щоб оформити замовлення'
 		vi.mocked(createOrder).mockRejectedValue(
@@ -382,9 +389,88 @@ describe('CheckoutPage — оформлення замовлення', () => {
 		const lineError = await screen.findByRole('alert')
 		expect(lineError).toHaveTextContent(/Доступно лише 3 шт\./)
 		expect(lineError.closest('li')).toHaveAttribute('data-invalid')
-		expect(toast.error).toHaveBeenCalledWith(serverMessage)
+		// The inline message is the whole message: the artboard's «Стане» state has no toast.
+		expect(toast.error).not.toHaveBeenCalled()
 		expect(document.getElementById('coupon_code-error')).toBeNull()
 		expect(clearAfterOrderMock()).not.toHaveBeenCalled()
+	})
+
+	it('offers to drop a sold-out line instead of asking for a quantity that cannot go lower', async () => {
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error('Доступно лише 0 шт. (FL-000001) — зменште кількість'), {
+				status: 409,
+				details: { code: 'INSUFFICIENT_STOCK', variant_id: 'variant-1', available: 0 }
+			})
+		)
+
+		renderCheckout()
+		fillPickupOrder()
+		await submitOrder()
+
+		const lineError = await screen.findByRole('alert')
+		expect(lineError).toHaveTextContent('Товар закінчився — приберіть його з кошика')
+		expect(lineError).not.toHaveTextContent('зменште кількість')
+
+		fireEvent.click(screen.getByRole('button', { name: 'Прибрати з кошика' }))
+
+		expect(removeGuestItemMock()).toHaveBeenCalledWith('variant-1')
+	})
+
+	it('translates an archived variant by its code instead of relaying the English sentence', async () => {
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error('Variant FL-000123 is not available'), {
+				status: 400,
+				details: {
+					code: 'VARIANT_NOT_AVAILABLE',
+					variant_id: 'variant-1',
+					sku: 'FL-000123'
+				}
+			})
+		)
+
+		renderCheckout()
+		fillPickupOrder()
+		await submitOrder()
+
+		await waitFor(() =>
+			expect(toast.error).toHaveBeenCalledWith(
+				'Цього товару вже немає у продажу. Приберіть його з кошика, щоб оформити замовлення.'
+			)
+		)
+	})
+
+	it('still explains a code-less 400 in Ukrainian (backend without the code yet)', async () => {
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error('Variant FL-000123 is not available'), { status: 400 })
+		)
+
+		renderCheckout()
+		fillPickupOrder()
+		await submitOrder()
+
+		await waitFor(() =>
+			expect(toast.error).toHaveBeenCalledWith(
+				'Не вдалося оформити замовлення: у кошику є товар, якого вже немає у продажу. Оновіть кошик і спробуйте ще раз.'
+			)
+		)
+		expect(toast.error).not.toHaveBeenCalledWith('Variant FL-000123 is not available')
+	})
+
+	it('does not relay an unknown server failure in English', async () => {
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error('Internal server error'), { status: 500 })
+		)
+
+		renderCheckout()
+		fillPickupOrder()
+		await submitOrder()
+
+		await waitFor(() =>
+			expect(toast.error).toHaveBeenCalledWith(
+				'Сервер тимчасово не відповідає. Спробуйте ще раз за хвилину.'
+			)
+		)
+		expect(toast.error).not.toHaveBeenCalledWith('Internal server error')
 	})
 
 	it('explains rate limiting instead of echoing the raw 429 message', async () => {

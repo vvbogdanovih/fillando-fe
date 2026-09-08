@@ -107,8 +107,38 @@ function mapServerCouponError(message: string) {
 	}
 }
 
+/** What each machine-readable order-creation failure means for the shopper. Keyed on the
+ *  `code` the backend puts in `details`, never on its sentence: a variant archived while the
+ *  cart sat in localStorage used to reach the toast as «Variant FL-000123 is not available». */
+const ORDER_ERROR_BY_CODE: Record<string, string> = {
+	VARIANT_NOT_AVAILABLE:
+		'Цього товару вже немає у продажу. Приберіть його з кошика, щоб оформити замовлення.',
+	VARIANT_NOT_FOUND:
+		'Одного з товарів кошика вже не існує. Оновіть кошик, щоб оформити замовлення.',
+	// The shortfall speaks under its own cart line (see `stockIssueOf`); this is the wording
+	// for the case where the line cannot be found — a cart the page no longer displays.
+	INSUFFICIENT_STOCK: 'Товару не вистачає на складі. Зменште кількість і спробуйте ще раз.'
+}
+
+const STALE_CART_MESSAGE =
+	'Не вдалося оформити замовлення: у кошику є товар, якого вже немає у продажу. Оновіть кошик і спробуйте ще раз.'
+
+/** The backend writes Ukrainian wherever it has something specific to say (stock, coupons,
+ *  delivery); an English sentence means we are relaying an internal message instead. */
+const isUkrainian = (message: string) => /[а-яіїєґ]/i.test(message)
+
 function humanizeOrderError(err: OrderError) {
+	const byCode = err.details?.code ? ORDER_ERROR_BY_CODE[err.details.code] : undefined
+	if (byCode) return byCode
 	if (err.status === 429) return 'Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.'
+	if (err.message && isUkrainian(err.message)) return err.message
+	// 400/404 on order creation is always about the items: a draft/archived variant, or one
+	// that no longer exists. Both are fixed in the cart, so say that instead of the sentence.
+	if (err.status === 400 || err.status === 404) return STALE_CART_MESSAGE
+	if (err.status !== undefined && err.status >= 500) {
+		return 'Сервер тимчасово не відповідає. Спробуйте ще раз за хвилину.'
+	}
+	// Last resort only: an unexpected status where the server's own sentence is the sole clue.
 	if (err.message && err.message !== 'Unknown error') return err.message
 	return 'Не вдалося оформити замовлення. Спробуйте ще раз.'
 }
@@ -147,6 +177,8 @@ export function CheckoutPage() {
 	const clearAfterOrder = useCartStore(s => s.clearAfterOrder)
 	const updateQuantity = useCartStore(s => s.updateQuantity)
 	const setGuestItemQuantity = useCartStore(s => s.setGuestItemQuantity)
+	const removeItem = useCartStore(s => s.removeItem)
+	const removeGuestItem = useCartStore(s => s.removeGuestItem)
 
 	const displayItems: DisplayLine[] = useMemo(() => {
 		if (isAuth) {
@@ -443,6 +475,20 @@ export function CheckoutPage() {
 		[isAuth, setGuestItemQuantity, updateQuantity]
 	)
 
+	/** The only way out of a sold-out line: the stepper cannot go below 1, so «зменште
+	 *  кількість» is not an instruction the shopper can follow when nothing is left. */
+	const removeLine = useCallback(
+		(variantId: string) => {
+			setStockIssue(prev => (prev?.variant_id === variantId ? null : prev))
+			if (isAuth) {
+				void removeItem(variantId)
+			} else {
+				removeGuestItem(variantId)
+			}
+		},
+		[isAuth, removeGuestItem, removeItem]
+	)
+
 	const { data: liqpayProvider } = useQuery({
 		queryKey: ['payment-provider', 'LIQPAY'],
 		queryFn: () => fetchActivePaymentProvider('LIQPAY'),
@@ -520,7 +566,13 @@ export function CheckoutPage() {
 				setStockIssue(issue)
 				scrollFirstInvalidIntoView()
 			}
-			toast.error(isCouponError ? mapServerCouponError(err.message) : humanizeOrderError(err))
+			if (isCouponError) {
+				toast.error(mapServerCouponError(err.message))
+			} else if (!issue) {
+				// A stock shortfall is already stated under its own cart line; the toast used
+				// to repeat it with the technical SKU in brackets (artboard «Чекаут: помилки»).
+				toast.error(humanizeOrderError(err))
+			}
 		}
 	})
 
@@ -1289,19 +1341,34 @@ export function CheckoutPage() {
 												</p>
 											</div>
 											{lineIssue && (
-												<p
+												<div
 													role='alert'
-													className='text-destructive mt-1.5 flex items-start gap-1.5 text-xs'
+													className='text-destructive mt-1.5 space-y-1.5 text-xs'
 												>
-													<AlertTriangle
-														className='mt-0.5 h-3.5 w-3.5 shrink-0'
-														aria-hidden
-													/>
-													<span>
-														Доступно лише {lineIssue.available} шт. —
-														зменште кількість, щоб оформити замовлення
-													</span>
-												</p>
+													<p className='flex items-start gap-1.5'>
+														<AlertTriangle
+															className='mt-0.5 h-3.5 w-3.5 shrink-0'
+															aria-hidden
+														/>
+														<span>
+															{lineIssue.available > 0
+																? `Доступно лише ${lineIssue.available} шт. — зменште кількість, щоб оформити замовлення`
+																: 'Товар закінчився — приберіть його з кошика, щоб оформити замовлення'}
+														</span>
+													</p>
+													{lineIssue.available === 0 && (
+														<Button
+															type='button'
+															variant='outline'
+															size='sm'
+															onClick={() =>
+																removeLine(line.variant_id)
+															}
+														>
+															Прибрати з кошика
+														</Button>
+													)}
+												</div>
 											)}
 										</div>
 										<p

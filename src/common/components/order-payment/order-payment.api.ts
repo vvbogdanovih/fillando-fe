@@ -53,12 +53,26 @@ export function readApiErrorDetails(err: unknown): ApiErrorDetails {
 export const minutesLeft = (seconds: number) => Math.max(1, Math.ceil(seconds / 60))
 
 /**
+ * A request that never got an answer. `httpService` has no response to read a status or a
+ * body from, so it rethrows `Error('Unknown error')` — the one English sentence that used to
+ * reach the buyer as a toast when the connection dropped mid-payment.
+ */
+function isOffline(err: unknown): boolean {
+	const e = err as { status?: unknown; response?: unknown; message?: string } | null
+	if (typeof e?.status === 'number' || e?.response) return false
+	return !e?.message || e.message === 'Unknown error'
+}
+
+/**
  * What to tell the buyer when a payment action fails. The backend's `message` is already
  * Ukrainian, but for the codes we know the page can say something more useful than the server
- * could — the LiqPay cooldown, for instance, names the two ways out.
+ * could — the LiqPay cooldown, for instance, names the two ways out. The status branches below
+ * cover the answers that carry no Ukrainian body at all: the throttler, an expired or foreign
+ * token, and a lost connection.
  */
 export function describePaymentError(err: unknown): string {
 	const details = readApiErrorDetails(err)
+	const status = (err as { status?: number } | null)?.status
 	if (details.code === 'LIQPAY_SESSION_ACTIVE') {
 		const minutes = details.retry_after_seconds
 			? minutesLeft(details.retry_after_seconds)
@@ -69,6 +83,15 @@ export function describePaymentError(err: unknown): string {
 	}
 	if (details.code === 'PAYMENT_METHOD_LOCKED') {
 		return 'Спосіб оплати цього замовлення вже не можна змінити. Оновіть сторінку, щоб побачити поточний стан.'
+	}
+	if (status === 429) {
+		return 'Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.'
+	}
+	if (status === 404) {
+		return 'Замовлення не знайдено — можливо, посилання на оплату вже недійсне. Відкрийте замовлення у своєму профілі або зв’яжіться з нами.'
+	}
+	if (isOffline(err)) {
+		return 'Немає зв’язку з сервером. Перевірте інтернет і спробуйте ще раз.'
 	}
 	const message = (err as { message?: string } | null)?.message
 	return message || 'Не вдалося виконати дію. Спробуйте ще раз.'

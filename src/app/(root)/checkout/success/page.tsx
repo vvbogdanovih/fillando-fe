@@ -3,10 +3,13 @@ import { NO_INDEX } from '@/common/constants/seo.constants'
 import { Suspense } from 'react'
 import { CheckoutSuccessContent } from './CheckoutSuccessContent'
 
+// Neutral on purpose: the same route renders «Оплата не пройшла» and «Замовлення скасовано»,
+// so a static «Замовлення оформлено» contradicted the screen. `CheckoutSuccessContent`
+// sharpens `document.title` once it knows the state.
 export const metadata: Metadata = {
 	...NO_INDEX,
-	title: 'Замовлення оформлено | Fillando',
-	description: 'Дякуємо за замовлення.'
+	title: 'Статус замовлення | Fillando',
+	description: 'Стан вашого замовлення та його оплати.'
 }
 
 export default function CheckoutSuccessPage() {

@@ -8,6 +8,7 @@ import { Button } from '@/common/components/ui/button'
 import { ChangePaymentMethodDialog } from '@/common/components/order-payment/ChangePaymentMethodDialog'
 import { PayNowButton } from '@/common/components/order-payment/PayNowButton'
 import { changePaymentMethodMine } from '@/common/components/order-payment/order-payment.api'
+import { describeUnpaidPayment } from '@/common/components/order-payment/payment-state.copy'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { UI_URLS } from '@/common/constants'
 import { myOrdersApi } from './orders.api'
@@ -24,7 +25,7 @@ import {
 	isNotFoundError,
 	readAddressField
 } from './orders.utils'
-import type { MyOrderItem } from './orders.schema'
+import type { MyOrder, MyOrderItem } from './orders.schema'
 
 function OrderItemsList({ items }: { items: MyOrderItem[] }) {
 	if (items.length === 0) {
@@ -67,6 +68,19 @@ function OrderItemsList({ items }: { items: MyOrderItem[] }) {
 /** Mirrors the backend rule: the buyer may act on payment while it is awaited and the order is not yet in fulfilment. */
 const PAYMENT_OPEN_STATUSES = new Set(['PENDING', 'FAILED'])
 const PAYMENT_CHANGEABLE_ORDER_STATUSES = new Set(['NEW', 'CONFIRMED'])
+/** A closed order is never explained as «ви можете оплатити» — there is nothing to pay for. */
+const CLOSED_ORDER_STATUSES = new Set(['CANCELLED', 'RETURNED'])
+
+/**
+ * TD-0009's cooldown clock is not part of `myOrderSchema` yet (the schema passes unknown keys
+ * through untyped), so read it defensively: anything but a number or `null` means "unknown",
+ * which `PayNowButton` treats as "let the server decide".
+ */
+function readRetryAfterSeconds(order: MyOrder): number | null | undefined {
+	const value = (order as { liqpay_retry_after_seconds?: unknown }).liqpay_retry_after_seconds
+	if (value === null || typeof value === 'number') return value
+	return undefined
+}
 
 export function OrderDetails({ orderId }: { orderId: string }) {
 	const queryClient = useQueryClient()
@@ -135,6 +149,17 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 
 	if (!order) return null
 
+	const retryAfterSeconds = readRetryAfterSeconds(order)
+	// The same explanation the success page gives for the same state: this screen carries the
+	// same two actions, so «Статус: Помилка оплати» on its own left the buyer guessing.
+	const paymentExplanation = CLOSED_ORDER_STATUSES.has(order.order_status)
+		? null
+		: describeUnpaidPayment({
+				paymentMethod: order.payment_method,
+				paymentStatus: order.payment_status,
+				retryAfterSeconds
+			})
+
 	return (
 		<div className='mx-auto w-full max-w-5xl space-y-6'>
 			<Card>
@@ -196,6 +221,11 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 						<p>Метод: {PAYMENT_METHOD_LABELS[order.payment_method]}</p>
 						<p>Статус: {PAYMENT_STATUS_LABELS[order.payment_status]}</p>
 					</div>
+					{paymentExplanation && (
+						<p className='text-muted-foreground leading-relaxed'>
+							{paymentExplanation}
+						</p>
+					)}
 					{/* An unpaid order that is not yet in fulfilment can still be paid by card or
 					    moved to an offline method (TD-0009); the server enforces the same rule. */}
 					{PAYMENT_OPEN_STATUSES.has(order.payment_status) &&
@@ -204,7 +234,12 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								{order.payment_method === 'LIQPAY' && (
 									<PayNowButton
 										orderNumber={order.order_number}
-										retryAfterSeconds={undefined}
+										retryAfterSeconds={retryAfterSeconds}
+										label={
+											order.payment_status === 'FAILED'
+												? 'Повторити оплату карткою'
+												: 'Оплатити карткою'
+										}
 										onError={() =>
 											void queryClient.invalidateQueries({
 												queryKey: ['my-order', orderId]
@@ -217,7 +252,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 									variant='outline'
 									onClick={() => setIsChangeOpen(true)}
 								>
-									Змінити спосіб оплати
+									Обрати інший спосіб оплати
 								</Button>
 								<ChangePaymentMethodDialog
 									open={isChangeOpen}

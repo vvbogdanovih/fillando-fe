@@ -47,7 +47,9 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 
 		expect(await screen.findByText('Замовлення #FO-0000123')).toBeInTheDocument()
 		expect(screen.getByRole('button', { name: 'Оплатити карткою' })).toBeInTheDocument()
-		expect(screen.getByRole('button', { name: 'Змінити спосіб оплати' })).toBeInTheDocument()
+		expect(
+			screen.getByRole('button', { name: 'Обрати інший спосіб оплати' })
+		).toBeInTheDocument()
 	})
 
 	it('offers only the method change for an unpaid offline order', async () => {
@@ -55,7 +57,40 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 
 		expect(await screen.findByText('Замовлення #FO-0000123')).toBeInTheDocument()
 		expect(screen.queryByRole('button', { name: /Оплатити карткою/ })).not.toBeInTheDocument()
-		expect(screen.getByRole('button', { name: 'Змінити спосіб оплати' })).toBeInTheDocument()
+		expect(
+			screen.getByRole('button', { name: 'Обрати інший спосіб оплати' })
+		).toBeInTheDocument()
+	})
+
+	it('explains a refused payment the way the success page does, and calls a retry a retry', async () => {
+		renderDetails(order({ payment_status: 'FAILED' }))
+
+		expect(await screen.findByText('Замовлення #FO-0000123')).toBeInTheDocument()
+		expect(
+			screen.getByText(
+				'Банк відхилив платіж — кошти не списано. Замовлення збережено: можна оплатити карткою ще раз або обрати інший спосіб оплати.'
+			)
+		).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: 'Повторити оплату карткою' })).toBeInTheDocument()
+	})
+
+	it('explains an unpaid IBAN order instead of only naming its status', async () => {
+		renderDetails(order({ payment_method: 'IBAN' }))
+
+		expect(await screen.findByText('Замовлення #FO-0000123')).toBeInTheDocument()
+		expect(
+			screen.getByText('Реквізити для оплати будуть надіслані на вашу електронну пошту.')
+		).toBeInTheDocument()
+	})
+
+	it('passes the cooldown clock through, so the card button is not a click that answers 409', async () => {
+		// The field rides along on the order response (`myOrderSchema` passes it through).
+		renderDetails(order({ liqpay_retry_after_seconds: 600 } as Partial<MyOrder>))
+
+		expect(await screen.findByText('Замовлення #FO-0000123')).toBeInTheDocument()
+		expect(
+			screen.getByRole('button', { name: 'Оплатити карткою можна через 10 хв' })
+		).toBeDisabled()
 	})
 
 	it.each([
@@ -68,7 +103,7 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 		expect(await screen.findByText('Замовлення #FO-0000123')).toBeInTheDocument()
 		expect(screen.queryByRole('button', { name: /Оплатити карткою/ })).not.toBeInTheDocument()
 		expect(
-			screen.queryByRole('button', { name: 'Змінити спосіб оплати' })
+			screen.queryByRole('button', { name: 'Обрати інший спосіб оплати' })
 		).not.toBeInTheDocument()
 	})
 })

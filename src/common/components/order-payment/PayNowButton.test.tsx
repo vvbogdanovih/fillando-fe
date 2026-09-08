@@ -76,4 +76,64 @@ describe('PayNowButton', () => {
 
 		await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Замовлення вже оплачено'))
 	})
+
+	it('explains a 429 instead of showing the throttler exception', async () => {
+		vi.mocked(startLiqpayCheckout).mockRejectedValue(
+			Object.assign(new Error('ThrottlerException: Too Many Requests'), { status: 429 })
+		)
+		renderButton(0)
+
+		fireEvent.click(screen.getByRole('button', { name: 'Оплатити карткою' }))
+
+		await waitFor(() =>
+			expect(toast.error).toHaveBeenCalledWith(
+				'Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.'
+			)
+		)
+	})
+
+	it('explains a 404 (stale or foreign payment token) with a way out', async () => {
+		vi.mocked(startLiqpayCheckout).mockRejectedValue(
+			Object.assign(new Error('Order not found'), { status: 404 })
+		)
+		renderButton(0)
+
+		fireEvent.click(screen.getByRole('button', { name: 'Оплатити карткою' }))
+
+		await waitFor(() =>
+			expect(toast.error).toHaveBeenCalledWith(
+				'Замовлення не знайдено — можливо, посилання на оплату вже недійсне. Відкрийте замовлення у своєму профілі або зв’яжіться з нами.'
+			)
+		)
+	})
+
+	// What `httpService` rethrows when the request never reached the API: no status, no body.
+	it('names a lost connection instead of relaying «Unknown error»', async () => {
+		vi.mocked(startLiqpayCheckout).mockRejectedValue(new Error('Unknown error'))
+		renderButton(0)
+
+		fireEvent.click(screen.getByRole('button', { name: 'Оплатити карткою' }))
+
+		await waitFor(() =>
+			expect(toast.error).toHaveBeenCalledWith(
+				'Немає зв’язку з сервером. Перевірте інтернет і спробуйте ще раз.'
+			)
+		)
+	})
+
+	it('renders the caller’s own wording, cooldown clock included', () => {
+		render(
+			<QueryClientProvider client={new QueryClient()}>
+				<PayNowButton
+					orderNumber='FO-0000123'
+					retryAfterSeconds={120}
+					label='Повторити оплату карткою'
+				/>
+			</QueryClientProvider>
+		)
+
+		expect(
+			screen.getByRole('button', { name: 'Повторити оплату карткою можна через 2 хв' })
+		).toBeDisabled()
+	})
 })

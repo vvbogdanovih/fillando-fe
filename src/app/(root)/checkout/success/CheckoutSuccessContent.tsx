@@ -12,7 +12,14 @@ import {
 	changePaymentMethodPublic,
 	describePaymentError
 } from '@/common/components/order-payment/order-payment.api'
+import {
+	describeOfflinePayment,
+	PAYMENT_FAILED_DESCRIPTION,
+	PAYMENT_NOT_CONFIRMED_DESCRIPTION,
+	PAYMENT_NOT_STARTED_DESCRIPTION
+} from '@/common/components/order-payment/payment-state.copy'
 import { UI_URLS } from '@/common/constants'
+import { SITE_NAME } from '@/common/constants/seo.constants'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { cn } from '@/common/utils/shad-cn.utils'
@@ -23,7 +30,6 @@ import { formatOrderNumber } from '../checkout.schema'
 import { fetchOrderPaymentStatus } from '../checkout.api'
 import type { OrderPaymentStatus } from '../checkout.api.schemas'
 import { startLiqpayCheckout } from '../liqpay.utils'
-import { COD_MIN_PREPAYMENT_UAH } from '../checkout.constants'
 
 // LiqPay sends the browser back to result_url before (or at the same time as) its
 // server callback flips the order to PAID, so a PENDING lookup is re-polled for a
@@ -59,30 +65,13 @@ const ORDER_ACCEPTED: View = {
 const PAYMENT_NOT_CONFIRMED: View = {
 	tone: 'neutral',
 	title: 'Замовлення прийнято',
-	description:
-		'Статус оплати ще не підтверджено. Щойно банк підтвердить платіж, ми надішлемо лист.'
+	description: PAYMENT_NOT_CONFIRMED_DESCRIPTION
 }
 
-/**
- * PENDING with no card session ever opened — the checkout could not reach LiqPay. Nothing is
- * coming from the bank, so there is nothing to wait for: offer the payment right away.
- */
 const PAYMENT_NOT_STARTED: View = {
 	tone: 'neutral',
 	title: 'Замовлення прийнято',
-	description:
-		'Оплату карткою не розпочато. Ви можете оплатити зараз або обрати інший спосіб оплати.'
-}
-
-function describeOfflinePayment(paymentMethod: string | null): string {
-	switch (paymentMethod) {
-		case 'CASH':
-			return 'Оплата готівкою при отриманні. Деталі замовлення надіслані на вашу електронну пошту.'
-		case 'COD':
-			return `Відправка накладним платежем — з частковою передоплатою від ${COD_MIN_PREPAYMENT_UAH} ₴. Наш менеджер зв'яжеться з вами й уточнить суму. Деталі замовлення надіслані на вашу електронну пошту.`
-		default:
-			return 'Реквізити для оплати будуть надіслані на вашу електронну пошту.'
-	}
+	description: PAYMENT_NOT_STARTED_DESCRIPTION
 }
 
 function resolveLiqpayView(args: {
@@ -115,8 +104,7 @@ function resolveLiqpayView(args: {
 				return {
 					tone: 'failed',
 					title: 'Оплата не пройшла',
-					description:
-						'Банк відхилив платіж — кошти не списано. Замовлення збережено: можна оплатити карткою ще раз або обрати інший спосіб оплати.'
+					description: PAYMENT_FAILED_DESCRIPTION
 				}
 			// VOIDED is not a bank refusal: the order was cancelled while unpaid and the payment
 			// closed with it (state-machines.md). The gateway refuses a cancelled order with 400, so
@@ -222,6 +210,46 @@ export function CheckoutSuccessContent() {
 	})
 	const lookup = lookupQuery.data
 
+	// The lookup's cooldown is a snapshot taken when the answer was written. Polling stops after
+	// LIQPAY_POLL_WINDOW_MS, so without a clock of its own the page kept the card button disabled
+	// with «можна через N хв» long after those minutes had passed — until a manual reload.
+	const [cooldownLeft, setCooldownLeft] = useState<number | null | undefined>(undefined)
+	useEffect(() => {
+		setCooldownLeft(lookup?.liqpay_retry_after_seconds)
+	}, [lookup])
+
+	const cooldownRunning = typeof cooldownLeft === 'number' && cooldownLeft > 0
+	useEffect(() => {
+		if (!cooldownRunning) return
+		const timer = window.setInterval(() => {
+			setCooldownLeft(prev => (typeof prev === 'number' && prev > 0 ? prev - 1 : prev))
+		}, 1_000)
+		return () => window.clearInterval(timer)
+	}, [cooldownRunning])
+
+	// Once the polling window is over the query is idle, so a late PAID or FAILED would never
+	// reach this page. Re-read it when the buyer comes back to the tab — an event, so there is
+	// no interval to run away with. A settled payment (PAID / VOIDED / REFUNDED) is terminal
+	// and is not asked about again.
+	const paymentStillOpen =
+		lookup === undefined ||
+		lookup.payment_status === 'PENDING' ||
+		lookup.payment_status === 'FAILED'
+	useEffect(() => {
+		if (!canLookup || !pollingExpired || !paymentStillOpen) return
+		const refresh = () => {
+			if (document.visibilityState !== 'hidden') {
+				void queryClient.refetchQueries({ queryKey: ['order-payment-status', raw, token] })
+			}
+		}
+		document.addEventListener('visibilitychange', refresh)
+		window.addEventListener('focus', refresh)
+		return () => {
+			document.removeEventListener('visibilitychange', refresh)
+			window.removeEventListener('focus', refresh)
+		}
+	}, [canLookup, pollingExpired, paymentStillOpen, queryClient, raw, token])
+
 	const retryMutation = useMutation({
 		mutationFn: () => startLiqpayCheckout(raw ?? ''),
 		onError: (err: unknown) => {
@@ -274,6 +302,13 @@ export function CheckoutSuccessContent() {
 				description: describeOfflinePayment(paymentMethod)
 			}
 	const styles = TONE_STYLES[view.tone]
+
+	// The route's metadata has to be neutral («Статус оплати» covers a refusal as well as a
+	// thank-you), so the tab name is sharpened here, where the state is known. The page is
+	// noindex, so this is a browser-tab concern only.
+	useEffect(() => {
+		document.title = `${view.title} | ${SITE_NAME}`
+	}, [view.title])
 
 	// Offline methods carry totals in the URL; the LiqPay return does not, so fall back
 	// to the amount the lookup reports.
@@ -374,7 +409,7 @@ export function CheckoutSuccessContent() {
 							) : (
 								<PayNowButton
 									orderNumber={raw}
-									retryAfterSeconds={lookup?.liqpay_retry_after_seconds}
+									retryAfterSeconds={cooldownLeft}
 									onError={() => void lookupQuery.refetch()}
 									className='mt-2 w-full'
 								/>

@@ -89,8 +89,12 @@ const apiError = (status: number, message: string) => Object.assign(new Error(me
 const renderSuccess = (query: string) => {
 	navigation.search = new URLSearchParams(query)
 	// The lookup passes its own `retry` option, which wins over this default — the default
-	// only keeps any other query from retrying under fake timers.
-	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+	// only keeps any other query from retrying under fake timers. `refetchOnWindowFocus` is
+	// off because <Providers> turns it off app-wide: a refresh on tab return is the page's
+	// own doing, not React Query's default.
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } }
+	})
 	return render(
 		<QueryClientProvider client={client}>
 			<CheckoutSuccessContent />
@@ -232,6 +236,15 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 		expect(await screen.findByText('Очікуємо підтвердження оплати…')).toBeInTheDocument()
 		expect(retryButton()).not.toBeInTheDocument()
 		expect(gtag).not.toHaveBeenCalled()
+	})
+
+	it('names the tab after the state on screen, not after «Замовлення оформлено»', async () => {
+		vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(lookupResult('FAILED'))
+
+		renderSuccess(LIQPAY_QUERY)
+
+		expect(await screen.findByText('Оплата не пройшла')).toBeInTheDocument()
+		await waitFor(() => expect(document.title).toBe('Оплата не пройшла | Fillando'))
 	})
 
 	it('LiqPay without a token shows the neutral card and never converts', async () => {
@@ -476,10 +489,56 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 			await advance(POLL_WINDOW_MS)
 
 			expect(screen.getByText(NOT_CONFIRMED_TEXT)).toBeInTheDocument()
+			// The clock is local, so the minute the buyer waited out is already gone from it:
+			// 600 s at mount, 540 s once the polling window closed.
 			expect(
-				screen.getByRole('button', { name: 'Оплатити карткою можна через 10 хв' })
+				screen.getByRole('button', { name: 'Оплатити карткою можна через 9 хв' })
 			).toBeDisabled()
 			expect(changeButton()).toBeInTheDocument()
+		})
+
+		it('the cooldown clock runs down and enables the button itself, without a reload', async () => {
+			vi.useFakeTimers()
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('PENDING', changeable(90))
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+			await advance(0)
+			// 60 s of polling later the clock has 30 s left on it.
+			await advance(POLL_WINDOW_MS)
+			expect(
+				screen.getByRole('button', { name: 'Оплатити карткою можна через 1 хв' })
+			).toBeDisabled()
+
+			await advance(30_000)
+
+			const payNow = screen.getByRole('button', { name: 'Оплатити карткою' })
+			expect(payNow).toBeEnabled()
+		})
+
+		it('coming back to the tab after the polling window re-reads the status', async () => {
+			vi.useFakeTimers()
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
+				lookupResult('PENDING', changeable(600))
+			)
+
+			renderSuccess(LIQPAY_QUERY)
+			await advance(0)
+			await advance(POLL_WINDOW_MS)
+
+			const callsAtExpiry = vi.mocked(fetchOrderPaymentStatus).mock.calls.length
+			// The bank confirmed while the buyer was away — nothing polls for it any more.
+			vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(lookupResult('PAID'))
+
+			await act(async () => {
+				document.dispatchEvent(new Event('visibilitychange'))
+			})
+			await advance(0)
+
+			expect(vi.mocked(fetchOrderPaymentStatus).mock.calls.length).toBe(callsAtExpiry + 1)
+			expect(screen.getByText('Дякуємо за замовлення!')).toBeInTheDocument()
+			expect(gtag).toHaveBeenCalledTimes(1)
 		})
 
 		it('stops polling once the order is no longer a LiqPay order', async () => {

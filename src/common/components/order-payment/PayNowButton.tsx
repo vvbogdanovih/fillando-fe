@@ -17,6 +17,8 @@ interface PayNowButtonProps {
 	retryAfterSeconds: number | null | undefined
 	/** Called after a failed init so the caller can refresh the order (it may be PAID by now). */
 	onError?: () => void
+	/** The wording of the action; a payment the bank already refused is a retry, not a first try. */
+	label?: string
 	className?: string
 }
 
@@ -30,6 +32,7 @@ export function PayNowButton({
 	orderNumber,
 	retryAfterSeconds,
 	onError,
+	label = 'Оплатити карткою',
 	className
 }: PayNowButtonProps) {
 	const mutation = useMutation({
@@ -41,9 +44,7 @@ export function PayNowButton({
 	})
 
 	const waiting = typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0
-	const label = waiting
-		? `Оплатити карткою можна через ${minutesLeft(retryAfterSeconds)} хв`
-		: 'Оплатити карткою'
+	const text = waiting ? `${label} можна через ${minutesLeft(retryAfterSeconds)} хв` : label
 
 	return (
 		<Button
@@ -62,7 +63,7 @@ export function PayNowButton({
 			) : (
 				<CreditCard className='h-4 w-4' aria-hidden />
 			)}
-			{label}
+			{text}
 		</Button>
 	)
 }
