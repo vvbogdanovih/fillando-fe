@@ -1,4 +1,5 @@
 import { API_URLS } from '@/common/constants/api-routes.constants'
+import { CACHE_TAGS } from '@/common/constants/cache-tags.constants'
 import { FALLBACK_CATEGORY_LINKS, type NavLink } from '@/common/constants/navigation.constants'
 import { UI_URLS } from '@/common/constants/ui-routes.constants'
 import { serverFetch } from './server-fetch.utils'
@@ -56,7 +57,13 @@ export function isNavLinkActive(pathname: string, href: string): boolean {
 export async function getCategoryNavLinks(): Promise<readonly NavLink[]> {
 	let categories: NavCategory[] | null = null
 	try {
-		categories = await serverFetch<NavCategory[]>(API_URLS.CATEGORIES.BASE)
+		// The same URL, and therefore the same Data Cache entry, as the reads in `Home` and in
+		// the category route. `next.tags` is not part of the cache key, so an untagged call here
+		// would overwrite that entry with an untagged one and the `categories` purge would stop
+		// biting for everyone (Plan-0005 I-h).
+		categories = await serverFetch<NavCategory[]>(API_URLS.CATEGORIES.BASE, {
+			next: { tags: [CACHE_TAGS.CATEGORIES] }
+		})
 	} catch {
 		return FALLBACK_CATEGORY_LINKS
 	}

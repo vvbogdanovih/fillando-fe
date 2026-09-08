@@ -25,7 +25,11 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 	const sp = await searchParams
 	let categoryData: Category | null
 	try {
-		categoryData = await serverFetch<Category>(`/categories/slug/${category}`)
+		// Same URL as the page-body fetch below (and as the landing route's), so the tag array
+		// has to stay byte-identical everywhere — `next.tags` is not part of the fetch cache key.
+		categoryData = await serverFetch<Category>(`/categories/slug/${category}`, {
+			next: { tags: [CACHE_TAGS.CATEGORIES] }
+		})
 	} catch {
 		// Upstream outage (429/5xx/network), not a missing category: the page itself
 		// throws into the error boundary, so return neutral metadata WITHOUT noindex —
@@ -89,7 +93,10 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
 	// `null` means 404 only — a 429/5xx throws into the error boundary instead of
 	// rendering (and caching) a not-found page.
-	const categoryData = await serverFetch<Category>(`/categories/slug/${category}`)
+	// Tags identical to the `generateMetadata` fetch above — same URL, one cache entry.
+	const categoryData = await serverFetch<Category>(`/categories/slug/${category}`, {
+		next: { tags: [CACHE_TAGS.CATEGORIES] }
+	})
 	// This dynamic segment catches every unknown top-level path — unknown slugs
 	// must 404, not render an empty page.
 	if (!categoryData) notFound()
@@ -103,7 +110,12 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 		}
 	}
 	const [initialCatalog, landings] = await Promise.all([
-		serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`),
+		// Tagged so a price, stock or archive change shows in the SSR grid on the next reload
+		// rather than up to an hour later. The query string differs per filter combination, so
+		// each combination is its own cache entry and the one tag expires all of them.
+		serverFetch<CatalogResponse>(`/products/catalog?${query.toString()}`, {
+			next: { tags: [CACHE_TAGS.PRODUCTS] }
+		}),
 		// Published landings only (the endpoint filters drafts). A failure here must not take
 		// the catalogue down, so the tiles simply do not render.
 		//

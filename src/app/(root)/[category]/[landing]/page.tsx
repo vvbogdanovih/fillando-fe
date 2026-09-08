@@ -94,7 +94,11 @@ export default async function LandingRoutePage({ params, searchParams }: PagePro
 	const sp = await searchParams
 
 	const [categoryData, landingData] = await Promise.all([
-		serverFetch<Category>(`/categories/slug/${category}`),
+		// Same URL as the two tagged reads in the category route, so the tag array must match
+		// byte for byte — `next.tags` is not part of the cache key (Plan-0005 I-h).
+		serverFetch<Category>(`/categories/slug/${category}`, {
+			next: { tags: [CACHE_TAGS.CATEGORIES] }
+		}),
 		loadLanding(category, landing)
 	])
 	if (!categoryData || !landingData) notFound()
@@ -112,7 +116,8 @@ export default async function LandingRoutePage({ params, searchParams }: PagePro
 	}
 
 	const initialCatalog = await serverFetch<CatalogResponse>(
-		`/products/catalog?${query.toString()}`
+		`/products/catalog?${query.toString()}`,
+		{ next: { tags: [CACHE_TAGS.PRODUCTS] } }
 	)
 
 	return (

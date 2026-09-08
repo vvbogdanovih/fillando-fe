@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { REVALIDATE_RESOURCES } from '@/common/constants/cache-tags.constants'
 import { revalidateStorefront } from './revalidate.service'
 
 const fetchMock = vi.fn()
@@ -31,6 +32,26 @@ describe('revalidateStorefront', () => {
 				credentials: 'omit'
 			})
 		)
+	})
+
+	/**
+	 * The resource name is the whole contract with the route handler, and the handler answers 400
+	 * for a string it cannot find in its own map. Sent verbatim, never lower-cased or pluralised
+	 * on the way out.
+	 */
+	it('posts every resource name verbatim', async () => {
+		fetchMock.mockResolvedValue({ ok: true, status: 200 })
+
+		for (const resource of REVALIDATE_RESOURCES) {
+			await revalidateStorefront(resource)
+
+			expect(fetchMock).toHaveBeenLastCalledWith(
+				'/api/revalidate',
+				expect.objectContaining({ body: JSON.stringify({ resource }) })
+			)
+		}
+
+		expect(fetchMock).toHaveBeenCalledTimes(REVALIDATE_RESOURCES.length)
 	})
 
 	/** The landing is already saved by the time this runs; a refused purge is not an edit error. */

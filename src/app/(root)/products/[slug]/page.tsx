@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { ProductPage } from './ProductPage'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 import { API_URLS } from '@/common/constants/api-routes.constants'
+import { CACHE_TAGS } from '@/common/constants/cache-tags.constants'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { variantLabel } from '@/common/utils/color.utils'
@@ -22,7 +23,13 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
 	const { slug } = await params
-	const data = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
+	// Deliberately the same URL as the page-body fetch, so both share one Data Cache entry and
+	// the backend is queried once per render. `next.tags` is NOT part of the fetch cache key:
+	// whichever call renders first writes the entry with its own tags and the other's are
+	// silently dropped, so the two arrays must stay byte-identical. Do not "improve" one.
+	const data = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug), {
+		next: { tags: [CACHE_TAGS.PRODUCTS] }
+	})
 	// Streamed responses commit a 200 before notFound() can set the status, so keep
 	// soft-404s out of the index explicitly.
 	if (!data) return { title: 'Товар не знайдено', robots: { index: false, follow: false } }
@@ -57,7 +64,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductDetailPage({ params }: PageProps) {
 	const { slug } = await params
-	const initialData = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug))
+	// Tags identical to the `generateMetadata` fetch above — same URL, one cache entry. This is
+	// the read behind the price, the stock badge, the `Product` JSON-LD and the archived
+	// variant's `noindex`, all of which a crawler and Merchant see only as rendered HTML.
+	const initialData = await serverFetch<ProductDetailData>(API_URLS.PRODUCTS.BY_SLUG(slug), {
+		next: { tags: [CACHE_TAGS.PRODUCTS] }
+	})
 	if (!initialData) notFound()
 
 	return (

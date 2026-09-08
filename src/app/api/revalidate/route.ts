@@ -10,6 +10,10 @@ import { CACHE_TAGS, REVALIDATE_RESOURCES, type RevalidateResource } from '@/com
  * The map below is the entire capability, so nothing a request contains can widen the blast
  * radius; in particular `revalidatePath('/', 'layout')` is unreachable from the outside.
  *
+ * A purge is idempotent and carries no identifier, so the backend coalesces a bulk write (a
+ * Prom sync, a price import) into a single call per resource — this handler may legitimately be
+ * asked to purge `products` once for three hundred changed variants.
+ *
  * Why `{ expire: 0 }` and nothing else, in Next 16.1.4:
  *   revalidateTag(tag)             — `profile` is required by the types; fails `yarn build`
  *                                    under `strict`, and warns at runtime.
@@ -26,6 +30,23 @@ const INVALIDATIONS: Record<RevalidateResource, { tags: string[]; paths: string[
 		// /sitemap.xml needs both halves: the tag expires the memoised entry list (keyed on the
 		// product-variant count, which a landing edit never moves), and the path expires the
 		// force-static route's own daily render. Purging one leaves the sitemap up to ~48h stale.
+		paths: ['/sitemap.xml']
+	},
+	products: {
+		// LANDINGS as well as PRODUCTS: the «Популярні види» tiles read `product_count` from
+		// /landings?category_id=, so a created or archived variant moves a number that lives in
+		// the landing entry, not in a product one. The sitemap memo carries PRODUCTS itself
+		// (sitemap.ts), which is what a new or archived variant needs.
+		tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.LANDINGS],
+		paths: ['/sitemap.xml']
+	},
+	categories: {
+		// One tag covers the category doc read by /[category] (its name, its dimension set) and
+		// the /categories list the storefront menu is built from in (root)/layout.tsx — the menu
+		// renders on every storefront page, so a rename or a new category has to reach it
+		// without `revalidatePath('/', 'layout')`, which stays unreachable from outside.
+		// The sitemap memo carries CATEGORIES itself (sitemap.ts) for the category URLs.
+		tags: [CACHE_TAGS.CATEGORIES],
 		paths: ['/sitemap.xml']
 	}
 }

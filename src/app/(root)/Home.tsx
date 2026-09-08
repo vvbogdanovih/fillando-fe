@@ -1,3 +1,4 @@
+import { CACHE_TAGS } from '@/common/constants/cache-tags.constants'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 import type { Category } from '@/app/admin/categories/categories.schema'
 import type { CatalogItem, CatalogResponse } from './[category]/catalog.api'
@@ -13,14 +14,20 @@ const FILAMENT_FALLBACK =
 
 export const Home = async () => {
 	// serverFetch throws on non-404 upstream failures (→ root error boundary); null means 404 only.
-	const categories = (await serverFetch<Category[]>('/categories')) ?? []
+	// Tags must match the other readers of these two URLs byte for byte: `next.tags` is not
+	// part of the cache key, so one untagged call replaces the tagged entry (Plan-0005 I-h).
+	const categories =
+		(await serverFetch<Category[]>('/categories', {
+			next: { tags: [CACHE_TAGS.CATEGORIES] }
+		})) ?? []
 	const featuredCategory = categories.find(c => c.slug === 'filament') ?? categories[0] ?? null
 	const heroImage = featuredCategory?.image ?? FILAMENT_FALLBACK
 
 	let newest: CatalogItem[] = []
 	if (featuredCategory) {
 		const catalog = await serverFetch<CatalogResponse>(
-			`/products/catalog?category_id=${featuredCategory._id}&limit=8&sort=newest`
+			`/products/catalog?category_id=${featuredCategory._id}&limit=8&sort=newest`,
+			{ next: { tags: [CACHE_TAGS.PRODUCTS] } }
 		)
 		newest = catalog?.items ?? []
 	}

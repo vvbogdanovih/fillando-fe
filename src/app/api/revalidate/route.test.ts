@@ -67,12 +67,85 @@ describe('POST /api/revalidate', () => {
 		expect(revalidateTag.mock.calls.length + revalidatePath.mock.calls.length).toBe(3)
 	})
 
-	it('refuses a resource it does not know, so no request can name an arbitrary tag', async () => {
+	/**
+	 * A product write moves the price, the stock, the archive flag and the name inside the SSR
+	 * HTML, the `Product` JSON-LD and the metadata — none of which the browser's client re-fetch
+	 * repairs for a crawler or for Merchant, which drops offers over exactly that mismatch.
+	 */
+	it('expires the products tag immediately', async () => {
 		const res = await purge('products')
+
+		expect(res.status).toBe(200)
+		expect(revalidateTag).toHaveBeenCalledWith('products', { expire: 0 })
+	})
+
+	/** The «Популярні види» tiles print `product_count`, which lives in the landing entry. */
+	it('expires the landings tag on a product write, because the tiles carry a product count', async () => {
+		await purge('products')
+
+		expect(revalidateTag).toHaveBeenCalledWith('landings', { expire: 0 })
+	})
+
+	/** A created or archived variant adds or drops a sitemap URL. */
+	it('refreshes the sitemap on a product write', async () => {
+		await purge('products')
+
+		expect(revalidatePath).toHaveBeenCalledTimes(1)
+		expect(revalidatePath).toHaveBeenCalledWith('/sitemap.xml')
+	})
+
+	it('does not touch category caches on a product write', async () => {
+		await purge('products')
+
+		expect(revalidateTag).not.toHaveBeenCalledWith('categories', expect.anything())
+		expect(revalidateTag.mock.calls.length + revalidatePath.mock.calls.length).toBe(3)
+	})
+
+	/**
+	 * The menu is fetched in `(root)/layout.tsx`, which every storefront page renders through, so
+	 * the tag on that fetch is what carries a rename or a new category — `revalidatePath('/',
+	 * 'layout')` stays unreachable from outside on purpose.
+	 */
+	it('expires the categories tag immediately, which is what the storefront menu hangs on', async () => {
+		const res = await purge('categories')
+
+		expect(res.status).toBe(200)
+		expect(revalidateTag).toHaveBeenCalledWith('categories', { expire: 0 })
+		expect(revalidatePath).toHaveBeenCalledWith('/sitemap.xml')
+	})
+
+	it('does not touch product caches on a category write', async () => {
+		await purge('categories')
+
+		expect(revalidateTag).not.toHaveBeenCalledWith('products', expect.anything())
+		expect(revalidateTag.mock.calls.length + revalidatePath.mock.calls.length).toBe(2)
+	})
+
+	it('reports back the tags and paths it purged', async () => {
+		const res = await purge('products')
+
+		await expect(res.json()).resolves.toMatchObject({
+			revalidated: true,
+			resource: 'products',
+			tags: ['products', 'landings'],
+			paths: ['/sitemap.xml']
+		})
+	})
+
+	/** `colors` is a real admin resource and deliberately out of scope — it must still 400. */
+	it('refuses a resource it does not know, so no request can name an arbitrary tag', async () => {
+		const res = await purge('colors')
 
 		expect(res.status).toBe(400)
 		expect(revalidateTag).not.toHaveBeenCalled()
 		expect(revalidatePath).not.toHaveBeenCalled()
+	})
+
+	it('refuses a tag string smuggled in as a resource', async () => {
+		const res = await purge('sitemap')
+
+		expect(res.status).toBe(400)
+		expect(revalidateTag).not.toHaveBeenCalled()
 	})
 
 	it('refuses a malformed body rather than throwing', async () => {
@@ -126,6 +199,25 @@ describe('POST /api/revalidate', () => {
 
 			expect(res.status).toBe(200)
 			expect(revalidateTag).toHaveBeenCalledWith('landings', { expire: 0 })
+		})
+
+		it('accepts a matching secret for a product purge too', async () => {
+			vi.stubEnv('REVALIDATE_SECRET', 's'.repeat(32))
+
+			const res = await purge('products', { 'x-revalidate-secret': 's'.repeat(32) })
+
+			expect(res.status).toBe(200)
+			expect(revalidateTag).toHaveBeenCalledWith('products', { expire: 0 })
+		})
+
+		/** Every resource fails closed, not just the one the endpoint shipped with. */
+		it('stays disabled for the new resources while no secret is configured', async () => {
+			const products = await purge('products')
+			const categories = await purge('categories')
+
+			expect(products.status).toBe(503)
+			expect(categories.status).toBe(503)
+			expect(revalidateTag).not.toHaveBeenCalled()
 		})
 
 		it('refuses a wrong secret of the same length', async () => {

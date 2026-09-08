@@ -85,12 +85,19 @@ const fetchSitemapEntries = unstable_cache(
 	['sitemap-entries'],
 	// Re-fetched when count (cache key) changes, and at most daily otherwise —
 	// category/slug changes don't affect the count, so a hard `false` here
-	// would keep serving stale URLs forever. The tag is the on-demand escape from
-	// exactly that: publishing a landing adds a URL without moving the variant count,
-	// so nothing else would invalidate this entry for a day. It has to sit on the
-	// options object — `keyParts` are not tags, and the inner fetches pass
-	// `revalidate: 0`, so they never reach the Data Cache to carry one.
-	{ revalidate: 86400, tags: [CACHE_TAGS.SITEMAP] }
+	// would keep serving stale URLs forever. The tags are the on-demand escape from
+	// exactly that: publishing a landing, renaming a category or archiving a variant
+	// adds or drops a URL without moving the variant count, so nothing else would
+	// invalidate this entry for a day. They have to sit on the options object —
+	// `keyParts` are not tags, and the inner fetches pass `revalidate: 0`, so they
+	// never reach the Data Cache to carry one.
+	//
+	// One tag per data source this entry embeds: SITEMAP is the landings resource's
+	// handle on it (kept as is), PRODUCTS covers the variant slugs and CATEGORIES the
+	// category slugs. `/api/revalidate` purges the matching tag plus the `/sitemap.xml`
+	// path — the path is the other half, and without it the force-static route serves
+	// its own daily render regardless of this entry.
+	{ revalidate: 86400, tags: [CACHE_TAGS.SITEMAP, CACHE_TAGS.PRODUCTS, CACHE_TAGS.CATEGORIES] }
 )
 
 // The count check below is a `revalidate: 0` fetch. Without `force-static` Next
