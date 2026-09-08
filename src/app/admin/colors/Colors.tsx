@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon } from 'lucide-react'
+import { PlusIcon, SearchIcon } from 'lucide-react'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
+import { Input } from '@/common/components/ui/input'
 import { colorsApi } from './colors.api'
 import { ColorTable } from './_components/ColorTable'
+import { filterColors } from './_components/color-search'
 import { ColorForm } from './_components/ColorForm'
 import type { AdminColor } from './colors.schema'
 
@@ -14,6 +16,7 @@ type PanelState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; colo
 
 export const Colors = () => {
 	const [panel, setPanel] = useState<PanelState>({ mode: 'closed' })
+	const [query, setQuery] = useState('')
 
 	const {
 		data: colors = [],
@@ -21,6 +24,11 @@ export const Colors = () => {
 		isError,
 		refetch
 	} = useQuery({ queryKey: ['colors'], queryFn: () => colorsApi.getAll() })
+
+	// Screen state only: nothing here reaches the URL. The counter reads «Показано N з M» as the
+	// artboard draws it, and with a search box on screen «122 з 122» says «nothing is filtering»
+	// rather than repeating itself (the owner's call, 2026-09-08).
+	const visible = filterColors(colors, query)
 
 	// Keep the open form pointing at the cached copy, so an edit elsewhere is reflected.
 	const selected =
@@ -34,7 +42,7 @@ export const Colors = () => {
 						<CardTitle>
 							Кольори
 							<span className='ml-2 text-sm font-normal text-gray-400'>
-								{colors.length}
+								Показано {visible.length} з {colors.length}
 							</span>
 						</CardTitle>
 						{/*
@@ -68,6 +76,20 @@ export const Colors = () => {
 						нитки в одному записі може бути скільки треба — від одного до шести.
 					</p>
 
+					{!isLoading && !isError && (
+						<div className='relative max-w-sm'>
+							<SearchIcon className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
+							<Input
+								type='search'
+								value={query}
+								onChange={e => setQuery(e.target.value)}
+								placeholder='Пошук: назва, slug, родина'
+								aria-label='Пошук кольору'
+								className='pl-9'
+							/>
+						</div>
+					)}
+
 					{isLoading ? (
 						<p className='text-sm text-gray-500'>Завантаження...</p>
 					) : isError ? (
@@ -79,7 +101,8 @@ export const Colors = () => {
 						</div>
 					) : (
 						<ColorTable
-							colors={colors}
+							colors={visible}
+							query={query}
 							onSelect={color => setPanel({ mode: 'edit', color })}
 						/>
 					)}

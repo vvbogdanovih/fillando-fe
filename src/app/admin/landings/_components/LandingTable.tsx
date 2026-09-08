@@ -10,15 +10,17 @@ import { DeleteConfirmDialog } from '@/app/admin/vendors/_components/DeleteConfi
 import { categoriesApi } from '@/app/admin/categories/categories.api'
 import { revalidateStorefront } from '@/common/services/revalidate.service'
 import { landingsApi } from '../landings.api'
-import { hasContent, type AdminLanding } from '../landings.schema'
+import { LANDING_STATUS_LABELS, hasContent, type AdminLanding } from '../landings.schema'
 import { attributeLabel, buildAttributeLabels } from './landing-attributes'
 
 interface LandingTableProps {
 	landings: AdminLanding[]
+	/** The screen's search text: tells an empty list «nothing matched» from «nothing exists». */
+	query?: string
 	onSelect: (landing: AdminLanding) => void
 }
 
-export const LandingTable = ({ landings, onSelect }: LandingTableProps) => {
+export const LandingTable = ({ landings, query = '', onSelect }: LandingTableProps) => {
 	const queryClient = useQueryClient()
 	const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -50,7 +52,8 @@ export const LandingTable = ({ landings, onSelect }: LandingTableProps) => {
 
 	const sorted = [...landings].sort((a, b) => a.order - b.order || a.h1.localeCompare(b.h1, 'uk'))
 
-	if (sorted.length === 0) {
+	const needle = query.trim()
+	if (sorted.length === 0 && needle === '') {
 		return (
 			<p className='py-6 text-center text-sm text-gray-400'>
 				Лендінгів немає. Стартовий набір створює скрипт seed-landings.js.
@@ -75,6 +78,13 @@ export const LandingTable = ({ landings, onSelect }: LandingTableProps) => {
 						</tr>
 					</thead>
 					<tbody>
+						{sorted.length === 0 && (
+							<tr>
+								<td colSpan={8} className='py-6 text-center text-sm text-gray-400'>
+									Нічого не знайдено за «{needle}»
+								</td>
+							</tr>
+						)}
 						{sorted.map(landing => {
 							const written = hasContent(landing)
 							const pinned = Object.entries(landing.filters)
@@ -159,9 +169,7 @@ export const LandingTable = ({ landings, onSelect }: LandingTableProps) => {
 											}
 											className='text-xs whitespace-nowrap'
 										>
-											{landing.status === 'active'
-												? 'Опубліковано'
-												: 'Чернетка'}
+											{LANDING_STATUS_LABELS[landing.status]}
 										</Badge>
 									</td>
 									<td className='px-3 py-2 text-right text-gray-600 tabular-nums'>

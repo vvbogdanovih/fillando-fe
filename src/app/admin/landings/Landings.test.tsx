@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Landings } from './Landings'
 import type { AdminLanding } from './landings.schema'
@@ -76,17 +76,42 @@ describe('Landings screen', () => {
 	})
 })
 
+const THREE = [
+	LANDING,
+	{ ...LANDING, _id: '2', h1: 'PLA', slug: 'pla', status: 'active' },
+	{ ...LANDING, _id: '3', h1: 'PETG', slug: 'petg', status: 'active' }
+] as AdminLanding[]
+
+const searchBox = () => screen.getByRole('searchbox', { name: 'Пошук лендінгу' })
+
 describe('Landings screen header', () => {
-	it('counts the landings and how many of them are reachable', async () => {
-		getAll.mockResolvedValueOnce([
-			LANDING,
-			{ ...LANDING, _id: '2', h1: 'PLA', status: 'active' },
-			{ ...LANDING, _id: '3', h1: 'PETG', status: 'active' }
-		])
+	it('reads «Показано N з M · активних K», with K over the whole list', async () => {
+		getAll.mockResolvedValueOnce(THREE)
 		renderScreen()
 
-		// The artboard's «Показано N з M» is left out — nothing filters this list — but the
-		// active count says how many a visitor can actually reach.
-		expect(await screen.findByText(/3 · активних 2/)).toBeInTheDocument()
+		expect(await screen.findByText(/Показано 3 з 3 · активних 2/)).toBeInTheDocument()
+
+		// Narrowing to the one draft keeps K at 2: it says how many a visitor can reach, not how
+		// many are on screen — the artboard's «7 з 14 · активних 11» has K above N too.
+		fireEvent.change(searchBox(), { target: { value: 'чернетк' } })
+		expect(screen.getByText(/Показано 1 з 3 · активних 2/)).toBeInTheDocument()
+		expect(screen.getByText('PLA Silk')).toBeInTheDocument()
+		expect(screen.queryByText('PETG')).not.toBeInTheDocument()
+	})
+
+	it('matches the H1 and says what was searched when nothing matches', async () => {
+		getAll.mockResolvedValueOnce(THREE)
+		renderScreen()
+		await screen.findByText('PLA Silk')
+
+		fireEvent.change(searchBox(), { target: { value: 'petg' } })
+		expect(screen.getByText('PETG')).toBeInTheDocument()
+		expect(screen.queryByText('PLA Silk')).not.toBeInTheDocument()
+
+		fireEvent.change(searchBox(), { target: { value: 'zzz' } })
+		expect(
+			within(screen.getByRole('table')).getByText('Нічого не знайдено за «zzz»')
+		).toBeInTheDocument()
+		expect(screen.queryByText(/Лендінгів немає/)).not.toBeInTheDocument()
 	})
 })

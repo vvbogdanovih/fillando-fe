@@ -27,7 +27,8 @@ import {
 	TITLE_SOFT_LIMIT,
 	landingFormSchema,
 	type Landing,
-	type LandingFormValues
+	type LandingFormValues,
+	LANDING_STATUS_LABELS
 } from '../landings.schema'
 import { HtmlEditor } from './HtmlEditor'
 import { PinnedFilters } from './PinnedFilters'
@@ -502,8 +503,12 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value='draft'>Чернетка</SelectItem>
-									<SelectItem value='active'>Опубліковано</SelectItem>
+									<SelectItem value='draft'>
+										{LANDING_STATUS_LABELS.draft}
+									</SelectItem>
+									<SelectItem value='active'>
+										{LANDING_STATUS_LABELS.active}
+									</SelectItem>
 								</SelectContent>
 							</Select>
 							{status === 'draft' && (

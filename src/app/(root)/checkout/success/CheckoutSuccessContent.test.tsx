@@ -185,7 +185,7 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 		expect(gtag).not.toHaveBeenCalled()
 	})
 
-	it('LiqPay: VOIDED renders the failure card with the card retry only — a cancelled order cannot change method', async () => {
+	it('LiqPay: VOIDED is a cancelled order — its own wording, no retry and no change of method', async () => {
 		vi.mocked(fetchOrderPaymentStatus).mockResolvedValue(
 			lookupResult('VOIDED', {
 				order_status: 'CANCELLED',
@@ -197,8 +197,12 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 
 		renderSuccess(LIQPAY_QUERY)
 
-		expect(await screen.findByText('Оплата не пройшла')).toBeInTheDocument()
-		expect(retryButton()).toBeInTheDocument()
+		// The gateway answers 400 for a cancelled order, so a retry button would only produce an
+		// error; and «банк відхилив» would be untrue — no bank was asked.
+		expect(await screen.findByText('Замовлення скасовано')).toBeInTheDocument()
+		expect(screen.getByText(/кошти не списувалися/)).toBeInTheDocument()
+		expect(screen.queryByText('Оплата не пройшла')).not.toBeInTheDocument()
+		expect(retryButton()).not.toBeInTheDocument()
 		expect(
 			screen.queryByRole('button', { name: 'Обрати інший спосіб оплати' })
 		).not.toBeInTheDocument()

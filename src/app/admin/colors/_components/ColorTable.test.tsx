@@ -25,14 +25,29 @@ const color = (over: Partial<AdminColor> & Pick<AdminColor, 'name_en' | 'variant
 		...over
 	}) as AdminColor
 
-const renderTable = (colors: AdminColor[]) => {
+const renderTable = (colors: AdminColor[], query = '') => {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 	return render(
 		<QueryClientProvider client={client}>
-			<ColorTable colors={colors} onSelect={vi.fn()} />
+			<ColorTable colors={colors} query={query} onSelect={vi.fn()} />
 		</QueryClientProvider>
 	)
 }
+
+describe('ColorTable — two kinds of empty', () => {
+	it('an empty dictionary is a paragraph, not a table', () => {
+		renderTable([])
+		expect(screen.getByText(/Словник порожній/)).toBeInTheDocument()
+		expect(screen.queryByRole('table')).not.toBeInTheDocument()
+	})
+
+	it('a search that matched nothing keeps the table and says what was searched', () => {
+		renderTable([], 'бірюз')
+		expect(screen.getByRole('table')).toBeInTheDocument()
+		expect(screen.getByText('Нічого не знайдено за «бірюз»')).toBeInTheDocument()
+		expect(screen.queryByText(/Словник порожній/)).not.toBeInTheDocument()
+	})
+})
 
 const rowOf = (nameEn: string) => screen.getByText(nameEn).closest('tr') as HTMLElement
 

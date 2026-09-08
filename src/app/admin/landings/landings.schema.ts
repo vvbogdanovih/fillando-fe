@@ -4,6 +4,12 @@ import * as z from 'zod'
 export const LANDING_STATUSES = ['draft', 'active'] as const
 export type LandingStatus = (typeof LANDING_STATUSES)[number]
 
+/** Ukrainian labels for the admin — the stored value stays the English enum. */
+export const LANDING_STATUS_LABELS: Record<LandingStatus, string> = {
+	draft: 'Чернетка',
+	active: 'Опубліковано'
+}
+
 /**
  * Google truncates around these lengths. They are guidance, not validation — a longer title is
  * allowed, the counter just turns amber so the editor knows it will be cut.

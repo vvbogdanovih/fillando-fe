@@ -14,10 +14,12 @@ import { stopsLabel } from './color-labels'
 
 interface ColorTableProps {
 	colors: AdminColor[]
+	/** The screen's search text: tells an empty list «nothing matched» from «nothing exists». */
+	query?: string
 	onSelect: (color: AdminColor) => void
 }
 
-export const ColorTable = ({ colors, onSelect }: ColorTableProps) => {
+export const ColorTable = ({ colors, query = '', onSelect }: ColorTableProps) => {
 	const queryClient = useQueryClient()
 	const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -41,7 +43,8 @@ export const ColorTable = ({ colors, onSelect }: ColorTableProps) => {
 		(a, b) => a.order - b.order || a.name_en.localeCompare(b.name_en)
 	)
 
-	if (sorted.length === 0) {
+	const needle = query.trim()
+	if (sorted.length === 0 && needle === '') {
 		return (
 			<p className='py-6 text-center text-sm text-gray-400'>
 				Словник порожній. Заповнюється скриптом seed-colors.js або вручну.
@@ -69,6 +72,13 @@ export const ColorTable = ({ colors, onSelect }: ColorTableProps) => {
 						</tr>
 					</thead>
 					<tbody>
+						{sorted.length === 0 && (
+							<tr>
+								<td colSpan={9} className='py-6 text-center text-sm text-gray-400'>
+									Нічого не знайдено за «{needle}»
+								</td>
+							</tr>
+						)}
 						{sorted.map(color => (
 							<tr
 								key={color._id}

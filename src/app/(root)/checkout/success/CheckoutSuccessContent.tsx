@@ -112,12 +112,21 @@ function resolveLiqpayView(args: {
 						'Оплату через LiqPay отримано. Підтвердження надіслано на вашу електронну пошту.'
 				}
 			case 'FAILED':
-			case 'VOIDED':
 				return {
 					tone: 'failed',
 					title: 'Оплата не пройшла',
 					description:
 						'Банк відхилив платіж — кошти не списано. Замовлення збережено: можна оплатити карткою ще раз або обрати інший спосіб оплати.'
+				}
+			// VOIDED is not a bank refusal: the order was cancelled while unpaid and the payment
+			// closed with it (state-machines.md). The gateway refuses a cancelled order with 400, so
+			// offering «Повторити оплату» here would only produce an error — neutral tone, no actions.
+			case 'VOIDED':
+				return {
+					tone: 'neutral',
+					title: 'Замовлення скасовано',
+					description:
+						'Замовлення скасовано, кошти не списувалися. Якщо це сталося помилково — зв’яжіться з нами, і ми його відновимо.'
 				}
 			case 'REFUNDED':
 				return {

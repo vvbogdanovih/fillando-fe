@@ -56,9 +56,15 @@ const catalogueItems = [
 	{ label: 'Categories', href: UI_URLS.ADMIN.CATEGORIES, icon: Tag },
 	{ label: 'Vendors', href: UI_URLS.ADMIN.VENDORS, icon: Store },
 	{ label: 'Colors', href: UI_URLS.ADMIN.COLORS, icon: Palette, badge: 'нове' },
-	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText, badge: 'нове' },
-	{ label: 'Google Feed', href: UI_URLS.ADMIN.FEED, icon: Rss, badge: 'нове' }
+	{ label: 'Landings', href: UI_URLS.ADMIN.LANDINGS, icon: FileText, badge: 'нове' }
 ]
+
+/**
+ * A top-level item right below the Catalogue accordion, as the AdminFeed artboard places it: the
+ * feed is an output of the catalogue, not one of its tables, and it has to stay reachable with
+ * the accordion closed (the owner's call, 2026-09-08).
+ */
+const feedItem = { label: 'Google Feed', href: UI_URLS.ADMIN.FEED, icon: Rss, badge: 'нове' }
 
 const bottomNavItems = [{ label: 'Style Guide', href: UI_URLS.ADMIN.STYLE_GUIDE, icon: Palette }]
 
@@ -176,6 +182,8 @@ export const AdminSidebar = () => {
 						</div>
 					)}
 				</div>
+
+				{navLink(feedItem.href, feedItem.icon, feedItem.label, feedItem.badge)}
 
 				{bottomNavItems.map(({ label, href, icon }) => navLink(href, icon, label))}
 			</nav>

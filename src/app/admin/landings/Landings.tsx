@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon } from 'lucide-react'
+import { PlusIcon, SearchIcon } from 'lucide-react'
 import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
+import { Input } from '@/common/components/ui/input'
 import { landingsApi } from './landings.api'
 import { LandingTable } from './_components/LandingTable'
+import { filterLandings } from './_components/landing-search'
 import { LandingForm } from './_components/LandingForm'
 import type { AdminLanding } from './landings.schema'
 
@@ -14,6 +16,8 @@ type PanelState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; land
 
 export const Landings = () => {
 	const [panel, setPanel] = useState<PanelState>({ mode: 'closed' })
+	// Survives opening the form: the component stays mounted and only swaps what it renders.
+	const [query, setQuery] = useState('')
 
 	const {
 		data: landings = [],
@@ -22,6 +26,9 @@ export const Landings = () => {
 		refetch
 	} = useQuery({ queryKey: ['landings', 'admin'], queryFn: () => landingsApi.getAll() })
 
+	// «Показано N з M · активних K», as the artboard draws it: N follows the search, M and K are
+	// over the whole list — K says how many a visitor can actually reach, whatever is typed.
+	const visible = filterLandings(landings, query)
 	const activeCount = landings.filter(l => l.status === 'active').length
 
 	// Keep the open form pointing at the cached copy, so a change elsewhere is reflected.
@@ -49,14 +56,9 @@ export const Landings = () => {
 					<div className='flex items-center justify-between gap-3'>
 						<CardTitle>
 							Лендінги
-							{/*
-							 * «Показано N з M» from the artboard is left out: there is no filter
-							 * or pagination here, so it would always read "14 з 14". The active
-							 * count is the half that says something — how many of them a visitor
-							 * can actually reach.
-							 */}
 							<span className='ml-2 text-sm font-normal text-gray-400'>
-								{landings.length} · активних {activeCount}
+								Показано {visible.length} з {landings.length} · активних{' '}
+								{activeCount}
 							</span>
 						</CardTitle>
 						{/* Locked until the list is on screen: creating against a cache that never
@@ -80,6 +82,20 @@ export const Landings = () => {
 						підкатегорія, тож той самий товар може потрапити на кілька лендінгів.
 					</p>
 
+					{!isLoading && !isError && (
+						<div className='relative max-w-sm'>
+							<SearchIcon className='text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2' />
+							<Input
+								type='search'
+								value={query}
+								onChange={e => setQuery(e.target.value)}
+								placeholder='Пошук: H1, адреса, статус'
+								aria-label='Пошук лендінгу'
+								className='pl-9'
+							/>
+						</div>
+					)}
+
 					{isLoading ? (
 						<p className='text-sm text-gray-500'>Завантаження...</p>
 					) : isError ? (
@@ -91,7 +107,8 @@ export const Landings = () => {
 						</div>
 					) : (
 						<LandingTable
-							landings={landings}
+							landings={visible}
+							query={query}
 							onSelect={landing => setPanel({ mode: 'edit', landing })}
 						/>
 					)}

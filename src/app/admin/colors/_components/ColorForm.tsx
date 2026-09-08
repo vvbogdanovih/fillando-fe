@@ -29,6 +29,7 @@ import { Label } from '@/common/components/ui/label'
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle
@@ -207,6 +208,10 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 			<DialogContent className='sm:max-w-lg'>
 				<DialogHeader>
 					<DialogTitle>{initial ? 'Редагувати колір' : 'Новий колір'}</DialogTitle>
+					<DialogDescription>
+						Канонічна англійська назва від виробника, український переклад, родина для
+						фільтра і скільки завгодно кольорів нитки.
+					</DialogDescription>
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit(values => save(values))}>
@@ -415,7 +420,9 @@ export const ColorForm = ({ initial, onClose }: ColorFormProps) => {
 									? 'Один колір — суцільний кружечок.'
 									: family === 'multicolor'
 										? 'Кілька кольорів у родині «Багатокольорові» — конічний градієнт.'
-										: 'Кілька кольорів — лінійний градієнт.'}
+										: 'Кілька кольорів — лінійний градієнт.'}{' '}
+								Порядок кольорів — це порядок градієнта: для Dual-Silk два, для
+								Tri-Silk три, для градієнтних скільки треба (до {MAX_STOPS}).
 							</p>
 						</div>
 

@@ -70,14 +70,29 @@ const landing = (over: Partial<AdminLanding> & Pick<AdminLanding, 'h1'>) =>
 		...over
 	}) as AdminLanding
 
-const renderTable = (landings: AdminLanding[]) => {
+const renderTable = (landings: AdminLanding[], query = '') => {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 	return render(
 		<QueryClientProvider client={client}>
-			<LandingTable landings={landings} onSelect={vi.fn()} />
+			<LandingTable landings={landings} query={query} onSelect={vi.fn()} />
 		</QueryClientProvider>
 	)
 }
+
+describe('LandingTable — two kinds of empty', () => {
+	it('no landings at all is a paragraph, not a table', () => {
+		renderTable([])
+		expect(screen.getByText(/Лендінгів немає/)).toBeInTheDocument()
+		expect(screen.queryByRole('table')).not.toBeInTheDocument()
+	})
+
+	it('a search that matched nothing keeps the table and says what was searched', () => {
+		renderTable([], 'карбон')
+		expect(screen.getByRole('table')).toBeInTheDocument()
+		expect(screen.getByText('Нічого не знайдено за «карбон»')).toBeInTheDocument()
+		expect(screen.queryByText(/Лендінгів немає/)).not.toBeInTheDocument()
+	})
+})
 
 const rowOf = (h1: string) => screen.getByText(h1).closest('tr') as HTMLElement
 
