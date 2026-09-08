@@ -12,11 +12,16 @@ export interface NavLink {
  */
 export const STATIC_NAV_LINKS: readonly NavLink[] = [
 	{ href: UI_URLS.PRICE_SHEET, label: 'Прайс-лист' },
-	{ href: UI_URLS.WHOLESALE, label: 'Співпраця' },
-	{ href: UI_URLS.FAQ, label: 'FAQ' }
+	{ href: UI_URLS.WHOLESALE, label: 'Опт' },
+	{ href: UI_URLS.FAQ, label: 'FAQ' },
+	{ href: UI_URLS.CONTACTS, label: 'Контакти' }
 ]
 
-/** Used when the category endpoint is unreachable — the menu degrades, it does not disappear. */
+/**
+ * Used when the category endpoint is unreachable — the menu degrades, it does not disappear.
+ * The label has to be the one the shopper normally sees for `/filament` («Філамент», as the
+ * category is named in the admin), otherwise an outage silently renames the menu item.
+ */
 export const FALLBACK_CATEGORY_LINKS: readonly NavLink[] = [
-	{ href: UI_URLS.CATALOG.FILAMENT, label: 'Матеріали' }
+	{ href: UI_URLS.CATALOG.FILAMENT, label: 'Філамент' }
 ]

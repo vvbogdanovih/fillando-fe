@@ -1,5 +1,6 @@
 import { API_URLS } from '@/common/constants/api-routes.constants'
 import { FALLBACK_CATEGORY_LINKS, type NavLink } from '@/common/constants/navigation.constants'
+import { UI_URLS } from '@/common/constants/ui-routes.constants'
 import { serverFetch } from './server-fetch.utils'
 
 interface NavCategory {
@@ -8,8 +9,37 @@ interface NavCategory {
 	order?: number
 }
 
+/** `/filament/` and `/filament` are the same address; compare them as one. */
+const stripTrailingSlash = (path: string) =>
+	path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+
 /**
- * SERVER ONLY — imports serverFetch, which must never reach the browser bundle.
+ * Whether a navigation link points at the page currently open.
+ *
+ * Two traps this exists to avoid:
+ *
+ * 1. A bare `startsWith` also lights up a sibling that merely shares the prefix — `/filament-x`
+ *    would be highlighted together with `/filament`. The match has to land on a segment
+ *    boundary, so only `/filament` itself and `/filament/<something>` count.
+ * 2. A landing lives under its category (`/filament/pla-silk`), and the artboards show
+ *    «Філамент» highlighted there too — so a descendant path activates its ancestor link.
+ *
+ * `/` is the exception: every path is its descendant, so it matches exactly or not at all.
+ */
+export function isNavLinkActive(pathname: string, href: string): boolean {
+	const path = stripTrailingSlash(pathname)
+	const target = stripTrailingSlash(href)
+
+	if (target === UI_URLS.HOME) return path === UI_URLS.HOME
+
+	return path === target || path.startsWith(`${target}/`)
+}
+
+/**
+ * SERVER ONLY — the only export of this module that is. `isNavLinkActive` above is pure and is
+ * imported by the client header and mobile menu; that is safe because `server-fetch.utils.ts`
+ * holds no secret (its single module-level value is the public `NEXT_PUBLIC_API_BASE_URL`) and
+ * no server-only API, so the unused export shakes out. Do not add one that does.
  *
  * Storefront categories as navigation links, for the header, the mobile menu and the footer.
  *

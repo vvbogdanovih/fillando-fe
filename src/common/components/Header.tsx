@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ShoppingCart } from 'lucide-react'
 import { DesktopSearchBar, MobileSearchToggle } from '@/common/components/SearchBar'
 import { UI_URLS, type NavLink } from '@/common/constants'
@@ -11,6 +11,8 @@ import { MobileMenu } from '@/common/components/MobileMenu'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
 import { CartSidebar } from '@/common/components/CartSidebar'
+import { isNavLinkActive } from '@/common/utils/navigation.utils'
+import { cn } from '@/common/utils/shad-cn.utils'
 
 // `ssr: false` is safe here: `user` comes from a skipHydration Zustand store that
 // only rehydrates after mount, so the server never renders this branch anyway.
@@ -26,6 +28,7 @@ export function Header({ navLinks }: { navLinks: NavLink[] }) {
 	const items = useCartStore(s => s.items)
 	const guestItems = useCartStore(s => s.guestItems)
 	const router = useRouter()
+	const pathname = usePathname()
 
 	const totalCount = user
 		? items.reduce((sum, i) => sum + i.quantity, 0)
@@ -61,15 +64,24 @@ export function Header({ navLinks }: { navLinks: NavLink[] }) {
 
 					<div className='hidden min-w-0 flex-1 items-center justify-center gap-6 md:flex'>
 						<nav className='flex shrink-0 items-center gap-6'>
-							{navLinks.map(({ href, label }) => (
-								<Link
-									key={href}
-									href={href}
-									className='text-muted-foreground hover:text-primary text-sm font-medium whitespace-nowrap transition-colors'
-								>
-									{label}
-								</Link>
-							))}
+							{navLinks.map(({ href, label }) => {
+								const active = isNavLinkActive(pathname, href)
+								return (
+									<Link
+										key={href}
+										href={href}
+										aria-current={active ? 'page' : undefined}
+										className={cn(
+											'text-sm whitespace-nowrap transition-colors',
+											active
+												? 'text-foreground font-semibold'
+												: 'text-muted-foreground hover:text-primary font-medium'
+										)}
+									>
+										{label}
+									</Link>
+								)
+							})}
 						</nav>
 						<DesktopSearchBar />
 					</div>

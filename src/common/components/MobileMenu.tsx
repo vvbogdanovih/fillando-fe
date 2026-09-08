@@ -2,15 +2,18 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Menu, X, Phone } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { CONTACTS, type NavLink } from '@/common/constants'
 import { TelegramIcon, ViberIcon } from '@/common/components/icons/BrandIcons'
 import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
+import { isNavLinkActive } from '@/common/utils/navigation.utils'
 import { cn } from '@/common/utils/shad-cn.utils'
 
 export function MobileMenu({ navLinks }: { navLinks: NavLink[] }) {
 	const [open, setOpen] = useState(false)
+	const pathname = usePathname()
 
 	// Pause Lenis while the menu is open so the background doesn't creep.
 	useLenisModalLock(open)
@@ -48,16 +51,25 @@ export function MobileMenu({ navLinks }: { navLinks: NavLink[] }) {
 					</div>
 
 					<nav className='flex flex-col gap-1 p-3'>
-						{navLinks.map(({ href, label }) => (
-							<Dialog.Close key={href} asChild>
-								<Link
-									href={href}
-									className='hover:bg-accent hover:text-primary rounded-lg px-3 py-2.5 font-medium transition-colors'
-								>
-									{label}
-								</Link>
-							</Dialog.Close>
-						))}
+						{navLinks.map(({ href, label }) => {
+							const active = isNavLinkActive(pathname, href)
+							return (
+								<Dialog.Close key={href} asChild>
+									<Link
+										href={href}
+										aria-current={active ? 'page' : undefined}
+										className={cn(
+											'rounded-lg px-3 py-2.5 transition-colors',
+											active
+												? 'bg-accent text-foreground font-semibold'
+												: 'hover:bg-accent hover:text-primary font-medium'
+										)}
+									>
+										{label}
+									</Link>
+								</Dialog.Close>
+							)
+						})}
 					</nav>
 
 					<div className='border-border mt-auto flex flex-col gap-4 border-t p-6'>

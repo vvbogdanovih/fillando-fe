@@ -48,7 +48,7 @@ export function Footer({ categories }: { categories: NavLink[] }) {
 							href={UI_URLS.WHOLESALE}
 							className='text-muted-foreground hover:text-primary text-sm transition-colors'
 						>
-							Співпраця
+							Опт
 						</Link>
 						<Link
 							href={UI_URLS.FAQ}
