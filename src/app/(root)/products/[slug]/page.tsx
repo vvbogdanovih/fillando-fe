@@ -39,8 +39,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 	// Short product names (migration 3k) carry no category word, so the title adds it — see
 	// `productPageTitle`; the H1 and the JSON-LD name stay the plain form the artboards draw.
 	const title = variantValue ? productPageTitle(product.name, variantValue) : variant.name
-	const rawDescription = product.description?.html?.replace(/<[^>]*>/g, '').slice(0, 155) ?? null
-	const description = rawDescription ?? `Купити ${title} у Fillando`
+	// An emptied editor stores `<p><br></p>`, which strips to '' — not nullish, so `??` shipped
+	// that empty string as the whole meta description instead of the generated fallback.
+	const stripped = product.description?.html?.replace(/<[^>]*>/g, '').trim()
+	const description = stripped ? stripped.slice(0, 155) : `Купити ${title} у Fillando`
 	const image = variant.images?.[0]
 	const canonical = `${SITE_URL}/products/${slug}`
 
