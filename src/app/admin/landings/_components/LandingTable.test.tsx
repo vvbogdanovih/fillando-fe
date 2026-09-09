@@ -201,6 +201,16 @@ describe('LandingTable', () => {
 			expect(screen.getByText('Ефект поверхні: Silk')).toBeInTheDocument()
 		})
 
+		/**
+		 * `finish: Glow, Luminous` and `reinforcement: CF, GF` really exist, so a chip narrowed to
+		 * `values[0]` would describe a landing narrower than the one that gets published.
+		 */
+		it('lists every value of one attribute, not only the first', async () => {
+			renderTable([landing({ h1: 'Світиться', filters: { finish: ['Glow', 'Luminous'] } })])
+
+			expect(await screen.findByText('Ефект поверхні: Glow, Luminous')).toBeInTheDocument()
+		})
+
 		it('falls back to the raw key rather than an empty chip', async () => {
 			renderTable([landing({ h1: 'Дивний', filters: { unknown_key: ['X'] } })])
 
