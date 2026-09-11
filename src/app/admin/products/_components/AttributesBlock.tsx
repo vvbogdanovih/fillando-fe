@@ -78,9 +78,7 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 			{/* Required attributes from category */}
 			{requiredAttrs.length > 0 && (
 				<div className='flex flex-col gap-3'>
-					<p className='text-xs font-medium text-gray-500'>
-						Обов'язкові атрибути підкатегорії
-					</p>
+					<p className='text-xs font-medium text-gray-500'>Характеристики категорії</p>
 					{required.map(row => {
 						const attr = row.attr
 						return (
@@ -88,6 +86,9 @@ export const AttributesBlock = ({ fieldArray, errors, requiredAttrs }: Attribute
 								<div className='flex w-48 shrink-0 flex-col gap-1'>
 									<span className='text-xs font-medium text-gray-700'>
 										{attr.label}
+										<span className='text-muted-foreground block text-[11px]'>
+											{attr.is_required ? 'Обов’язкове' : 'Необов’язкове'}
+										</span>
 									</span>
 									{attr.unit && (
 										<span className='text-muted-foreground text-[11px]'>

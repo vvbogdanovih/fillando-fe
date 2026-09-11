@@ -44,7 +44,13 @@ const CATEGORY: Category = {
 	image: null,
 	order: 0,
 	required_attributes: [
-		{ key: 'reinforcement', label: 'Армування', filter_type: 'multi-select', unit: null }
+		{
+			key: 'reinforcement',
+			label: 'Армування',
+			filter_type: 'multi-select',
+			is_required: true,
+			unit: null
+		}
 	],
 	google_product_category: null,
 	createdAt: '',

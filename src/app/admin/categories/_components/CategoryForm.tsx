@@ -17,6 +17,7 @@ import toast from 'react-hot-toast'
 import { Button } from '@/common/components/ui/button'
 import { Input } from '@/common/components/ui/input'
 import { Label } from '@/common/components/ui/label'
+import { Switch } from '@/common/components/ui/switch'
 import {
 	Select,
 	SelectContent,
@@ -84,6 +85,7 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 				initial?.required_attributes.map(a => ({
 					label: a.label,
 					filter_type: a.filter_type,
+					is_required: a.is_required,
 					unit: a.unit
 				})) ?? [],
 			google_product_category_id: initial?.google_product_category
@@ -494,13 +496,18 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 					{/* Required attributes (catalog filters) */}
 					<div className='flex flex-col gap-2'>
 						<div className='flex items-center justify-between'>
-							<Label>Обов'язкові атрибути</Label>
+							<Label>Характеристики та фільтри</Label>
 							<Button
 								type='button'
 								size='xs'
 								variant='outline'
 								onClick={() =>
-									appendAttr({ label: '', filter_type: 'multi-select', unit: null })
+									appendAttr({
+										label: '',
+										filter_type: 'multi-select',
+										unit: null,
+										is_required: true
+									})
 								}
 							>
 								<PlusIcon className='size-3' />
@@ -508,6 +515,10 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 							</Button>
 						</div>
 
+						<p className='text-muted-foreground text-xs'>
+							Усі характеристики цього списку використовуються у фільтрах.
+							Обов’язковість заповнення налаштовується окремо.
+						</p>
 						{attrFields.length === 0 && (
 							<p className='text-muted-foreground text-xs'>Атрибутів немає</p>
 						)}
@@ -552,6 +563,32 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 										)}
 									</div>
 
+									<div className='flex items-center gap-2'>
+										<Switch
+											id={`attr-required-${index}`}
+											checked={watch(
+												`required_attributes.${index}.is_required`
+											)}
+											onCheckedChange={value =>
+												setValue(
+													`required_attributes.${index}.is_required`,
+													value,
+													{ shouldDirty: true, shouldValidate: true }
+												)
+											}
+										/>
+										<Label
+											htmlFor={`attr-required-${index}`}
+											className='text-xs'
+										>
+											Обов’язкове заповнення
+										</Label>
+									</div>
+									{errors.required_attributes?.[index]?.is_required && (
+										<p className='text-destructive text-xs'>
+											Вкажіть обов’язковість заповнення характеристики.
+										</p>
+									)}
 									{/* filter_type + unit */}
 									<div className='flex gap-2'>
 										<div className='flex flex-1 flex-col gap-1'>
@@ -581,7 +618,10 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 										</div>
 
 										<div className='flex flex-1 flex-col gap-1'>
-											<Label htmlFor={`attr-unit-${index}`} className='text-xs'>
+											<Label
+												htmlFor={`attr-unit-${index}`}
+												className='text-xs'
+											>
 												Одиниця (optional)
 											</Label>
 											<Input

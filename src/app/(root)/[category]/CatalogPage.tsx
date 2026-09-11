@@ -426,18 +426,8 @@ export const CatalogPage = ({
 			{landing && (landing.bottom_html || landing.faq.length > 0) && (
 				<div className='mt-12 grid gap-6 lg:grid-cols-[1.2fr_1fr]'>
 					{landing?.bottom_html && (
-						/*
-						 * `min-w-0` and `overflow-x-auto` are load-bearing, not tidiness: a grid
-						 * item's automatic minimum is its content's, so one paragraph that cannot
-						 * wrap reports its whole length as the track's minimum and takes the page
-						 * sideways with it. Between them, admin-authored copy that will not wrap
-						 * scrolls inside its own card and the document never does. The
-						 * `description` class is the second belt — it carries the same
-						 * `overflow-wrap` product descriptions rely on, and it is what actually
-						 * styles this copy: `prose` was a dead class, the typography plugin is not
-						 * installed, and Tailwind's reset had flattened every heading into body
-						 * text.
-						 */
+						/* Keep wide embedded content inside its grid track. Shared description
+						 * styles wrap prose and contain content that needs horizontal scrolling. */
 						<div className='bg-card border-border/50 min-w-0 overflow-x-auto rounded-xl border p-6'>
 							<div
 								className='description'

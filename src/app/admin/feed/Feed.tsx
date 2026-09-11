@@ -365,8 +365,8 @@ export const Feed = () => {
 									<section className='space-y-2'>
 										<h3 className='font-medium'>Попередження</h3>
 										<p className='text-sm text-gray-500'>
-											Товар у фіді є, але без цих даних Google показує його гірше — або
-											зовсім не показує в Shopping.
+											Це перевірка повноти даних каталогу. Товари залишаються у фіді;
+											попередження не означає, що Google їх відхилив.
 										</p>
 										{summary.warnings.length === 0 ? (
 											<p className='rounded-lg border border-gray-200 p-3 text-sm text-gray-500'>

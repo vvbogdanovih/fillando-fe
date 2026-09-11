@@ -10,6 +10,7 @@ const dimension = (key: string, label: string): RequiredAttribute => ({
 	key,
 	label,
 	filter_type: 'multi-select',
+	is_required: key !== 'finish',
 	unit: null
 })
 const ATTRIBUTES = [

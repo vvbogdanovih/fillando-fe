@@ -610,7 +610,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 
 			{/* Description */}
 			{product.description?.html && (
-				<div className='border-border/50 bg-card mt-8 rounded-xl border p-6 shadow-lg shadow-black/10'>
+				<div className='border-border/50 bg-card mt-8 min-w-0 rounded-xl border p-4 shadow-lg shadow-black/10 sm:p-6'>
 					<div
 						className='description'
 						dangerouslySetInnerHTML={{ __html: product.description.html }}

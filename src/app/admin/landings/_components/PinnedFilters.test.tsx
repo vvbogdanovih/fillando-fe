@@ -22,12 +22,14 @@ vi.mock('@/app/admin/categories/categories.api', () => ({
 							key: 'reinforcement',
 							label: 'Армування',
 							filter_type: 'multi-select',
+							is_required: true,
 							unit: null
 						},
 						{
 							key: 'finish',
 							label: 'Ефект поверхні',
 							filter_type: 'multi-select',
+							is_required: true,
 							unit: null
 						}
 					],
