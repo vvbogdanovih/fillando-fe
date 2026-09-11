@@ -46,6 +46,7 @@ export interface AttributeField {
 }
 
 export interface RequiredAttributeLike {
+	is_required: boolean
 	key: string
 	label: string
 	unit?: string | null

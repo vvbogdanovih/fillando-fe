@@ -91,7 +91,9 @@ describe('parseAttachmentFilename', () => {
 
 describe('layoutAttributes', () => {
 	it('keeps every row of a multi-valued dimension visible: first as the value, the rest as extra', () => {
-		const requiredAttrs: RequiredAttributeLike[] = [{ key: 'finish', label: 'Ефект поверхні' }]
+		const requiredAttrs: RequiredAttributeLike[] = [
+			{ key: 'finish', label: 'Ефект поверхні', is_required: true }
+		]
 		const fields: AttributeField[] = [
 			{ k: 'polymer', l: 'Тип пластику', v: 'PLA' },
 			{ k: 'finish', l: 'Ефект поверхні', v: 'Matte' },
@@ -107,8 +109,8 @@ describe('layoutAttributes', () => {
 	})
 
 	const required: RequiredAttributeLike[] = [
-		{ key: 'vyrobnyk', label: 'Виробник', unit: null },
-		{ key: 'series', label: 'Серія', unit: null }
+		{ key: 'vyrobnyk', label: 'Виробник', is_required: true, unit: null },
+		{ key: 'series', label: 'Серія', is_required: true, unit: null }
 	]
 
 	const field = (k: string, l: string, v: string): AttributeField => ({ k, l, v })
@@ -184,7 +186,11 @@ describe('layoutAttributes', () => {
 
 	it.each([
 		['no required attributes', [] as RequiredAttributeLike[], [] as AttributeField[]],
-		['no fields', [{ key: 'vyrobnyk', label: 'Виробник', unit: null }], [] as AttributeField[]]
+		[
+			'no fields',
+			[{ key: 'vyrobnyk', label: 'Виробник', is_required: true, unit: null }],
+			[] as AttributeField[]
+		]
 	])('handles %s', (_case, attrs, fields) => {
 		expect(() => layoutAttributes(attrs, fields)).not.toThrow()
 	})

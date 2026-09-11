@@ -9,6 +9,7 @@ const dimension = (key: string, label: string): RequiredAttribute => ({
 	key,
 	label,
 	filter_type: 'multi-select',
+	is_required: true,
 	unit: null
 })
 const ATTRIBUTES = [dimension('polymer', 'Тип пластику'), dimension('finish', 'Ефект поверхні')]

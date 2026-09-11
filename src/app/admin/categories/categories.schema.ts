@@ -7,6 +7,7 @@ export const requiredAttributeSchema = z.object({
 	key: z.string(),
 	label: z.string(),
 	filter_type: z.enum(['multi-select', 'range']),
+	is_required: z.boolean(),
 	unit: z.string().nullable()
 })
 
@@ -22,7 +23,7 @@ export const categorySchema = z.object({
 	slug: z.string(),
 	image: z.string().nullable(),
 	order: z.number().default(0),
-	required_attributes: z.array(requiredAttributeSchema).default([]),
+	required_attributes: z.array(requiredAttributeSchema),
 	// Optional so an older backend response still validates.
 	google_product_category: googleProductCategorySchema.nullable().optional(),
 	createdAt: z.string(),
@@ -36,6 +37,7 @@ export const categoriesListSchema = z.array(categorySchema)
 export const attributeFormSchema = z.object({
 	label: z.string().min(1, "Label є обов'язковим"),
 	filter_type: z.enum(['multi-select', 'range']),
+	is_required: z.boolean(),
 	unit: z.string().nullable()
 })
 

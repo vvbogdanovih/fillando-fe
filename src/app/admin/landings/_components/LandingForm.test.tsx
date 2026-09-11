@@ -38,6 +38,7 @@ vi.mock('@/app/admin/categories/categories.api', () => ({
 							key: 'polymer',
 							label: 'Тип пластику',
 							filter_type: 'multi-select',
+							is_required: true,
 							unit: null
 						}
 					],

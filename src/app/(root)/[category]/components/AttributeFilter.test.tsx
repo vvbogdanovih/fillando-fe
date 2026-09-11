@@ -10,6 +10,7 @@ const POLYMER: RequiredAttribute = {
 	key: 'polymer',
 	label: 'Тип пластику',
 	filter_type: 'multi-select',
+	is_required: true,
 	unit: null
 }
 
@@ -120,6 +121,7 @@ describe('AttributeFilter — range-typed dimension', () => {
 					key: 'vaha',
 					label: 'Вага',
 					filter_type: 'range',
+					is_required: true,
 					unit: 'кг'
 				}}
 				options={[facet('1', 300), facet('3', 1)]}
