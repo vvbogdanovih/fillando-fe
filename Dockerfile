@@ -4,8 +4,8 @@ WORKDIR /app
 
 # Оголошуємо аргументи збірки.
 # NEXT_PUBLIC_* інлайняться під час `yarn build`, тому вони мають бути саме
-# build-аргументами. Додати їх у .env.prod недостатньо — той env_file бачить
-# лише runtime-контейнер (stage 2), а не цю стадію.
+# build-аргументами. Railway Variables передає їх у відповідні ARG;
+# локальний .env.prod не входить у контекст збірки.
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_USE_IMAGE_DERIVATIVES=false
@@ -32,7 +32,8 @@ RUN yarn build
 FROM node:24-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
 
 # Копіюємо тільки необхідні файли для standalone режиму
 COPY --from=builder /app/public ./public
