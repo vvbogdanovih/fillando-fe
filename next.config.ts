@@ -11,6 +11,8 @@ const useImageDerivatives = process.env.NEXT_PUBLIC_USE_IMAGE_DERIVATIVES === 't
 
 const nextConfig: NextConfig = {
 	output: 'standalone',
+	// Keep Playwright's dev build separate from a developer's running server.
+	distDir: process.env.NEXT_DIST_DIR || '.next',
 	reactCompiler: true,
 	// Search crawlers get a blocking render so notFound() can set a real 404
 	// status; regular users keep streamed responses.

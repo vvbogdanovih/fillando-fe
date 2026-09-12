@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+	KeyRound,
 	LayoutDashboard,
 	Users,
 	Tag,
@@ -31,6 +32,7 @@ import { UI_URLS } from '@/common/constants'
 import { Button } from '@/common/components/ui/button'
 
 const topNavItems = [
+	{ label: 'API-токени', href: UI_URLS.ADMIN.API_TOKENS, icon: KeyRound },
 	{ label: 'Dashboard', href: UI_URLS.ADMIN.BASE, icon: LayoutDashboard },
 	{ label: 'Orders', href: UI_URLS.ADMIN.ORDERS, icon: PackageSearch },
 	{ label: 'Wholesale', href: UI_URLS.ADMIN.WHOLESALE, icon: Handshake },

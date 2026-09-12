@@ -39,7 +39,11 @@ export default defineConfig({
 			command: `yarn next dev -p ${STOREFRONT_PORT}`,
 			port: STOREFRONT_PORT,
 			// Variables already in process.env win over `.env`, so this is what the bundle gets.
-			env: { NEXT_PUBLIC_API_BASE_URL: MOCK_API_ORIGIN, PORT: String(STOREFRONT_PORT) },
+			env: {
+				NEXT_PUBLIC_API_BASE_URL: MOCK_API_ORIGIN,
+				PORT: String(STOREFRONT_PORT),
+				NEXT_DIST_DIR: '.next-e2e'
+			},
 			reuseExistingServer: true,
 			timeout: 180_000
 		}

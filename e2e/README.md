@@ -86,3 +86,7 @@ Env: `MOCK_API_PORT` (default `9001`), `MOCK_API_ALLOW_ORIGIN` (default `http://
 - Stay off server-rendered catalog pages (`/`, `/filament`, `/products/*`): `serverFetch` responses
   are cached in `.next/cache/fetch-cache`, so `next dev` can serve real data from an earlier
   session against a live backend instead of the mock.
+
+Адмінські API-токени: `yarn test:e2e partner-api-tokens.spec.ts`.
+Playwright використовує `NEXT_DIST_DIR=.next-e2e`, щоб не конфліктувати
+з каталогом збірки вже запущеного dev-сервера.
