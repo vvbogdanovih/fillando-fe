@@ -36,6 +36,7 @@ export const UI_URLS = {
 		ORDER_DETAILS: (id: string) => `/profile/orders/${id}`
 	},
 	ADMIN: {
+		API_TOKENS: '/admin/api-tokens',
 		BASE: '/admin',
 		ORDERS: '/admin/orders',
 		ORDER_DETAILS: (id: string) => `/admin/orders/${id}`,

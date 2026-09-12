@@ -1,6 +1,8 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!
 
 export const API_URLS = {
+	PARTNER_TOKENS: '/admin/api-tokens',
+	PARTNER_DOCS: '/partner-docs',
 	AUTH: {
 		GOOGLE: `/auth/google`, // GET  — redirects to Google OAuth consent screen
 		LOGIN: `/auth/login`, // POST — { email, password } → { message, user }

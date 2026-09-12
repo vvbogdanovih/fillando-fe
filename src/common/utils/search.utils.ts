@@ -1,11 +1,11 @@
 /**
  * Text normalisation for the admin search boxes.
  *
- * Mirrors `normalizeColorValue` in `fillando-be/scripts/fillando_v_2/seed-colors.js`, which is
- * the rule the colour dictionary itself is matched with: NFC, every apostrophe the data mixes
+ * Matches the normalisation used when the colour dictionary was populated: NFC, every
+ * apostrophe the data mixes
  * («М’ятний» / «М'ятний» / «Мʼятний») folded to one, the dash forms folded to one, whitespace
- * collapsed, case dropped. Keeping the two in step means a spelling the migration recognises is
- * also one the admin can type into the search box.
+ * collapsed, case dropped. Stored synonyms and admin search therefore accept the same
+ * spellings, independently of the retired seed scripts.
  */
 const APOSTROPHES = /[‘’ʼʹ`´]/g
 const DASHES = /[‐-―]/g
