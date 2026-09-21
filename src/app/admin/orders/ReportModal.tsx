@@ -81,9 +81,10 @@ export function ReportModal() {
 			</DialogTrigger>
 			<DialogContent className='max-w-md'>
 				<DialogHeader>
-					<DialogTitle>Генерація звіту</DialogTitle>
+					<DialogTitle>Звіт про продажі</DialogTitle>
 					<DialogDescription>
-						Оберіть період та фільтри для генерації PDF звіту з інвойсами замовлень.
+						PDF для фінансового відділу: продані товари за період, реєстр замовлень і
+						підсумки. Дати — київські календарні дні, за датою оформлення замовлення.
 					</DialogDescription>
 				</DialogHeader>
 				<div className='grid gap-4'>
