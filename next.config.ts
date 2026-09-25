@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { legacyProductRedirects } from './src/common/utils/legacy-product-redirects'
 
 const appDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -70,9 +69,7 @@ const nextConfig: NextConfig = {
 				source: '/vytratni-materialy-dlia-3d-druku',
 				destination: '/filament',
 				permanent: true
-			},
-			// Pre-3k product slugs (indexed since June) → renamed product pages.
-			...legacyProductRedirects()
+			}
 		]
 	},
 	async headers() {
