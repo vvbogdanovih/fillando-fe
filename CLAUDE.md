@@ -122,7 +122,9 @@ Changing the table means editing five places together: `common/utils/slug.utils.
 - **The admin sends `color_id`, never `color_family`.** The backend looks the family up on every variant write and refuses an id the dictionary does not know; sending a family from here is what would let the swatch filter drift away from the colour shown on the product.
 - **A landing starts as a draft and shows its match count while you edit it.** `PinnedFilters` runs the same catalogue query the storefront would, so a combination that matches nothing is visible before publishing rather than after Google indexes an empty page.
 
-**SEO / indexing** (TD-0002 §5.4, Plan-0004 PR-3). Four rules that are easy to undo:
+**SEO / indexing** (TD-0002 §5.4, Plan-0004 PR-3). Five rules that are easy to undo:
+
+- **An old product slug is a 301, not a soft 404.** `common/constants/legacy-product-slugs.json` maps every pre-3k slug Google indexed to today's one, and `next.config.ts` turns it into `redirects()` (`common/utils/legacy-product-redirects.ts`). Entries are one hop — the test refuses a target that is itself an old slug. Nothing writes the file automatically: a product renamed in the admin or by migration regenerates its variants' slugs, so add the old ones here (and repoint any entry that targeted them) in the same change.
 
 - **Pagination is `<Link href>`, never a button.** `Pagination` builds its own hrefs from `usePathname` + `useSearchParams`, so the catalogue and `/search` cannot drift apart. Page 1 is the bare address — no `?page=1`.
 - **`listingIndexing` (`common/utils/seo.utils.ts`) decides canonical and robots** for any listing. `?page=N` is indexable and self-canonical; every other parameter makes the page `noindex, follow` canonicalising to the listing without it. Pointing page 2 at page 1 would tell Google the products only on page 2 need no indexing.
