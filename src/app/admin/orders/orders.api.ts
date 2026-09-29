@@ -12,7 +12,8 @@ import {
 	type PatchOrderStatusPayload,
 	type PatchPaymentStatusPayload,
 	type PatchTtnPayload,
-	type GenerateReportPayload
+	type GenerateReportPayload,
+	type InvoiceAudience
 } from './orders.schema'
 
 export const ordersApi = {
@@ -61,18 +62,22 @@ export const ordersApi = {
 	downloadInvoice: async (
 		id: string,
 		orderNumber: string,
-		adminComment?: string
+		adminComment?: string,
+		audience: InvoiceAudience = 'customer'
 	): Promise<void> => {
 		const response = await axios.post(
 			`${API_BASE_URL}${API_URLS.ORDERS.INVOICE(id)}`,
-			{ admin_comment: adminComment || undefined },
+			{ admin_comment: adminComment || undefined, audience },
 			{ responseType: 'blob', withCredentials: true }
 		)
 
 		const url = window.URL.createObjectURL(new Blob([response.data]))
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `${orderNumber}.pdf`
+		// The internal copy carries supplier articles — its file name says so, so it is not
+		// the one that gets forwarded to a buyer by mistake.
+		link.download =
+			audience === 'internal' ? `${orderNumber}-internal.pdf` : `${orderNumber}.pdf`
 		document.body.appendChild(link)
 		link.click()
 		link.remove()

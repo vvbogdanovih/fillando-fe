@@ -152,6 +152,9 @@ export type OrderItem = z.infer<typeof orderItemSchema>
 export type OrdersListResponse = z.infer<typeof ordersListResponseSchema>
 export type PatchOrderPayload = z.infer<typeof patchOrderSchema>
 
+/** Mirrors the backend `InvoiceAudience`: the `customer` copy omits the supplier article. */
+export type InvoiceAudience = 'internal' | 'customer'
+
 export interface OrdersListQuery {
 	page?: number
 	limit?: number

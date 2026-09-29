@@ -30,7 +30,7 @@ import { generateMetadata } from './page'
 
 const SLUG = 'kingroon-pla-silk-rainbow-gold'
 /** `variantLabel` + `productPageTitle` over the fixture below, spelled out not recomputed. */
-const TITLE = 'Kingroon PLA Silk Rainbow — Золотий (Gold) — філамент 1,75 мм'
+const TITLE = 'Kingroon PLA Silk Rainbow — Золотий (Gold) — філамент (пластик для 3D-принтера) 1,75 мм'
 const CANONICAL = `${SITE_URL}/products/${SLUG}`
 const PRODUCTS_READ = { next: { tags: [CACHE_TAGS.PRODUCTS] } }
 
@@ -139,7 +139,7 @@ describe('generateMetadata — the title and the canonical', () => {
 			)
 		)
 
-		expect((await metadata()).title).toBe('Kingroon PLA Silk Rainbow — 1 кг — філамент 1,75 мм')
+		expect((await metadata()).title).toBe('Kingroon PLA Silk Rainbow — 1 кг — філамент (пластик для 3D-принтера) 1,75 мм')
 	})
 
 	it('falls back to the variant name when the axis has no value at all', async () => {

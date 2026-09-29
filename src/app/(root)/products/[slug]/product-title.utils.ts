@@ -4,7 +4,7 @@
  * diameter the shop sells — unless the name still carries them (a long name before the
  * migration, or a product that mentions the diameter itself), so nothing is said twice.
  */
-export const TITLE_SUFFIX = 'філамент 1,75 мм'
+export const TITLE_SUFFIX = 'філамент (пластик для 3D-принтера) 1,75 мм'
 
 export function productPageTitle(productName: string, variantValue: string | null): string {
 	const base = variantValue ? `${productName} — ${variantValue}` : productName

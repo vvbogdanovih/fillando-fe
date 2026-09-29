@@ -9,6 +9,7 @@ import { SITE_URL } from '@/common/constants/seo.constants'
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { variantLabel } from '@/common/utils/color.utils'
 import { productPageTitle } from './product-title.utils'
+import { stripHtml } from './product-jsonld.utils'
 
 interface PageProps {
 	params: Promise<{ slug: string }>
@@ -41,7 +42,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 	const title = variantValue ? productPageTitle(product.name, variantValue) : variant.name
 	// An emptied editor stores `<p><br></p>`, which strips to '' — not nullish, so `??` shipped
 	// that empty string as the whole meta description instead of the generated fallback.
-	const stripped = product.description?.html?.replace(/<[^>]*>/g, '').trim()
+	const stripped = product.description?.html ? stripHtml(product.description.html) : ''
 	const description = stripped ? stripped.slice(0, 155) : `Купити ${title} у Fillando`
 	const image = variant.images?.[0]
 	const canonical = `${SITE_URL}/products/${slug}`

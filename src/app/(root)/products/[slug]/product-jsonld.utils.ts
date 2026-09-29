@@ -7,7 +7,40 @@ const PRICE_VALID_DAYS = 90
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').trim()
+const NAMED_ENTITIES: Record<string, string> = {
+	nbsp: ' ',
+	lt: '<',
+	gt: '>',
+	quot: '"',
+	apos: "'",
+	laquo: '«',
+	raquo: '»',
+	mdash: '—',
+	ndash: '–',
+	hellip: '…',
+	lsquo: '‘',
+	rsquo: '’',
+	ldquo: '“',
+	rdquo: '”'
+}
+
+/**
+ * Plain text of the stored Quill HTML, for the meta description and the `Product` JSON-LD.
+ * Quill writes every space it keeps as `&nbsp;`, so dropping only the tags shipped
+ * `Kingroon&nbsp;PETG` into the search snippet. Block boundaries become spaces — otherwise a
+ * heading and the paragraph under it glue into one word. `&amp;` is decoded last so an
+ * escaped `&amp;nbsp;` stays the literal text `&nbsp;` instead of turning into a space.
+ */
+export const stripHtml = (html: string) =>
+	html
+		.replace(/<br\s*\/?>|<\/(p|h[1-6]|li|div|blockquote)>/gi, ' ')
+		.replace(/<[^>]*>/g, '')
+		.replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+		.replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
+		.replace(/&([a-z]+);/gi, (entity, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? entity)
+		.replace(/&amp;/gi, '&')
+		.replace(/\s+/g, ' ')
+		.trim()
 
 const availabilityOf = (variant: ProductDetailData['variant']) => {
 	// An archived variant is "no longer stocked", which schema.org spells Discontinued. It is
