@@ -4,7 +4,7 @@ import { productPageTitle } from './product-title.utils'
 describe('productPageTitle', () => {
 	it('adds the category word and diameter to a short name', () => {
 		expect(productPageTitle('Kingroon PLA Silk Rainbow', 'Золотий (Gold)')).toBe(
-			'Kingroon PLA Silk Rainbow — Золотий (Gold) — філамент 1,75 мм'
+			'Kingroon PLA Silk Rainbow — Золотий (Gold) — філамент (пластик для 3D-принтера) 1,75 мм'
 		)
 	})
 
@@ -22,6 +22,6 @@ describe('productPageTitle', () => {
 	})
 
 	it('works without a variant value', () => {
-		expect(productPageTitle('Kingroon TPU', null)).toBe('Kingroon TPU — філамент 1,75 мм')
+		expect(productPageTitle('Kingroon TPU', null)).toBe('Kingroon TPU — філамент (пластик для 3D-принтера) 1,75 мм')
 	})
 })
