@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { SITE_URL } from '@/common/constants/seo.constants'
-import { buildProductJsonLd } from './product-jsonld.utils'
+import { buildProductJsonLd, stripHtml } from './product-jsonld.utils'
 
 const NOW = new Date('2026-09-06T12:00:00.000Z')
 
@@ -147,5 +147,40 @@ describe('buildProductJsonLd', () => {
 		const data = base()
 		data.product.description = null
 		expect(buildProductJsonLd(data, 'x', NOW)).not.toHaveProperty('description')
+	})
+})
+
+describe('stripHtml — the plain text Google shows in the snippet', () => {
+	it('decodes the &nbsp; Quill writes for every space', () => {
+		// Verbatim shape of a production description (2026-09-25).
+		expect(
+			stripHtml(
+				'<h2>Kingroon&nbsp;PETG&nbsp;(CoPET)&nbsp;—&nbsp;філамент</h2><p>Kingroon&nbsp;PETG&nbsp;—&nbsp;один</p>'
+			)
+		).toBe('Kingroon PETG (CoPET) — філамент Kingroon PETG — один')
+	})
+
+	it('keeps a space between blocks and after a line break', () => {
+		expect(stripHtml('<p>Перший</p><p>Другий<br>Третій</p><ul><li>а</li><li>б</li></ul>')).toBe(
+			'Перший Другий Третій а б'
+		)
+	})
+
+	it('decodes numeric and common named entities', () => {
+		expect(stripHtml('<p>&laquo;PLA&raquo; &#8212; 1&#x2C;75 мм &lt;3&gt; &quot;x&quot;</p>')).toBe(
+			'«PLA» — 1,75 мм <3> "x"'
+		)
+	})
+
+	it('decodes &amp; last, so escaped entity text stays literal', () => {
+		expect(stripHtml('<p>A &amp; B, &amp;nbsp;</p>')).toBe('A & B, &nbsp;')
+	})
+
+	it('leaves an unknown entity as written', () => {
+		expect(stripHtml('<p>&foo; bar</p>')).toBe('&foo; bar')
+	})
+
+	it('strips a cleared editor to an empty string', () => {
+		expect(stripHtml('<p><br></p>')).toBe('')
 	})
 })
