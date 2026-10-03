@@ -99,6 +99,7 @@ Changing the table means editing five places together: `common/utils/slug.utils.
 `toSlug` deliberately does **not** consult the table: slugs are URLs, and routing them through the overrides would rewrite product and vendor addresses.
 
 **Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`.
+The list's page, page size and filters live in the URL (`?page=3&limit=50&order_status=NEW&payment_status=PAID`; `parseOrdersListParams` / `buildOrdersListSearch` in `orders.utils.ts`), so «Назад» from an order returns to the same page. Defaults are omitted from the address, unknown values fall back to them, and the list updates with `router.replace` so paging does not fill the history.
 
 **Storefront colour & landings** (TD-0002, Plan-0004 PR-5):
 

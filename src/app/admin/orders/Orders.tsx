@@ -1,8 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
@@ -24,7 +23,15 @@ import {
 	PAYMENT_STATUS_CLASSES,
 	PAYMENT_STATUS_LABELS
 } from './orders.constants'
-import { formatCustomerShort, formatDate, formatPrice } from './orders.utils'
+import {
+	buildOrdersListSearch,
+	formatCustomerShort,
+	formatDate,
+	formatPrice,
+	ORDERS_LIMIT_VALUES,
+	parseOrdersListParams,
+	type OrdersListParams
+} from './orders.utils'
 import {
 	orderStatusValues,
 	paymentStatusValues,
@@ -33,18 +40,24 @@ import {
 } from './orders.schema'
 import { ReportModal } from './ReportModal'
 
-const LIMIT_OPTIONS = [
-	{ value: '10', label: '10 / сторінку' },
-	{ value: '20', label: '20 / сторінку' },
-	{ value: '50', label: '50 / сторінку' }
-]
+const LIMIT_OPTIONS = ORDERS_LIMIT_VALUES.map(value => ({
+	value: String(value),
+	label: `${value} / сторінку`
+}))
 
 export function Orders() {
 	const router = useRouter()
-	const [page, setPage] = useState(1)
-	const [limit, setLimit] = useState(20)
-	const [orderStatus, setOrderStatus] = useState<'all' | OrderStatus>('all')
-	const [paymentStatus, setPaymentStatus] = useState<'all' | PaymentStatus>('all')
+	const pathname = usePathname()
+	const searchParams = useSearchParams()
+	const listParams = parseOrdersListParams(new URLSearchParams(searchParams.toString()))
+	const { page, limit, orderStatus, paymentStatus } = listParams
+
+	// `replace`, not `push`: paging through the list should not fill the history, and the
+	// order page is pushed on top of this address, so «Назад» still lands right here.
+	const updateList = (patch: Partial<OrdersListParams>) =>
+		router.replace(`${pathname}${buildOrdersListSearch({ ...listParams, ...patch })}`, {
+			scroll: false
+		})
 
 	const { data, isLoading, isError, isFetching, refetch } = useQuery({
 		queryKey: ['admin-orders', page, limit, orderStatus, paymentStatus],
@@ -95,8 +108,10 @@ export function Orders() {
 									<DropdownMenuRadioGroup
 										value={orderStatus}
 										onValueChange={value => {
-											setOrderStatus(value as 'all' | OrderStatus)
-											setPage(1)
+											updateList({
+												orderStatus: value as 'all' | OrderStatus,
+												page: 1
+											})
 										}}
 									>
 										<DropdownMenuRadioItem value='all'>
@@ -124,8 +139,10 @@ export function Orders() {
 									<DropdownMenuRadioGroup
 										value={paymentStatus}
 										onValueChange={value => {
-											setPaymentStatus(value as 'all' | PaymentStatus)
-											setPage(1)
+											updateList({
+												paymentStatus: value as 'all' | PaymentStatus,
+												page: 1
+											})
 										}}
 									>
 										<DropdownMenuRadioItem value='all'>
@@ -153,8 +170,7 @@ export function Orders() {
 									<DropdownMenuRadioGroup
 										value={String(limit)}
 										onValueChange={value => {
-											setLimit(Number(value))
-											setPage(1)
+											updateList({ limit: Number(value), page: 1 })
 										}}
 									>
 										{LIMIT_OPTIONS.map(option => (
@@ -257,7 +273,11 @@ export function Orders() {
 																]
 															}
 														>
-															{ORDER_STATUS_LABELS[order.order_status]}
+															{
+																ORDER_STATUS_LABELS[
+																	order.order_status
+																]
+															}
 														</Badge>
 													</td>
 													<td className='px-3 py-3'>
@@ -313,7 +333,11 @@ export function Orders() {
 										variant='outline'
 										size='sm'
 										disabled={page <= 1 || isFetching}
-										onClick={() => setPage(prev => Math.max(1, prev - 1))}
+										onClick={() =>
+											updateList({
+												page: Math.max(1, Math.min(page - 1, totalPages))
+											})
+										}
 									>
 										Попередня
 									</Button>
@@ -322,7 +346,7 @@ export function Orders() {
 										size='sm'
 										disabled={page >= totalPages || isFetching}
 										onClick={() =>
-											setPage(prev => Math.min(totalPages, prev + 1))
+											updateList({ page: Math.min(totalPages, page + 1) })
 										}
 									>
 										Наступна
