@@ -61,10 +61,18 @@ export const myOrderSchema = z
 			.preprocess(value => parseNumberWithDefault(value, 0), z.number())
 			.default(0),
 		total_price: z.preprocess(value => parseNumberWithDefault(value, 0), z.number()).default(0),
-		applied_discount: z.preprocess(
-			value => parseOptionalNumber(value),
-			z.number().optional().nullable()
-		),
+		// The backend sends the coupon snapshot object, not a number.
+		applied_discount: z
+			.object({
+				code: z.string(),
+				discount_percent: z.number(),
+				discount_amount: z.number()
+			})
+			.nullable()
+			.optional()
+			.catch(null),
+		/** The shop's fixed discount granted after checkout; the buyer gets the amount only. */
+		manual_discount: z.object({ amount: z.number() }).nullable().optional().catch(null),
 		customer: customerSchema.default({ name: '', phone: '', email: '' }),
 		delivery_method: z.preprocess(value => toUpperValue(value), z.enum(deliveryMethodValues)),
 		delivery_address: deliveryAddressSchema,

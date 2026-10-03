@@ -98,7 +98,7 @@ Changing the table means editing five places together: `common/utils/slug.utils.
 
 `toSlug` deliberately does **not** consult the table: slugs are URLs, and routing them through the overrides would rewrite product and vendor addresses.
 
-**Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`.
+**Orders admin flow:** `/admin/orders` loads paginated order list with `order_status` and `payment_status` filters via `GET /orders`. `/admin/orders/[id]` loads details via `GET /orders/:id` and supports full edit with `PATCH /orders/:id` plus quick updates via `PATCH /orders/:id/status`, `PATCH /orders/:id/payment-status`, `PATCH /orders/:id/ttn`. «Знижка магазину» (`ManualDiscountCard`) sends `PATCH /orders/:id` with `{ manual_discount: { amount, reason } | null }` — a fixed UAH discount on top of the coupon, read-only once `payment_status` is `PAID`/`REFUNDED`; the backend's refusals are Ukrainian and shown as is. `applied_discount` is the coupon **object** (`code`, `discount_percent`, `discount_amount`), never a number — both the admin and the cabinet schemas used to read it as one and silently dropped the coupon line. The cabinet shows the manual discount's amount only; `reason` never reaches the buyer.
 
 **Storefront colour & landings** (TD-0002, Plan-0004 PR-5):
 
