@@ -98,6 +98,38 @@ describe('OrderStatusActions', () => {
 		expect(onTransition).not.toHaveBeenCalled()
 	})
 
+	it('explains that «Виконано» is derived — for a pickup, that the handover is «Доставлено» and no TTN is needed', () => {
+		render(
+			<OrderStatusActions
+				order={order({
+					delivery_method: 'PICKUP',
+					order_status: 'CONFIRMED',
+					allowed_status_transitions: ['NEW', 'PROCESSING', 'DELIVERED', 'CANCELLED']
+				})}
+				onTransition={vi.fn()}
+				isPending={false}
+			/>
+		)
+		expect(screen.getByText(/ТТН для самовивозу не потрібна/)).toBeInTheDocument()
+		expect(
+			screen.getByText(/«Доставлено» \(видано клієнту\) \+ «Оплачено»/)
+		).toBeInTheDocument()
+	})
+
+	it('says nothing about it on a closed order', () => {
+		render(
+			<OrderStatusActions
+				order={order({
+					order_status: 'COMPLETED',
+					allowed_status_transitions: ['RETURNING']
+				})}
+				onTransition={vi.fn()}
+				isPending={false}
+			/>
+		)
+		expect(screen.queryByText(/ставиться автоматично/)).not.toBeInTheDocument()
+	})
+
 	it('restricts nothing when the backend sends no list at all', () => {
 		render(
 			<OrderStatusActions
