@@ -3,12 +3,13 @@ import * as z from 'zod'
 
 export const orderStatusValues = [
 	'NEW',
-	'CONFIRMED',
 	'PROCESSING',
+	'CONFIRMED',
 	'SHIPPED',
 	'DELIVERED',
 	'COMPLETED',
 	'CANCELLED',
+	'RETURNING',
 	'RETURNED'
 ] as const
 

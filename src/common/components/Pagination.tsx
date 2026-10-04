@@ -7,6 +7,8 @@ import { buttonVariants } from '@/common/components/ui/button'
 
 interface PaginationProps {
 	pagination: { total: number; page: number; limit: number; totalPages: number }
+	/** Accessible name of the `<nav>`; the admin order list passes its own. */
+	label?: string
 }
 
 /**
@@ -21,7 +23,7 @@ interface PaginationProps {
  * catalogue and the search page had identical copies of that logic, and the only thing worse
  * than one place to get pagination URLs wrong is two.
  */
-export const Pagination = ({ pagination }: PaginationProps) => {
+export const Pagination = ({ pagination, label = 'Сторінки каталогу' }: PaginationProps) => {
 	const pathname = usePathname()
 	const searchParams = useSearchParams()
 	const { page, totalPages } = pagination
@@ -60,7 +62,7 @@ export const Pagination = ({ pagination }: PaginationProps) => {
 	)
 
 	return (
-		<nav className='flex items-center justify-center gap-1' aria-label='Сторінки каталогу'>
+		<nav className='flex items-center justify-center gap-1' aria-label={label}>
 			{page > 1 ? (
 				<Link
 					href={hrefForPage(page - 1)}

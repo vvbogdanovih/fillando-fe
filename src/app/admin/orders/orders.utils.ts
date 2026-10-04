@@ -1,4 +1,13 @@
-import type { DeliveryMethod, Order, PatchOrderPayload, PaymentMethod } from './orders.schema'
+import {
+	orderStatusValues,
+	paymentStatusValues,
+	type DeliveryMethod,
+	type Order,
+	type OrderStatus,
+	type PatchOrderPayload,
+	type PaymentMethod,
+	type PaymentStatus
+} from './orders.schema'
 
 /**
  * Delivery methods each payment method is limited to. A method absent from this
@@ -96,4 +105,53 @@ export const mapOrderErrorMessage = (errorMessage: string): string => {
 		return 'Некоректні дані запиту (400). Перевірте поля форми.'
 	}
 	return errorMessage || 'Сталася помилка під час оновлення замовлення'
+}
+
+export const ORDERS_LIMIT_OPTIONS = [10, 20, 50] as const
+export const DEFAULT_ORDERS_LIMIT = 20
+
+export interface OrdersListParams {
+	page: number
+	limit: number
+	orderStatus: 'all' | OrderStatus
+	paymentStatus: 'all' | PaymentStatus
+}
+
+/**
+ * The order list lives in the URL (`?page=3&limit=50&order_status=SHIPPED`), so a reload, a
+ * shared link or the back button from an order returns to the same page and filters. Anything
+ * unparseable falls back to the default rather than producing an empty or broken list.
+ */
+export function parseOrdersListParams(params: URLSearchParams): OrdersListParams {
+	const page = Number(params.get('page'))
+	const limit = Number(params.get('limit'))
+	const orderStatus = params.get('order_status')
+	const paymentStatus = params.get('payment_status')
+	return {
+		page: Number.isInteger(page) && page > 1 ? page : 1,
+		limit: (ORDERS_LIMIT_OPTIONS as readonly number[]).includes(limit)
+			? limit
+			: DEFAULT_ORDERS_LIMIT,
+		orderStatus: (orderStatusValues as readonly string[]).includes(orderStatus ?? '')
+			? (orderStatus as OrderStatus)
+			: 'all',
+		paymentStatus: (paymentStatusValues as readonly string[]).includes(paymentStatus ?? '')
+			? (paymentStatus as PaymentStatus)
+			: 'all'
+	}
+}
+
+/**
+ * The query string for a list state. Defaults are left out so the plain address stays plain;
+ * changing a filter or the page size starts again from page 1, because page 7 of the old
+ * selection usually does not exist in the new one.
+ */
+export function ordersListQuery(next: OrdersListParams): string {
+	const query = new URLSearchParams()
+	if (next.page > 1) query.set('page', String(next.page))
+	if (next.limit !== DEFAULT_ORDERS_LIMIT) query.set('limit', String(next.limit))
+	if (next.orderStatus !== 'all') query.set('order_status', next.orderStatus)
+	if (next.paymentStatus !== 'all') query.set('payment_status', next.paymentStatus)
+	const value = query.toString()
+	return value ? `?${value}` : ''
 }

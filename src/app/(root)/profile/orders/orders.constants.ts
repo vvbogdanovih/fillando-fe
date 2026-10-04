@@ -3,11 +3,12 @@ import type { DeliveryMethod, OrderStatus, PaymentMethod, PaymentStatus } from '
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 	NEW: 'Нове',
 	CONFIRMED: 'Підтверджено',
-	PROCESSING: 'В обробці',
+	PROCESSING: 'Очікує підтвердження',
 	SHIPPED: 'Відправлено',
 	DELIVERED: 'Доставлено',
 	COMPLETED: 'Виконано',
 	CANCELLED: 'Скасовано',
+	RETURNING: 'Повертається',
 	RETURNED: 'Повернено'
 }
 

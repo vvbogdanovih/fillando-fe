@@ -14,7 +14,7 @@ import {
 import { FilterSidebar } from './components/FilterSidebar'
 import { FilterDrawer } from './components/FilterDrawer'
 import { ProductGrid } from './components/ProductGrid'
-import { Pagination } from './components/Pagination'
+import { Pagination } from '@/common/components/Pagination'
 import { PerPageSelector } from './components/PerPageSelector'
 import { SORT_OPTIONS, SortSelector, type SortValue } from './components/SortSelector'
 import { ActiveFilterChips, clearableFilterKeys } from './components/ActiveFilterChips'

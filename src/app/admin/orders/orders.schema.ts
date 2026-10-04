@@ -3,16 +3,19 @@ import * as z from 'zod'
 
 export const orderStatusValues = [
 	'NEW',
-	'CONFIRMED',
 	'PROCESSING',
+	'CONFIRMED',
 	'SHIPPED',
 	'DELIVERED',
 	'COMPLETED',
 	'CANCELLED',
+	'RETURNING',
 	'RETURNED'
 ] as const
 
 export const paymentStatusValues = ['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'VOIDED'] as const
+
+export const statusActorValues = ['admin', 'customer', 'tracker', 'gateway', 'system'] as const
 
 export const deliveryMethodValues = ['NOVA_POST', 'COURIER', 'PICKUP'] as const
 
@@ -31,6 +34,15 @@ const parseNumberWithDefault = (value: unknown, fallback = 0): number => {
 
 const toUpperValue = (value: unknown): string | undefined =>
 	typeof value === 'string' ? value.trim().toUpperCase() : undefined
+
+const statusHistoryEntrySchema = z.object({
+	field: z.enum(['order_status', 'payment_status']),
+	from: z.string().nullable().optional(),
+	to: z.string(),
+	at: z.string(),
+	actor: z.enum(statusActorValues).catch('system'),
+	note: z.string().optional()
+})
 
 const customerSchema = z.object({
 	name: z.string().optional().default(''),
@@ -101,7 +113,33 @@ export const orderSchema = z
 			.preprocess(value => toUpperValue(value), z.enum(orderStatusValues))
 			.catch('NEW'),
 		comment: z.string().nullable().optional(),
-		nova_post_ttn: z.string().nullable().optional()
+		nova_post_ttn: z.string().nullable().optional(),
+		// Admin responses only (TD-0011). Parsed entry by entry, so one row this build cannot
+		// read (a field or actor added later) drops that row, not the whole audit trail.
+		status_history: z
+			.array(z.unknown())
+			.catch([])
+			.default([])
+			.transform(rows =>
+				rows.flatMap(row => {
+					const parsed = statusHistoryEntrySchema.safeParse(row)
+					return parsed.success ? [parsed.data] : []
+				})
+			),
+		// `undefined` means the backend does not send the field at all (older build) — a
+		// different situation from «nothing is allowed», and the UI says so. An unknown status
+		// from a newer backend is dropped rather than failing the order.
+		allowed_status_transitions: z
+			.array(z.string())
+			.optional()
+			.catch(undefined)
+			.transform(values =>
+				values?.filter((value): value is OrderStatus =>
+					(orderStatusValues as readonly string[]).includes(value)
+				)
+			),
+		/** Whether saving a TTN will ship this order — the backend's `shipsOnTtn`, not a mirror. */
+		ships_on_ttn: z.boolean().optional().catch(undefined)
 	})
 	.passthrough()
 	.transform(data => ({
@@ -148,6 +186,8 @@ export type DeliveryMethod = (typeof deliveryMethodValues)[number]
 export type PaymentMethod = (typeof paymentMethodValues)[number]
 
 export type Order = z.infer<typeof orderSchema>
+export type StatusHistoryEntry = z.infer<typeof statusHistoryEntrySchema>
+export type StatusActor = (typeof statusActorValues)[number]
 export type OrderItem = z.infer<typeof orderItemSchema>
 export type OrdersListResponse = z.infer<typeof ordersListResponseSchema>
 export type PatchOrderPayload = z.infer<typeof patchOrderSchema>

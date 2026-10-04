@@ -95,7 +95,7 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 
 	it.each([
 		['paid', { payment_status: 'PAID' as const }],
-		['already in processing', { order_status: 'PROCESSING' as const }],
+		['already shipped', { order_status: 'SHIPPED' as const }],
 		['cancelled', { payment_status: 'VOIDED' as const, order_status: 'CANCELLED' as const }]
 	])('shows no payment actions for an order that is %s', async (_label, over) => {
 		renderDetails(order(over))

@@ -1,9 +1,9 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
@@ -24,7 +24,16 @@ import {
 	PAYMENT_STATUS_CLASSES,
 	PAYMENT_STATUS_LABELS
 } from './orders.constants'
-import { formatCustomerShort, formatDate, formatPrice } from './orders.utils'
+import {
+	formatCustomerShort,
+	formatDate,
+	formatPrice,
+	ordersListQuery,
+	ORDERS_LIMIT_OPTIONS,
+	parseOrdersListParams,
+	type OrdersListParams
+} from './orders.utils'
+import { Pagination } from '@/common/components/Pagination'
 import {
 	orderStatusValues,
 	paymentStatusValues,
@@ -33,18 +42,22 @@ import {
 } from './orders.schema'
 import { ReportModal } from './ReportModal'
 
-const LIMIT_OPTIONS = [
-	{ value: '10', label: '10 / сторінку' },
-	{ value: '20', label: '20 / сторінку' },
-	{ value: '50', label: '50 / сторінку' }
-]
-
 export function Orders() {
 	const router = useRouter()
-	const [page, setPage] = useState(1)
-	const [limit, setLimit] = useState(20)
-	const [orderStatus, setOrderStatus] = useState<'all' | OrderStatus>('all')
-	const [paymentStatus, setPaymentStatus] = useState<'all' | PaymentStatus>('all')
+	const pathname = usePathname()
+	const searchParams = useSearchParams()
+	// The URL is the state: a reload or the way back from an order lands on the same page.
+	const listParams = useMemo(
+		() => parseOrdersListParams(new URLSearchParams(searchParams.toString())),
+		[searchParams]
+	)
+	const { page, limit, orderStatus, paymentStatus } = listParams
+
+	/** Filters and page size restart from page 1; `replace` keeps them out of the back stack. */
+	const updateList = (changes: Partial<OrdersListParams>) => {
+		const query = ordersListQuery({ ...listParams, page: 1, ...changes })
+		router.replace(`${pathname}${query}`, { scroll: false })
+	}
 
 	const { data, isLoading, isError, isFetching, refetch } = useQuery({
 		queryKey: ['admin-orders', page, limit, orderStatus, paymentStatus],
@@ -54,19 +67,31 @@ export function Orders() {
 				limit,
 				order_status: orderStatus === 'all' ? undefined : orderStatus,
 				payment_status: paymentStatus === 'all' ? undefined : paymentStatus
-			})
+			}),
+		// The previous page stays on screen while the next one loads, instead of a skeleton flash.
+		placeholderData: keepPreviousData
 	})
 
 	const orders = data?.items ?? []
 	const total = data?.total ?? 0
 	const totalPages = Math.max(1, Math.ceil(total / limit))
+	// What is shown while an overflowing URL waits for the redirect below.
+	const currentPage = Math.min(page, totalPages)
+
+	// A page that no longer exists (orders cancelled, an old link) moves to the last real one.
+	useEffect(() => {
+		if (data && !isFetching && page > totalPages) {
+			router.replace(`${pathname}${ordersListQuery({ ...listParams, page: totalPages })}`, {
+				scroll: false
+			})
+		}
+	}, [data, isFetching, page, totalPages, pathname, router, listParams])
 
 	const orderStatusLabel =
 		orderStatus === 'all' ? 'Всі статуси замовлення' : ORDER_STATUS_LABELS[orderStatus]
 	const paymentStatusLabel =
 		paymentStatus === 'all' ? 'Всі статуси оплати' : PAYMENT_STATUS_LABELS[paymentStatus]
-	const limitLabel =
-		LIMIT_OPTIONS.find(o => o.value === String(limit))?.label ?? `${limit} / сторінку`
+	const limitLabel = `${limit} / сторінку`
 
 	return (
 		<div className='p-6'>
@@ -94,10 +119,11 @@ export function Orders() {
 								<DropdownMenuContent align='start' className='w-56'>
 									<DropdownMenuRadioGroup
 										value={orderStatus}
-										onValueChange={value => {
-											setOrderStatus(value as 'all' | OrderStatus)
-											setPage(1)
-										}}
+										onValueChange={value =>
+											updateList({
+												orderStatus: value as 'all' | OrderStatus
+											})
+										}
 									>
 										<DropdownMenuRadioItem value='all'>
 											Всі статуси замовлення
@@ -123,10 +149,11 @@ export function Orders() {
 								<DropdownMenuContent align='start' className='w-56'>
 									<DropdownMenuRadioGroup
 										value={paymentStatus}
-										onValueChange={value => {
-											setPaymentStatus(value as 'all' | PaymentStatus)
-											setPage(1)
-										}}
+										onValueChange={value =>
+											updateList({
+												paymentStatus: value as 'all' | PaymentStatus
+											})
+										}
 									>
 										<DropdownMenuRadioItem value='all'>
 											Всі статуси оплати
@@ -152,17 +179,16 @@ export function Orders() {
 								<DropdownMenuContent align='start' className='w-44'>
 									<DropdownMenuRadioGroup
 										value={String(limit)}
-										onValueChange={value => {
-											setLimit(Number(value))
-											setPage(1)
-										}}
+										onValueChange={value =>
+											updateList({ limit: Number(value) })
+										}
 									>
-										{LIMIT_OPTIONS.map(option => (
+										{ORDERS_LIMIT_OPTIONS.map(option => (
 											<DropdownMenuRadioItem
-												key={option.value}
-												value={option.value}
+												key={option}
+												value={String(option)}
 											>
-												{option.label}
+												{option} / сторінку
 											</DropdownMenuRadioItem>
 										))}
 									</DropdownMenuRadioGroup>
@@ -257,7 +283,11 @@ export function Orders() {
 																]
 															}
 														>
-															{ORDER_STATUS_LABELS[order.order_status]}
+															{
+																ORDER_STATUS_LABELS[
+																	order.order_status
+																]
+															}
 														</Badge>
 													</td>
 													<td className='px-3 py-3'>
@@ -304,30 +334,18 @@ export function Orders() {
 									</tbody>
 								</table>
 							</div>
-							<div className='mt-4 flex items-center justify-between'>
+							<div className='mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row'>
 								<p className='text-muted-foreground text-xs'>
-									Сторінка {page} з {totalPages}
+									Сторінка {currentPage} з {totalPages} •{' '}
+									{(currentPage - 1) * limit + 1}–
+									{Math.min(currentPage * limit, total)} з {total}
 								</p>
-								<div className='flex gap-2'>
-									<Button
-										variant='outline'
-										size='sm'
-										disabled={page <= 1 || isFetching}
-										onClick={() => setPage(prev => Math.max(1, prev - 1))}
-									>
-										Попередня
-									</Button>
-									<Button
-										variant='outline'
-										size='sm'
-										disabled={page >= totalPages || isFetching}
-										onClick={() =>
-											setPage(prev => Math.min(totalPages, prev + 1))
-										}
-									>
-										Наступна
-									</Button>
-								</div>
+								{totalPages > 1 && (
+									<Pagination
+										pagination={{ total, page: currentPage, limit, totalPages }}
+										label='Сторінки замовлень'
+									/>
+								)}
 							</div>
 						</>
 					)}

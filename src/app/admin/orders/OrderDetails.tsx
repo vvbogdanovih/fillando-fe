@@ -35,7 +35,6 @@ import {
 } from './orders.utils'
 import {
 	deliveryMethodValues,
-	orderStatusValues,
 	paymentMethodValues,
 	paymentStatusValues,
 	type DeliveryMethod,
@@ -45,7 +44,17 @@ import {
 } from './orders.schema'
 import { OrderItemsList } from './orders.components'
 import { InvoiceModal } from './InvoiceModal'
+import { OrderStatusActions } from './OrderStatusActions'
+import { StatusHistoryCard } from './StatusHistoryCard'
 import { VendorEmailModal } from './VendorEmailModal'
+
+/** The server refused because the order moved under us — the cached copy is stale. */
+const STALE_ORDER_CODES = new Set(['ORDER_STATUS_CHANGED', 'INVALID_STATUS_TRANSITION'])
+
+const errorCode = (error: Error): string | undefined => {
+	const code = (error as Error & { details?: { code?: unknown } }).details?.code
+	return typeof code === 'string' ? code : undefined
+}
 
 function normalizeEditValues(order: Order): PatchOrderPayload {
 	return {
@@ -171,27 +180,19 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
 	}
 
+	// Not optimistic: the server decides more than the button says — a paid delivery lands on
+	// COMPLETED, a cancellation may void the payment (TD-0011) — so the answer is what we show.
 	const statusMutation = useMutation({
 		mutationFn: (nextStatus: Order['order_status']) =>
 			ordersApi.patchOrderStatus(orderId, { order_status: nextStatus }),
-		onMutate: async nextStatus => {
-			await queryClient.cancelQueries({ queryKey: ['admin-order', orderId] })
-			const prev = queryClient.getQueryData<Order>(['admin-order', orderId])
-			if (prev) {
-				queryClient.setQueryData<Order>(['admin-order', orderId], {
-					...prev,
-					order_status: nextStatus
-				})
-			}
-			return { prev }
-		},
-		onError: (error: Error, _, context) => {
-			if (context?.prev) queryClient.setQueryData(['admin-order', orderId], context.prev)
+		onError: (error: Error) => {
 			toast.error(mapOrderErrorMessage(error.message))
+			const code = errorCode(error)
+			if (code && STALE_ORDER_CODES.has(code)) void refetch()
 		},
 		onSuccess: updated => {
 			updateOrderInCache(updated)
-			toast.success('Статус замовлення оновлено')
+			toast.success(`Статус: ${ORDER_STATUS_LABELS[updated.order_status]}`)
 		}
 	})
 
@@ -212,10 +213,16 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		onError: (error: Error, _, context) => {
 			if (context?.prev) queryClient.setQueryData(['admin-order', orderId], context.prev)
 			toast.error(mapOrderErrorMessage(error.message))
+			const code = errorCode(error)
+			if (code && STALE_ORDER_CODES.has(code)) void refetch()
 		},
-		onSuccess: updated => {
+		onSuccess: (updated, _, context) => {
 			updateOrderInCache(updated)
-			toast.success('Статус оплати оновлено')
+			toast.success(
+				context?.prev && updated.order_status !== context.prev.order_status
+					? `Статус оплати оновлено, замовлення: ${ORDER_STATUS_LABELS[updated.order_status]}`
+					: 'Статус оплати оновлено'
+			)
 		}
 	})
 
@@ -235,11 +242,17 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		onError: (error: Error, _, context) => {
 			if (context?.prev) queryClient.setQueryData(['admin-order', orderId], context.prev)
 			toast.error(mapOrderErrorMessage(error.message))
+			const code = errorCode(error)
+			if (code && STALE_ORDER_CODES.has(code)) void refetch()
 		},
-		onSuccess: updated => {
+		onSuccess: (updated, _, context) => {
 			updateOrderInCache(updated)
 			setTtnValue(updated.nova_post_ttn ?? '')
-			toast.success('TTN оновлено')
+			toast.success(
+				updated.order_status === 'SHIPPED' && context?.prev?.order_status !== 'SHIPPED'
+					? 'ТТН збережено — замовлення відправлено'
+					: 'ТТН оновлено'
+			)
 		}
 	})
 
@@ -443,33 +456,16 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Статуси (швидкі дії)</CardTitle>
+					<CardTitle>Статуси</CardTitle>
 				</CardHeader>
 				<CardContent className='grid gap-3 sm:grid-cols-3'>
 					<div className='space-y-2'>
 						<Label>Статус замовлення</Label>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button variant='outline' className='w-full justify-between'>
-									{ORDER_STATUS_LABELS[order.order_status]}
-									<ChevronDown className='ml-2 size-4 opacity-50' />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align='start' className='w-56'>
-								<DropdownMenuRadioGroup
-									value={order.order_status}
-									onValueChange={value =>
-										statusMutation.mutate(value as Order['order_status'])
-									}
-								>
-									{orderStatusValues.map(status => (
-										<DropdownMenuRadioItem key={status} value={status}>
-											{ORDER_STATUS_LABELS[status]}
-										</DropdownMenuRadioItem>
-									))}
-								</DropdownMenuRadioGroup>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						<OrderStatusActions
+							order={order}
+							isPending={statusMutation.isPending}
+							onTransition={to => statusMutation.mutate(to)}
+						/>
 					</div>
 					<div className='space-y-2'>
 						<Label>Статус оплати</Label>
@@ -505,13 +501,13 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 						)}
 					</div>
 					<div className='space-y-2'>
-						<Label htmlFor='ttn'>TTN Нова Пошта</Label>
+						<Label htmlFor='ttn'>ТТН Нова Пошта</Label>
 						<div className='flex gap-2'>
 							<Input
 								id='ttn'
 								value={ttnValue}
 								onChange={e => setTtnValue(e.target.value)}
-								placeholder='Вкажіть TTN'
+								placeholder='Вкажіть ТТН'
 							/>
 							<Button
 								onClick={() => ttnMutation.mutate(ttnValue.trim())}
@@ -520,9 +516,16 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 								Зберегти
 							</Button>
 						</div>
+						{order.ships_on_ttn && (
+							<p className='text-muted-foreground text-xs'>
+								Після збереження ТТН замовлення стане «Відправлено».
+							</p>
+						)}
 					</div>
 				</CardContent>
 			</Card>
+
+			<StatusHistoryCard history={order.status_history} />
 
 			<Card>
 				<CardHeader>
