@@ -27,10 +27,13 @@ import { ImageDropzone, type ImageUploadItem } from './ImageDropzone'
 import { WeightInfoNote } from './WeightInfoNote'
 import { productsApi } from '../products.api'
 import {
+	previewSalePrice,
+	promoStateOf,
 	variantEditFormSchema,
 	type VariantEditFormValues,
 	type ProductVariantFull
 } from '../products.schema'
+import { formatAdminDateTime, fromDateTimeLocal, toDateTimeLocal } from '@/common/utils/date.utils'
 
 interface VariantModalProps {
 	open: boolean
@@ -69,16 +72,36 @@ export const VariantModal = ({
 		handleSubmit,
 		reset,
 		setError,
+		watch,
 		formState: { errors, isSubmitting }
 	} = useForm<VariantEditFormValues>({
 		resolver: zodResolver(variantEditFormSchema)
 	})
+
+	// The below-cost warning follows the fields as they are typed (TD-0012): what the shop pays
+	// is `supplier_price` from the admin response, what it would charge is the preview.
+	const watchedPrice = Number(watch('price'))
+	const watchedPercent = Number(watch('promo_percent'))
+	const supplierPrice = isEdit ? (variant?.supplier_price ?? null) : null
+	const endedPromo = isEdit && variant && promoStateOf(variant) === 'ended' ? variant : null
+	const previewedSale =
+		watchedPercent >= 1 && watchedPercent <= 90 && watchedPrice > 0
+			? previewSalePrice(watchedPrice, watchedPercent)
+			: null
+	const belowCost =
+		supplierPrice != null && previewedSale != null && previewedSale < supplierPrice
 
 	// Reset form and images when modal opens or switches variant
 	useEffect(() => {
 		if (!open) return
 
 		if (isEdit && variant) {
+			// Preserve configured discounts even when today's price rounds away the saving.
+			// A price edit or a later Prom sync can make them effective. Only expired dates
+			// must stay out of the form, because the backend refuses to save them again.
+			const hasConfiguredPromo =
+				variant.promo_percent != null &&
+				(!variant.promo_ends_at || Date.parse(variant.promo_ends_at) > Date.now())
 			reset({
 				price: String(variant.price),
 				stock: String(variant.stock),
@@ -87,7 +110,9 @@ export const VariantModal = ({
 				vendor_product_sku: variant.vendor_product_sku ?? '',
 				prom_id: variant.prom_id ?? '',
 				color_id: variant.color_id ?? null,
-				weight_g: variant.weight_g != null ? String(variant.weight_g) : ''
+				weight_g: variant.weight_g != null ? String(variant.weight_g) : '',
+				promo_percent: hasConfiguredPromo ? String(variant.promo_percent) : '',
+				promo_ends_at: hasConfiguredPromo ? toDateTimeLocal(variant.promo_ends_at) : ''
 			})
 			setImageUploads(
 				variant.images.map(url => ({
@@ -106,7 +131,9 @@ export const VariantModal = ({
 				vendor_product_sku: '',
 				prom_id: '',
 				color_id: null,
-				weight_g: ''
+				weight_g: '',
+				promo_percent: '',
+				promo_ends_at: ''
 			})
 			setImageUploads([])
 		}
@@ -154,7 +181,13 @@ export const VariantModal = ({
 				// Sent on every save so clearing the colour actually clears it server-side.
 				color_id: hasVariants ? (values.color_id ?? null) : null,
 				// Same for the weight: an emptied field must clear it, not keep the old value.
-				weight_g: values.weight_g ? Number(values.weight_g) : null
+				weight_g: values.weight_g ? Number(values.weight_g) : null,
+				// And for the promotion (TD-0012): null clears it; a date only rides with a percent.
+				promo_percent: values.promo_percent ? Number(values.promo_percent) : null,
+				promo_ends_at:
+					values.promo_percent && values.promo_ends_at
+						? fromDateTimeLocal(values.promo_ends_at)
+						: null
 			}
 
 			if (isEdit && variant) {
@@ -297,6 +330,71 @@ export const VariantModal = ({
 					</p>
 
 					<WeightInfoNote />
+
+					{/* Promotion (TD-0012) */}
+					{endedPromo && (
+						<p className='text-muted-foreground -mb-2 text-xs'>
+							Попередня акція −{endedPromo.promo_percent} % завершилась{' '}
+							{formatAdminDateTime(endedPromo.promo_ends_at)}; збереження без відсотка
+							прибере її остаточно.
+						</p>
+					)}
+					<div className='flex gap-3'>
+						<div className='flex flex-1 flex-col gap-1.5'>
+							<Label htmlFor='promo_percent'>Акція, %</Label>
+							<Input
+								id='promo_percent'
+								type='number'
+								min={1}
+								max={90}
+								step={1}
+								placeholder='напр. 15'
+								{...register('promo_percent')}
+								aria-invalid={!!errors.promo_percent}
+							/>
+							{errors.promo_percent ? (
+								<p className='text-destructive text-xs'>
+									{errors.promo_percent.message}
+								</p>
+							) : (
+								<p className='text-muted-foreground text-xs'>
+									Порожнє поле — акції немає
+								</p>
+							)}
+						</div>
+						<div className='flex flex-1 flex-col gap-1.5'>
+							<Label htmlFor='promo_ends_at'>Акція до</Label>
+							<Input
+								id='promo_ends_at'
+								type='datetime-local'
+								{...register('promo_ends_at')}
+								aria-invalid={!!errors.promo_ends_at}
+							/>
+							{errors.promo_ends_at ? (
+								<p className='text-destructive text-xs'>
+									{errors.promo_ends_at.message}
+								</p>
+							) : (
+								<p className='text-muted-foreground text-xs'>
+									Діє лише разом із відсотком; порожнє — без дати завершення
+								</p>
+							)}
+						</div>
+					</div>
+					{(supplierPrice != null || previewedSale != null) && (
+						<p
+							className={
+								belowCost
+									? 'rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800'
+									: 'text-muted-foreground -mt-2 text-xs'
+							}
+							role={belowCost ? 'status' : undefined}
+						>
+							{previewedSale != null && <>Акційна ціна: ₴{previewedSale}. </>}
+							{supplierPrice != null && <>Закупівля: ₴{supplierPrice}.</>}
+							{belowCost && <> Акційна ціна нижча за закупівельну.</>}
+						</p>
+					)}
 
 					{/* Status */}
 					<div className='flex flex-col gap-1.5'>

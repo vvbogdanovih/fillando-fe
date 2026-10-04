@@ -6,6 +6,9 @@ import {
 	productDetailSchema,
 	productListItemSchema,
 	productVariantsListResponseSchema,
+	promotionResponseSchema,
+	type PromotionPayload,
+	type PromotionResponse,
 	validateResponseSchema,
 	type Product,
 	type ProductDetail,
@@ -85,6 +88,8 @@ interface AddVariantPayload {
 	/** Dictionary colour; the API derives `color_family` from it and never accepts that. */
 	color_id?: string | null
 	weight_g?: number | null
+	promo_percent?: number | null
+	promo_ends_at?: string | null
 }
 
 interface UpdateVariantPayload {
@@ -99,6 +104,8 @@ interface UpdateVariantPayload {
 	status?: 'draft' | 'active' | 'archived'
 	color_id?: string | null
 	weight_g?: number | null
+	promo_percent?: number | null
+	promo_ends_at?: string | null
 }
 
 interface ValidatePayload {
@@ -128,6 +135,19 @@ export const productsApi = {
 		httpService.get(API_URLS.PRODUCTS.BY_ID(id), {
 			schema: productDetailSchema
 		}),
+
+	/** One promotion for every variant of the product, or none; answers the updated variants. */
+	setPromotion: (productId: string, body: PromotionPayload): Promise<ProductVariantFull[]> =>
+		httpService
+			.patch<PromotionResponse, PromotionPayload>(
+				API_URLS.PRODUCTS.PROMOTION(productId),
+				body,
+				{
+					schema: promotionResponseSchema,
+					skipErrorToast: true
+				}
+			)
+			.then(res => res.variants),
 
 	getVariants: (productId: string): Promise<ProductVariantFull[]> =>
 		httpService.get(API_URLS.PRODUCTS.VARIANTS(productId), {

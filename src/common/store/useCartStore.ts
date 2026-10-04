@@ -8,7 +8,11 @@ import { useAuthStore } from './useAuthStore'
 export interface CartVariant {
 	name: string
 	slug: string
+	/** Regular price; the line is priced at `sale_price ?? price` (TD-0012). */
 	price: number
+	sale_price?: number | null
+	promo_percent?: number | null
+	promo_ends_at?: string | null
 	stock: number
 	thumbnail: string | null
 	v_value: string | null
@@ -28,7 +32,13 @@ interface CartResponse {
 
 export interface GuestItemMeta {
 	name: string
+	/**
+	 * Regular price at the moment the item was added — kept regular on purpose, so an entry
+	 * written before TD-0012 (no `sale_price`) still prices correctly; the sale rides beside it.
+	 */
 	price: number
+	sale_price?: number | null
+	promo_ends_at?: string | null
 	thumbnail: string | null
 	slug: string
 }

@@ -8,10 +8,12 @@ import toast from 'react-hot-toast'
 import { CatalogItem } from '../catalog.api'
 import { useCartStore } from '@/common/store/useCartStore'
 import { cn } from '@/common/utils/shad-cn.utils'
-import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
+import { formatPriceAsOf, formatPromoEndsAt, promoPercentLabel } from '@/common/utils/price.utils'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 import { catalogItemName, colorLabel } from '@/common/utils/color.utils'
 import { ColorSwatch } from '@/common/components/ColorSwatch'
+import { PriceTag } from '@/common/components/PriceTag'
+import { Badge } from '@/common/components/ui/badge'
 
 interface CatalogProductCardProps {
 	item: CatalogItem
@@ -35,6 +37,9 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 	const availableQuantity = item.quantity ?? item.stock
 	const isOutOfStock = availableQuantity <= 0
 	const priceAsOf = isOutOfStock ? formatPriceAsOf(item.price_updated_at) : null
+	// «−15 %» while the promotion is on; the server already nulls the trio when it is not.
+	const promoLabel = promoPercentLabel(item)
+	const promoEnds = formatPromoEndsAt(item.promo_ends_at)
 
 	const handleCartButton = async (e: React.MouseEvent) => {
 		e.preventDefault()
@@ -51,6 +56,8 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 			await addItem(item.id, 1, {
 				name: displayName,
 				price: item.price,
+				sale_price: item.sale_price ?? null,
+				promo_ends_at: item.promo_ends_at ?? null,
 				thumbnail: item.main_image,
 				slug: item.slug
 			})
@@ -71,6 +78,16 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 			<Link href={href} className='block flex-1'>
 				<div className='p-3 pb-0'>
 					<div className='bg-muted relative aspect-square overflow-hidden rounded-lg'>
+						{/* The saving sits on the photo, where the eye lands first (TD-0012). */}
+						{promoLabel && (
+							<Badge
+								variant='destructive'
+								className='absolute top-2 left-2 z-10 px-2 py-0.5 text-xs'
+								title={promoEnds ? `Акція ${promoEnds}` : undefined}
+							>
+								{promoLabel}
+							</Badge>
+						)}
 						{item.main_image ? (
 							<Image
 								src={item.main_image}
@@ -106,14 +123,13 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 						</p>
 					</div>
 					<p className='text-muted-foreground text-xs'>Арт. {item.sku}</p>
-					<p
-						className={cn(
+					<PriceTag
+						item={item}
+						priceClassName={cn(
 							'text-lg font-bold',
 							isOutOfStock ? 'text-muted-foreground' : 'text-foreground'
 						)}
-					>
-						{formatUah(item.price)}
-					</p>
+					/>
 					{priceAsOf && <p className='text-muted-foreground text-xs'>{priceAsOf}</p>}
 				</div>
 			</Link>

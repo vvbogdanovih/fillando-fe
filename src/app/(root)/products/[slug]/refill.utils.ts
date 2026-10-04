@@ -6,6 +6,8 @@ interface SiblingLike {
 	slug: string
 	name: string
 	price: number
+	/** The spool's own promotion, carried through so the refill page quotes what it really costs. */
+	sale_price?: number | null
 	v_value: string | null
 	color: PublicColor | null
 }

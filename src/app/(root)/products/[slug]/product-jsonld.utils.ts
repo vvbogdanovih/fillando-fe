@@ -1,8 +1,9 @@
 import type { ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { MERCHANT_RETURN_POLICY, SITE_URL } from '@/common/constants/seo.constants'
+import { effectivePrice, isPromoActive } from '@/common/utils/price.utils'
 import { buildShippingDetails } from '@/common/utils/shipping.utils'
 
-/** How long the quoted price is promised for. A rolling window survives any page caching. */
+/** Rolling validity window, anchored to the server render so hydration cannot change its day. */
 const PRICE_VALID_DAYS = 90
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -37,7 +38,10 @@ export const stripHtml = (html: string) =>
 		.replace(/<[^>]*>/g, '')
 		.replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
 		.replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
-		.replace(/&([a-z]+);/gi, (entity, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? entity)
+		.replace(
+			/&([a-z]+);/gi,
+			(entity, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? entity
+		)
 		.replace(/&amp;/gi, '&')
 		.replace(/\s+/g, ' ')
 		.trim()
@@ -60,12 +64,20 @@ const availabilityOf = (variant: ProductDetailData['variant']) => {
 export const buildProductJsonLd = (
 	data: ProductDetailData,
 	displayName: string,
-	now: Date = new Date()
+	renderedAt: Date
 ): Record<string, unknown> => {
 	const { variant, product, siblings } = data
 	const description = product.description?.html ? stripHtml(product.description.html) : ''
 	const polymer = product.attributes.find(attr => attr.k === 'polymer')
-	const priceValidUntil = new Date(now.getTime() + PRICE_VALID_DAYS * DAY_MS)
+	// Use the same server-priced snapshot as PriceTag. Re-checking expiry against the browser's
+	// clock would change only the markup while the visible price still shows that snapshot.
+	// Archived variants show the regular price on both surfaces.
+	const onPromo = variant.status !== 'archived' && isPromoActive(variant)
+	const priceValidUntil = (
+		onPromo && variant.promo_ends_at
+			? new Date(variant.promo_ends_at)
+			: new Date(renderedAt.getTime() + PRICE_VALID_DAYS * DAY_MS)
+	)
 		.toISOString()
 		.slice(0, 10)
 
@@ -78,8 +90,22 @@ export const buildProductJsonLd = (
 		offers: {
 			'@type': 'Offer',
 			url: `${SITE_URL}/products/${variant.slug}`,
-			price: variant.price,
+			// What the shopper pays — the same pair the Merchant feed sends (`g:price` regular,
+			// `g:sale_price` sale), so Google never sees the page and the feed disagree (TD-0012).
+			price: onPromo ? effectivePrice(variant) : variant.price,
 			priceCurrency: 'UAH',
+			...(onPromo
+				? {
+						priceSpecification: [
+							{
+								'@type': 'UnitPriceSpecification',
+								priceType: 'https://schema.org/ListPrice',
+								price: variant.price,
+								priceCurrency: 'UAH'
+							}
+						]
+					}
+				: {}),
 			priceValidUntil,
 			availability: availabilityOf(variant),
 			itemCondition: 'https://schema.org/NewCondition',

@@ -167,9 +167,9 @@ describe('stripHtml — the plain text Google shows in the snippet', () => {
 	})
 
 	it('decodes numeric and common named entities', () => {
-		expect(stripHtml('<p>&laquo;PLA&raquo; &#8212; 1&#x2C;75 мм &lt;3&gt; &quot;x&quot;</p>')).toBe(
-			'«PLA» — 1,75 мм <3> "x"'
-		)
+		expect(
+			stripHtml('<p>&laquo;PLA&raquo; &#8212; 1&#x2C;75 мм &lt;3&gt; &quot;x&quot;</p>')
+		).toBe('«PLA» — 1,75 мм <3> "x"')
 	})
 
 	it('decodes &amp; last, so escaped entity text stays literal', () => {
@@ -182,5 +182,58 @@ describe('stripHtml — the plain text Google shows in the snippet', () => {
 
 	it('strips a cleared editor to an empty string', () => {
 		expect(stripHtml('<p><br></p>')).toBe('')
+	})
+})
+
+describe('buildProductJsonLd — promotions (TD-0012)', () => {
+	const onSale = (promo_ends_at: string | null) => {
+		const data = base()
+		data.variant = { ...data.variant, sale_price: 467, promo_percent: 15, promo_ends_at }
+		return data
+	}
+
+	it('quotes the sale price, lists the regular one as ListPrice and holds the price until the end date', () => {
+		const offer = offers(buildProductJsonLd(onSale('2026-11-01T00:00:00.000Z'), 'x', NOW))
+		expect(offer.price).toBe(467)
+		expect(offer.priceSpecification).toEqual([
+			{
+				'@type': 'UnitPriceSpecification',
+				priceType: 'https://schema.org/ListPrice',
+				price: 549,
+				priceCurrency: 'UAH'
+			}
+		])
+		expect(offer.priceValidUntil).toBe('2026-11-01')
+	})
+
+	it('keeps the rolling 90-day window for an open-ended promotion', () => {
+		const offer = offers(buildProductJsonLd(onSale(null), 'x', NOW))
+		expect(offer.price).toBe(467)
+		expect(offer.priceValidUntil).toBe('2026-12-05')
+	})
+
+	it('emits no priceSpecification without a promotion — degrade by absence', () => {
+		const offer = offers(buildProductJsonLd(base(), 'x', NOW))
+		expect(offer.price).toBe(549)
+		expect(offer).not.toHaveProperty('priceSpecification')
+	})
+
+	it('quotes the regular price for an archived variant, as the page does — a sale on nothing is not a sale', () => {
+		const data = onSale('2026-11-01T00:00:00.000Z')
+		data.variant.status = 'archived'
+		const offer = offers(buildProductJsonLd(data, 'x', NOW))
+		expect(offer.price).toBe(549)
+		expect(offer).not.toHaveProperty('priceSpecification')
+		expect(offer.priceValidUntil).toBe('2026-12-05')
+		expect(offer.availability).toBe('https://schema.org/Discontinued')
+	})
+
+	it('keeps the server-priced snapshot even when rendered after its end date', () => {
+		const offer = offers(buildProductJsonLd(onSale('2026-09-01T00:00:00.000Z'), 'x', NOW))
+		expect(offer.price).toBe(467)
+		expect(offer.priceSpecification).toEqual([
+			expect.objectContaining({ price: 549, priceType: 'https://schema.org/ListPrice' })
+		])
+		expect(offer.priceValidUntil).toBe('2026-09-01')
 	})
 })

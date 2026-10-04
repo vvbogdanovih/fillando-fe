@@ -3,7 +3,18 @@ import type { PublicColor } from '@/common/utils/color.utils'
 import { API_URLS } from '@/common/constants'
 import { categorySchema, type Category } from '@/app/admin/categories/categories.schema'
 
-export interface CatalogItem {
+/**
+ * The shop's own promotion (TD-0012): `sale_price` is what the shopper pays while it is on, `price`
+ * stays the regular price. All three are null without an active promo and absent from a backend
+ * that predates them — read them through `effectivePrice` / `isPromoActive`, never directly.
+ */
+export interface PromoFields {
+	sale_price?: number | null
+	promo_percent?: number | null
+	promo_ends_at?: string | null
+}
+
+export interface CatalogItem extends PromoFields {
 	id: string
 	name: string
 	slug: string
@@ -20,7 +31,7 @@ export interface CatalogItem {
 }
 
 export interface ProductDetailData {
-	variant: {
+	variant: PromoFields & {
 		id: string
 		name: string
 		slug: string
@@ -51,7 +62,7 @@ export interface ProductDetailData {
 		/** The «Виробник» attribute — the brand. Never the vendor, which is the supplier. */
 		manufacturer: string | null
 	}
-	siblings: {
+	siblings: (PromoFields & {
 		id: string
 		name: string
 		slug: string
@@ -61,7 +72,7 @@ export interface ProductDetailData {
 		v_value: string | null
 		images: string[]
 		color: PublicColor | null
-	}[]
+	})[]
 	category_slug: string
 	category_name: string
 	/**
@@ -73,6 +84,8 @@ export interface ProductDetailData {
 		slug: string
 		name: string
 		price: number
+		/** The spool's own promotion, if any; absent from an older backend. */
+		sale_price?: number | null
 		/** false when it is the cheapest spool rather than this refill's own colour. */
 		matched_colour: boolean
 	} | null

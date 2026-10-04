@@ -6,7 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_URLS } from '@/common/constants'
 import { useCartStore, type CartItem } from '@/common/store/useCartStore'
 import { CheckoutPage } from './CheckoutPage'
-import { createOrder, fetchActivePaymentProvider, initLiqpayCheckout } from './checkout.api'
+import {
+	createOrder,
+	fetchActivePaymentProvider,
+	initLiqpayCheckout,
+	validateCouponCode
+} from './checkout.api'
 import { submitLiqpayForm } from './liqpay.utils'
 
 // `vi.mock` factories are hoisted above imports, so anything they close over must be hoisted too.
@@ -585,5 +590,101 @@ describe('CheckoutPage — готовність кошика (cartReady)', () =>
 		expect(screen.getByText(SERVER_ITEM.variant.name)).toBeInTheDocument()
 		expect(loader()).not.toBeInTheDocument()
 		expect(routerReplace).not.toHaveBeenCalled()
+	})
+})
+
+describe('CheckoutPage — купон і акційні товари (TD-0012)', () => {
+	const PROMO_GUEST_ITEM = {
+		variant_id: 'variant-2',
+		quantity: 1,
+		_meta: {
+			name: 'PETG 1.75 білий',
+			price: 600,
+			sale_price: 540,
+			promo_ends_at: null,
+			thumbnail: null,
+			slug: 'petg-175-white'
+		}
+	} as unknown as typeof GUEST_ITEM
+
+	const applyCoupon = async (percent: number) => {
+		vi.mocked(validateCouponCode).mockResolvedValue({
+			valid: true,
+			coupon: { code: 'ABCDEFGH10', discount_percent: percent }
+		} as never)
+		fireEvent.change(screen.getByLabelText('Знижковий купон'), {
+			target: { value: 'ABCDEFGH10' }
+		})
+		await screen.findByText(/Купон валідний/)
+	}
+
+	it('previews the coupon over the regular lines only and says so', async () => {
+		useCartStore.setState({ guestItems: [GUEST_ITEM, PROMO_GUEST_ITEM] })
+		renderCheckout()
+
+		await applyCoupon(10)
+
+		// 10 % of the 700 ₴ regular line, not of the 1 240 ₴ subtotal.
+		expect(
+			screen.getByText(
+				'Купон не діє на акційні товари (1 у кошику) — знижка рахується від 700 ₴.'
+			)
+		).toBeInTheDocument()
+		expect(screen.getByText('Знижка (на товари без акції)')).toBeInTheDocument()
+		expect(screen.getByText(/-70 ₴ \(10%\)/)).toBeInTheDocument()
+		expect(screen.getByText(/1\s?170 ₴/)).toBeInTheDocument()
+	})
+
+	it('explains that a coupon buys nothing when every line is on promotion', async () => {
+		useCartStore.setState({ guestItems: [PROMO_GUEST_ITEM] })
+		renderCheckout()
+
+		await applyCoupon(10)
+
+		expect(
+			screen.getByText('Купон не діє: усі товари в кошику вже зі знижкою.')
+		).toBeInTheDocument()
+		expect(screen.queryByText(/^Знижка/)).not.toBeInTheDocument()
+		// The line is priced at the sale price everywhere it appears (unit price, line total).
+		expect(screen.getAllByText('540 ₴').length).toBeGreaterThan(0)
+	})
+
+	it('still sends the coupon the page said cannot apply — the server decides, and its refusal lands under the field', async () => {
+		useCartStore.setState({ guestItems: [PROMO_GUEST_ITEM] })
+		vi.mocked(createOrder).mockRejectedValue(
+			Object.assign(new Error('Купон не діє: усі товари в кошику вже зі знижкою'), {
+				details: { code: 'COUPON_NOT_APPLICABLE' }
+			})
+		)
+		renderCheckout()
+		await applyCoupon(10)
+		fillPickupOrder()
+		await submitOrder()
+
+		await waitFor(() => expect(createOrder).toHaveBeenCalledTimes(1))
+		// The local preview is a guess from a localStorage snapshot; the coupon is the server's
+		// to accept or refuse, so it is never dropped on the way out.
+		const body = vi.mocked(createOrder).mock.calls[0][0] as Record<string, unknown>
+		expect(body).toHaveProperty('coupon_code')
+		// Under the field, not only as the preview line that was already there.
+		await waitFor(() =>
+			expect(document.getElementById('coupon_code-error')).toHaveTextContent(
+				'Купон не діє: усі товари в кошику вже зі знижкою'
+			)
+		)
+	})
+
+	it('prices a guest line at the regular price once its promotion has run out', () => {
+		useCartStore.setState({
+			guestItems: [
+				{
+					...PROMO_GUEST_ITEM,
+					_meta: { ...PROMO_GUEST_ITEM._meta, promo_ends_at: '2020-01-01T00:00:00.000Z' }
+				} as unknown as typeof GUEST_ITEM
+			]
+		})
+		renderCheckout()
+		expect(screen.getAllByText('600 ₴').length).toBeGreaterThan(0)
+		expect(screen.queryByText('540 ₴')).not.toBeInTheDocument()
 	})
 })
