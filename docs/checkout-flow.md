@@ -310,13 +310,13 @@ that got no answer at all), and only then on the message.
 
 **Where it goes:**
 
-| Condition                                                                               | Where it is shown                                                                                                                                                                                                                              |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/coupon/i.test(message)` — in practice `'Invalid coupon code'` / `'Coupon is expired'` | `setError('coupon_code', { type: 'server', message })` + `setFocus('coupon_code')`, **and** a toast with the same text. `mapServerCouponError` translates the two known strings to Ukrainian.                                                  |
-| `status === 429`                                                                        | Toast: «Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.» — never the raw throttler message.                                                                                                                                        |
+| Condition                                                                               | Where it is shown                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/coupon/i.test(message)` — in practice `'Invalid coupon code'` / `'Coupon is expired'` | `setError('coupon_code', { type: 'server', message })` + `setFocus('coupon_code')`, **and** a toast with the same text. `mapServerCouponError` translates the two known strings to Ukrainian.                                                                        |
+| `status === 429`                                                                        | Toast: «Занадто багато спроб. Зачекайте хвилину і спробуйте ще раз.» — never the raw throttler message.                                                                                                                                                              |
 | `details.code === 'INSUFFICIENT_STOCK'` (409, with `variant_id`, `available`)           | The cart line it names gets `data-invalid`, a red total and «Доступно лише N шт. — зменште кількість, щоб оформити замовлення» under it, and the page scrolls to it. **No toast** — this is the one error shown inline only. Editing that line's quantity clears it. |
-| anything else with a real `message` (validation, 5xx with a body)                       | Toast with the server's message verbatim.                                                                                                                                                                                                      |
-| no usable message (`'Unknown error'` from the interceptor, network)                     | Toast: «Не вдалося оформити замовлення. Спробуйте ще раз.»                                                                                                                                                                                     |
+| anything else with a real `message` (validation, 5xx with a body)                       | Toast with the server's message verbatim.                                                                                                                                                                                                                            |
+| no usable message (`'Unknown error'` from the interceptor, network)                     | Toast: «Не вдалося оформити замовлення. Спробуйте ще раз.»                                                                                                                                                                                                           |
 
 The rule: **a field-level error is shown only when changing that field can fix it.** The previous
 `onError` called `setError('coupon_code', …)` unconditionally, so an out-of-stock line or a network
@@ -329,6 +329,21 @@ toast that used to accompany it repeated the same number with a technical SKU in
 eye away from the line, and covered the summary while it faded. The coupon message is the deliberate
 exception — the coupon input can be scrolled out of view when the button is pressed, so it is
 pinned **and** toasted; the shortfall's own line is scrolled into view instead.
+
+**A coupon acts on the lines that are not on promotion (TD-0012).** `displayItems[].onPromo` is
+`isPromoActive(variant | _meta)`; `couponEligibleSubtotal` sums the other lines and the previewed
+discount is `percent × couponEligibleSubtotal`, which is exactly what the server records in
+`applied_discount.discount_amount`. When promo lines are present a line under the coupon field says
+what the discount is counted from; when every line is on promo it says the coupon buys nothing. The
+coupon is **still sent**: that preview is computed from the page's own data, which for a guest is a
+localStorage snapshot that may be stale, so the server — which re-prices every line — decides. Its
+`400 COUPON_NOT_APPLICABLE` lands under the coupon field like any other coupon error. A guest line is
+a snapshot: `_meta.price` is the regular price and `_meta.sale_price` / `_meta.promo_ends_at` ride
+beside it, and the cart drawer and the checkout judge it with `isPromoActive(_meta, Date.now())` so a
+promo that ended while the item sat in localStorage falls back to the regular price locally. Server
+data (`item.variant`, catalogue items) is judged **without** a clock — the server already nulled the
+trio for an ended promo, and a client clock would make SSR and hydration print different prices
+around the end minute. The success page reads the server's totals.
 
 Coupons are also pre-validated live (`POST /discount-coupons/validate`, debounced, mapped by
 `mapCouponReason`), but order creation re-validates server-side, so the two backend strings can still

@@ -7,6 +7,7 @@ import { Button } from '@/common/components/ui/button'
 import { UI_URLS } from '@/common/constants'
 import { productsApi } from '../../products.api'
 import { ProductEditForm } from '../../_components/ProductEditForm'
+import { PromotionCard } from '../../_components/PromotionCard'
 import { VariantsSection } from '../../_components/VariantsSection'
 
 interface EditProductProps {
@@ -56,6 +57,7 @@ export const EditProduct = ({ id }: EditProductProps) => {
 				<div className='w-full max-w-7xl px-8 py-8'>
 					<div className='flex flex-col gap-6'>
 						<ProductEditForm product={product} />
+						<PromotionCard productId={id} />
 						<VariantsSection
 							productId={id}
 							hasVariants={!!product.variant_type}

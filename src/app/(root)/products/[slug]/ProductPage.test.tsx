@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import type { ImgHTMLAttributes } from 'react'
+import { hydrateRoot, type Root } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getVariantBySlug, type ProductDetailData } from '@/app/(root)/[category]/catalog.api'
 import { ProductPage } from './ProductPage'
@@ -9,7 +11,11 @@ import { ProductPage } from './ProductPage'
 afterEach(cleanup)
 
 vi.mock('next/image', () => ({
-	default: (props: ImgHTMLAttributes<HTMLImageElement>) => (
+	default: ({
+		fill: _fill,
+		preload: _preload,
+		...props
+	}: ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; preload?: boolean }) => (
 		<img {...props} alt={props.alt ?? ''} />
 	)
 }))
@@ -101,11 +107,17 @@ const data = (
 	...patch
 })
 
+const RENDERED_AT = '2026-10-04T23:59:30.000Z'
+
 const renderPage = (initialData: ProductDetailData) => {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 	const view = render(
 		<QueryClientProvider client={client}>
-			<ProductPage slug={initialData.variant.slug} initialData={initialData} />
+			<ProductPage
+				slug={initialData.variant.slug}
+				initialData={initialData}
+				renderedAt={RENDERED_AT}
+			/>
 		</QueryClientProvider>
 	)
 	return { ...view, client }
@@ -206,5 +218,132 @@ describe('ProductPage', () => {
 		expect(screen.getByText('419 ₴')).toBeInTheDocument()
 		expect(screen.getByRole('button', { name: /Додати в кошик/ })).toBeEnabled()
 		expect(screen.queryByText('Товар не знайдено')).not.toBeInTheDocument()
+	})
+
+	describe('promotions (TD-0012)', () => {
+		const onSale = () =>
+			data({ sale_price: 356, promo_percent: 15, promo_ends_at: '2099-11-01T12:00:00.000Z' })
+
+		it('keeps markup and visible price together until a fresh response clears an expired promo', async () => {
+			const { container, client } = renderPage(
+				data({ sale_price: 356, promo_percent: 15, promo_ends_at: '2020-01-01T00:00:00Z' })
+			)
+			const offer = () =>
+				JSON.parse(
+					container.querySelector('script[type="application/ld+json"]')!.textContent!
+				).offers
+			expect(screen.getByText('356 ₴')).toBeInTheDocument()
+			expect(offer().price).toBe(356)
+			expect(offer().priceSpecification[0].price).toBe(419)
+
+			await act(async () => {
+				client.setQueryData(
+					['product', data().variant.slug],
+					data({
+						sale_price: null,
+						promo_percent: null,
+						promo_ends_at: null
+					})
+				)
+			})
+			expect(screen.getByText('419 ₴')).toBeInTheDocument()
+			expect(screen.queryByText('356 ₴')).not.toBeInTheDocument()
+			expect(offer().price).toBe(419)
+			expect(offer()).not.toHaveProperty('priceSpecification')
+		})
+
+		it.each([null, '2026-10-05T00:00:00.000Z'])(
+			'hydrates across midnight and promo expiry without changing JSON-LD (ends: %s)',
+			async endsAt => {
+				vi.useFakeTimers({ toFake: ['Date'] })
+				vi.setSystemTime(new Date(RENDERED_AT))
+				const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+				const recoverable = vi.fn()
+				const initialData = data({
+					sale_price: 356,
+					promo_percent: 15,
+					promo_ends_at: endsAt
+				})
+				const makePage = () => (
+					<QueryClientProvider
+						client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+					>
+						<ProductPage
+							slug={initialData.variant.slug}
+							initialData={initialData}
+							renderedAt={RENDERED_AT}
+						/>
+					</QueryClientProvider>
+				)
+				const host = document.createElement('div')
+				let root: Root | undefined
+				try {
+					host.innerHTML = renderToString(makePage())
+					document.body.appendChild(host)
+					const before = host.querySelector(
+						'script[type="application/ld+json"]'
+					)!.textContent
+					vi.setSystemTime(new Date('2026-10-05T00:00:30.000Z'))
+					await act(async () => {
+						root = hydrateRoot(host, makePage(), { onRecoverableError: recoverable })
+					})
+					expect(errors).not.toHaveBeenCalled()
+					expect(recoverable).not.toHaveBeenCalled()
+					expect(
+						host.querySelector('script[type="application/ld+json"]')!.textContent
+					).toBe(before)
+					expect(host.textContent).toContain('356 ₴')
+				} finally {
+					await act(async () => root?.unmount())
+					host.remove()
+					errors.mockRestore()
+					vi.useRealTimers()
+				}
+			}
+		)
+
+		it('shows the badge, the sale price and the struck regular price, and says when it ends', () => {
+			const { container } = renderPage(onSale())
+			expect(screen.getByText('−15 %')).toBeInTheDocument()
+			expect(screen.getByText('356 ₴')).toBeInTheDocument()
+			expect(container.querySelector('s')).toHaveTextContent('419 ₴')
+			expect(screen.getByText('Акція до 01.11')).toBeInTheDocument()
+		})
+
+		it('sends the sale price to analytics and the promo fields into the cart', async () => {
+			const { trackViewItem, trackAddToCart } = await import('@/common/lib/ga4-events')
+			const { useCartStore } = await import('@/common/store/useCartStore')
+			renderPage(onSale())
+			expect(trackViewItem).toHaveBeenLastCalledWith(expect.objectContaining({ price: 356 }))
+
+			await act(async () => {
+				screen.getByRole('button', { name: /Додати в кошик/ }).click()
+			})
+			expect(useCartStore.getState().addItem).toHaveBeenLastCalledWith(
+				'v1',
+				1,
+				expect.objectContaining({
+					price: 419,
+					sale_price: 356,
+					promo_ends_at: '2099-11-01T12:00:00.000Z'
+				})
+			)
+			expect(trackAddToCart).toHaveBeenLastCalledWith(expect.objectContaining({ price: 356 }))
+		})
+
+		it('shows an archived variant with one struck price and no promotion', () => {
+			const { container } = renderPage(
+				data({
+					status: 'archived',
+					sale_price: 356,
+					promo_percent: 15,
+					promo_ends_at: null
+				})
+			)
+			expect(screen.queryByText('−15 %')).not.toBeInTheDocument()
+			expect(screen.queryByText('356 ₴')).not.toBeInTheDocument()
+			expect(container.querySelector('s')).toBeNull()
+			expect(screen.getByText('419 ₴')).toHaveClass('line-through')
+		})
 	})
 })

@@ -62,12 +62,16 @@ import {
 	WAREHOUSE_TYPE_LABELS
 } from './checkout.constants'
 import { submitLiqpayForm } from './liqpay.utils'
+import { effectivePrice, isPromoActive } from '@/common/utils/price.utils'
 
 type DisplayLine = {
 	variant_id: string
 	quantity: number
 	name: string
+	/** What the shopper pays for one unit — the sale price while a promotion is on (TD-0012). */
 	price: number
+	/** A promo line: already discounted, so a coupon leaves it alone. */
+	onPromo: boolean
 	thumbnail: string | null
 	stock?: number
 }
@@ -186,16 +190,22 @@ export function CheckoutPage() {
 				variant_id: i.variant_id,
 				quantity: i.quantity,
 				name: i.variant.name,
-				price: i.variant.price,
+				price: effectivePrice(i.variant),
+				onPromo: isPromoActive(i.variant),
 				thumbnail: i.variant.thumbnail,
 				stock: i.variant.stock
 			}))
 		}
+		// A guest line is a snapshot: `isPromoActive` with a clock lets one captured before the
+		// end date fall back to the regular price locally; the server re-prices everything at
+		// POST /orders. (Guest items only exist after hydration, so the clock is safe here.)
+		const now = Date.now()
 		return guestItems.map(i => ({
 			variant_id: i.variant_id,
 			quantity: i.quantity,
 			name: i._meta?.name ?? i.variant_id,
-			price: i._meta?.price ?? 0,
+			price: i._meta ? effectivePrice(i._meta, now) : 0,
+			onPromo: i._meta ? isPromoActive(i._meta, now) : false,
 			thumbnail: i._meta?.thumbnail ?? null,
 			stock: undefined
 		}))
@@ -498,8 +508,13 @@ export function CheckoutPage() {
 
 	const orderMutation = useMutation({
 		mutationFn: async (values: CheckoutFormValues) => {
-			const body = buildCreateOrderPayload(values, getOrderItems())
-			return createOrder(body)
+			// The coupon always goes to the server, even when the page's own preview says it buys
+			// nothing: that preview is computed from a guest snapshot that may be stale (a promo
+			// that ended since the item was added, or a backend that lost it). The server
+			// re-prices the cart and answers 400 COUPON_NOT_APPLICABLE when it really applies to
+			// nothing — shown under the coupon field — rather than the page silently dropping a
+			// coupon that would in fact have saved money (TD-0012).
+			return createOrder(buildCreateOrderPayload(values, getOrderItems()))
 		},
 		onSuccess: async (data, values) => {
 			orderPlacedRef.current = true
@@ -553,7 +568,8 @@ export function CheckoutPage() {
 			// A field-level error is shown only where changing that field can fix it: coupon
 			// failures under the coupon input, a stock shortfall under its own cart line.
 			// Everything else stays a toast.
-			const isCouponError = /coupon/i.test(err.message)
+			const isCouponError =
+				/coupon/i.test(err.message) || err.details?.code === 'COUPON_NOT_APPLICABLE'
 			if (isCouponError) {
 				setError('coupon_code', {
 					type: 'server',
@@ -613,9 +629,16 @@ export function CheckoutPage() {
 	const subtotal = total
 	const appliedDiscountPercent =
 		couponValidation && couponValidation.valid ? couponValidation.coupon.discount_percent : 0
+	// The same rule the server applies at POST /orders (TD-0012): a coupon acts on the lines that
+	// are not already on promotion. Previewed here so the figure the shopper sees is the one
+	// `applied_discount.discount_amount` will carry.
+	const promoLineCount = displayItems.filter(l => l.onPromo).length
+	const couponEligibleSubtotal = displayItems
+		.filter(l => !l.onPromo)
+		.reduce((s, l) => s + l.price * l.quantity, 0)
 	const previewDiscountAmount =
 		appliedDiscountPercent > 0
-			? Number(((subtotal * appliedDiscountPercent) / 100).toFixed(2))
+			? Number(((couponEligibleSubtotal * appliedDiscountPercent) / 100).toFixed(2))
 			: 0
 	const previewTotal = Math.max(0, Number((subtotal - previewDiscountAmount).toFixed(2)))
 	const hasAppliedDiscount = previewDiscountAmount > 0
@@ -623,6 +646,9 @@ export function CheckoutPage() {
 		couponValidation && !couponValidation.valid
 			? mapCouponReason(couponValidation.reason)
 			: null
+	/** A validated coupon is on the page — the three messages under the field share this gate. */
+	const showCouponPreview =
+		hasCouponInput && couponLooksValid && !couponValidationLoading && !!couponValidation?.valid
 
 	return (
 		<div className='mx-auto max-w-3xl px-4 py-8 md:py-12'>
@@ -1220,6 +1246,13 @@ export function CheckoutPage() {
 									{couponValidation.coupon.code})
 								</p>
 							)}
+						{showCouponPreview && promoLineCount > 0 && (
+							<p className='text-muted-foreground text-xs'>
+								{couponEligibleSubtotal > 0
+									? `Купон не діє на акційні товари (${promoLineCount} у кошику) — знижка рахується від ${couponEligibleSubtotal.toLocaleString('uk-UA')} ₴.`
+									: 'Купон не діє: усі товари в кошику вже зі знижкою.'}
+							</p>
+						)}
 						{hasCouponInput &&
 							couponLooksValid &&
 							!couponValidationLoading &&
@@ -1391,7 +1424,11 @@ export function CheckoutPage() {
 										<span>{subtotal.toLocaleString('uk-UA')} ₴</span>
 									</div>
 									<div className='flex items-center justify-between text-sm'>
-										<span className='text-muted-foreground'>Знижка</span>
+										<span className='text-muted-foreground'>
+											{promoLineCount > 0
+												? 'Знижка (на товари без акції)'
+												: 'Знижка'}
+										</span>
 										<span>
 											-{previewDiscountAmount.toLocaleString('uk-UA')} ₴ (
 											{appliedDiscountPercent}%)

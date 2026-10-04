@@ -1,13 +1,20 @@
-import type { DeliveryMethod, OrderStatus, PaymentMethod, PaymentStatus } from './orders.schema'
+import type {
+	DeliveryMethod,
+	OrderStatus,
+	PaymentMethod,
+	PaymentStatus,
+	StatusActor
+} from './orders.schema'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 	NEW: 'Нове',
 	CONFIRMED: 'Підтверджено',
-	PROCESSING: 'В обробці',
+	PROCESSING: 'Очікує підтвердження',
 	SHIPPED: 'Відправлено',
 	DELIVERED: 'Доставлено',
 	COMPLETED: 'Виконано',
 	CANCELLED: 'Скасовано',
+	RETURNING: 'Повертається',
 	RETURNED: 'Повернено'
 }
 
@@ -19,7 +26,16 @@ export const ORDER_STATUS_CLASSES: Record<OrderStatus, string> = {
 	DELIVERED: 'border-teal-200 bg-teal-50 text-teal-700',
 	COMPLETED: 'border-gray-200 bg-gray-50 text-gray-600',
 	CANCELLED: 'border-red-200 bg-red-50 text-red-700',
+	RETURNING: 'border-orange-200 bg-orange-50 text-orange-700',
 	RETURNED: 'border-orange-200 bg-orange-50 text-orange-700'
+}
+
+export const STATUS_ACTOR_LABELS: Record<StatusActor, string> = {
+	admin: 'Адмін',
+	customer: 'Покупець',
+	tracker: 'Нова Пошта',
+	gateway: 'LiqPay',
+	system: 'Система'
 }
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

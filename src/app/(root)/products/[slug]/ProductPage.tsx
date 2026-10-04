@@ -17,7 +17,14 @@ import {
 import { UI_URLS } from '@/common/constants'
 import { Badge } from '@/common/components/ui/badge'
 import { cn } from '@/common/utils/shad-cn.utils'
-import { formatPriceAsOf, formatUah } from '@/common/utils/price.utils'
+import {
+	effectivePrice,
+	formatPriceAsOf,
+	formatPromoEndsAt,
+	formatUah,
+	promoPercentLabel
+} from '@/common/utils/price.utils'
+import { PriceTag } from '@/common/components/PriceTag'
 import { estimateShipping } from '@/common/utils/shipping.utils'
 import { useCartStore } from '@/common/store/useCartStore'
 import { getVariantBySlug, type ProductDetailData } from '@/app/(root)/[category]/catalog.api'
@@ -39,6 +46,8 @@ import {
 interface ProductPageProps {
 	slug: string
 	initialData?: ProductDetailData | null
+	/** Serialized by the server; keeps the JSON-LD validity window stable during hydration. */
+	renderedAt: string
 }
 
 /** A product page changes at the pace of a price import, not of a click. */
@@ -46,7 +55,7 @@ const PRODUCT_STALE_TIME = 5 * 60 * 1000
 
 const formatKg = (grams: number) => (grams / 1000).toLocaleString('uk-UA')
 
-export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
+export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps) => {
 	// `staleTime` is what stops the server-rendered page from refetching itself the moment it
 	// hydrates — one request per view saved, and one fewer chance for a 5xx to arrive while the
 	// shopper is reading. `isError` is deliberately not read: a failed refetch leaves the last
@@ -92,7 +101,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 		trackViewItem({
 			item_id: variant.sku,
 			item_name: variant.name,
-			price: variant.price,
+			price: effectivePrice(variant),
 			item_brand: product.manufacturer ?? undefined,
 			item_category: data?.category_name
 		})
@@ -187,11 +196,14 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					slug: spooledSibling.slug,
 					name: spooledSibling.name,
 					price: spooledSibling.price,
+					sale_price: spooledSibling.sale_price ?? null,
 					matched_colour: true
 				}
 			: null)
 
 	const displayName = variantValue ? `${product.name} — ${variantValue}` : variant.name
+	const promoLabel = promoPercentLabel(variant)
+	const promoEnds = formatPromoEndsAt(variant.promo_ends_at)
 	const isOutOfStock = availableStock <= 0
 	const isLowStock = availableStock > 0 && availableStock <= 5
 	const priceAsOf = isOutOfStock ? formatPriceAsOf(variant.price_updated_at) : null
@@ -229,13 +241,15 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 			await addItem(variant.id, quantity, {
 				name: displayName,
 				price: variant.price,
+				sale_price: variant.sale_price ?? null,
+				promo_ends_at: variant.promo_ends_at ?? null,
 				thumbnail: variant.images[0] ?? null,
 				slug: variant.slug
 			})
 			trackAddToCart({
 				item_id: variant.sku,
 				item_name: variant.name,
-				price: variant.price,
+				price: effectivePrice(variant),
 				quantity,
 				item_brand: product.manufacturer ?? undefined,
 				item_category: category_name
@@ -247,7 +261,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 		}
 	}
 
-	const productSchema = buildProductJsonLd(data, displayName)
+	const productSchema = buildProductJsonLd(data, displayName, new Date(renderedAt))
 
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
@@ -397,15 +411,26 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 					</Badge>
 
 					<div>
-						<p
-							className={cn(
-								'text-3xl font-bold',
-								isOutOfStock ? 'text-muted-foreground' : 'text-primary-strong',
-								isArchived && 'text-muted-foreground line-through'
+						{/* An archived variant shows one struck regular price and no promotion:
+						    nothing is for sale, so there is no «стало» to compare against. */}
+						<div className='flex flex-wrap items-center gap-x-3 gap-y-1'>
+							<PriceTag
+								item={isArchived ? { price: variant.price } : variant}
+								priceClassName={cn(
+									'text-3xl font-bold',
+									isOutOfStock ? 'text-muted-foreground' : 'text-primary-strong',
+									isArchived && 'text-muted-foreground line-through'
+								)}
+							/>
+							{!isArchived && promoLabel && (
+								<Badge variant='destructive' className='text-xs'>
+									{promoLabel}
+								</Badge>
 							)}
-						>
-							{formatUah(variant.price)}
-						</p>
+						</div>
+						{!isArchived && promoLabel && promoEnds && (
+							<p className='text-muted-foreground text-sm'>Акція {promoEnds}</p>
+						)}
 						{priceAsOf && <p className='text-muted-foreground text-sm'>{priceAsOf}</p>}
 						{/* What the same filament costs with a spool, so the saving is visible
 						    without hunting for the other page. */}
@@ -416,7 +441,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 									href={`/products/${spooled.slug}`}
 									className='hover:text-primary underline underline-offset-2'
 								>
-									{formatUah(spooled.price)}
+									{formatUah(effectivePrice(spooled))}
 								</Link>
 							</p>
 						)}
@@ -464,7 +489,7 @@ export const ProductPage = ({ slug, initialData }: ProductPageProps) => {
 									>
 										Обрати варіант на котушці —{' '}
 										{spooled.matched_colour ? '' : 'від '}
-										{formatUah(spooled.price)}
+										{formatUah(effectivePrice(spooled))}
 									</Link>
 								)}
 							</div>

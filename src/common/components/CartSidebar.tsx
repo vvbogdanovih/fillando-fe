@@ -10,6 +10,7 @@ import { useCartStore } from '@/common/store/useCartStore'
 import { useLenisModalLock } from '@/common/hooks/useLenisModalLock'
 import { UI_URLS } from '@/common/constants'
 import { cn } from '@/common/utils/shad-cn.utils'
+import { effectivePrice } from '@/common/utils/price.utils'
 
 export function CartSidebar() {
 	const isOpen = useCartStore(s => s.isOpen)
@@ -34,7 +35,7 @@ export function CartSidebar() {
 				variant_id: i.variant_id,
 				quantity: i.quantity,
 				name: i.variant.name,
-				price: i.variant.price,
+				price: effectivePrice(i.variant),
 				thumbnail: i.variant.thumbnail,
 				stock: i.variant.stock,
 				slug: i.variant.slug
@@ -43,7 +44,8 @@ export function CartSidebar() {
 				variant_id: i.variant_id,
 				quantity: i.quantity,
 				name: i._meta?.name ?? i.variant_id,
-				price: i._meta?.price ?? 0,
+				// A snapshot from localStorage, not the server's word: judge its end date now.
+				price: i._meta ? effectivePrice(i._meta, Date.now()) : 0,
 				thumbnail: i._meta?.thumbnail ?? null,
 				stock: undefined as number | undefined,
 				slug: i._meta?.slug ?? null
@@ -159,9 +161,9 @@ export function CartSidebar() {
 						</div>
 					) : (
 						<div
-						data-lenis-prevent
-						className='flex-1 space-y-2 overflow-y-auto px-4 py-3'
-					>
+							data-lenis-prevent
+							className='flex-1 space-y-2 overflow-y-auto px-4 py-3'
+						>
 							{displayItems.map(item => (
 								<div
 									key={item.variant_id}

@@ -13,6 +13,7 @@ import { cn } from '@/common/utils/shad-cn.utils'
 import { MANUFACTURERS } from '@/common/constants'
 import { priceSheetApi } from './price-sheet.api'
 import type { AdminVariant } from './price-sheet.schema'
+import { PriceTag } from '@/common/components/PriceTag'
 
 const LIMIT = 50
 
@@ -254,7 +255,7 @@ const Row = memo(function Row({ item }: { item: AdminVariant }) {
 			<td className='px-3 py-1.5 text-gray-700'>{item.color || '—'}</td>
 			<td className='px-3 py-1.5 font-mono text-xs text-gray-700'>{item.article || '—'}</td>
 			<td className='px-3 py-1.5 text-right whitespace-nowrap text-gray-900'>
-				₴{item.price}
+				<PriceTag item={item} className='justify-end' priceClassName='font-medium' />
 			</td>
 			<td
 				className={`px-3 py-1.5 text-right whitespace-nowrap ${
@@ -304,9 +305,11 @@ const MobileCard = memo(function MobileCard({ item }: { item: AdminVariant }) {
 					>
 						{item.name}
 					</Link>
-					<span className='shrink-0 font-medium whitespace-nowrap text-gray-900'>
-						₴{item.price}
-					</span>
+					<PriceTag
+						item={item}
+						className='shrink-0 justify-end whitespace-nowrap text-gray-900'
+						priceClassName='font-medium'
+					/>
 				</div>
 				<div className='mt-0.5 flex flex-wrap gap-x-2 text-xs text-gray-500'>
 					{[item.manufacturer, item.material, item.color].filter(Boolean).join(' · ') ||
@@ -380,6 +383,8 @@ const AddToCartButton = memo(function AddToCartButton({ item }: { item: AdminVar
 			await addItem(item.id, 1, {
 				name: item.name,
 				price: item.price,
+				sale_price: item.sale_price ?? null,
+				promo_ends_at: item.promo_ends_at ?? null,
 				thumbnail: item.image,
 				slug: item.slug
 			})

@@ -95,7 +95,7 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 
 	it.each([
 		['paid', { payment_status: 'PAID' as const }],
-		['already in processing', { order_status: 'PROCESSING' as const }],
+		['already shipped', { order_status: 'SHIPPED' as const }],
 		['cancelled', { payment_status: 'VOIDED' as const, order_status: 'CANCELLED' as const }]
 	])('shows no payment actions for an order that is %s', async (_label, over) => {
 		renderDetails(order(over))
@@ -105,5 +105,21 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 		expect(
 			screen.queryByRole('button', { name: 'Обрати інший спосіб оплати' })
 		).not.toBeInTheDocument()
+	})
+})
+
+describe('OrderDetails — discounts', () => {
+	it('shows the coupon and the shop discount, never the admin reason', async () => {
+		renderDetails(
+			order({
+				subtotal_price: 1000,
+				total_price: 850,
+				applied_discount: { code: 'TEN', discount_percent: 10, discount_amount: 100 },
+				manual_discount: { amount: 50 }
+			})
+		)
+
+		expect(await screen.findByText(/Знижка \(TEN\)/)).toBeInTheDocument()
+		expect(screen.getByText(/Знижка магазину/)).toBeInTheDocument()
 	})
 })

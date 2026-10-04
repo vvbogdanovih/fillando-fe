@@ -77,7 +77,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
 	return (
 		<Suspense>
-			<ProductPage slug={slug} initialData={initialData} />
+			<ProductPage
+				slug={slug}
+				initialData={initialData}
+				renderedAt={new Date().toISOString()}
+			/>
 		</Suspense>
 	)
 }

@@ -212,3 +212,18 @@ Edit four places together, or the tag will not bite:
 
 Step 2 is the one that fails silently. `grep` the URL, not the tag: a call site you missed shares
 the cache entry and can write it without tags.
+
+## Promotions
+
+The visible product price and its JSON-LD use the same server-priced snapshot until a new
+response arrives. Neither re-checks promotion expiry against the browser's clock. The product
+route also serializes `renderedAt` into `ProductPage`: JSON-LD's fallback `priceValidUntil`
+(+90 days) is anchored to that instant, so hydrating cached HTML across midnight cannot change
+the script. Expiry freshness still depends on the purge described below; an open browser is
+updated by a React Query refetch. Guest cart snapshots check expiry after localStorage hydration.
+
+`PATCH /products/:id/promotion` and a variant save that mentions `promo_percent` /
+`promo_ends_at` are product writes: the backend purges `products` (and, through the
+`FeedRefreshSignal`, rebuilds the Merchant feed). The admin's `PromotionCard` still calls
+`revalidateStorefront('products')` so the development storefront refreshes without a backend hop;
+in production that call is a no-op, as for every other admin write.

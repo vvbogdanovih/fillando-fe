@@ -6,7 +6,9 @@ import { type Order } from './orders.schema'
 import {
 	buildOrderPatchPayload,
 	isPaymentMethodAllowed,
-	mapOrderErrorMessage
+	mapOrderErrorMessage,
+	ordersListQuery,
+	parseOrdersListParams
 } from './orders.utils'
 
 vi.mock('next/image', () => ({
@@ -52,7 +54,9 @@ const baseOrder: Order = {
 	payment_status: 'PENDING',
 	order_status: 'NEW',
 	comment: '',
-	nova_post_ttn: ''
+	nova_post_ttn: '',
+	status_history: [],
+	allowed_status_transitions: []
 }
 
 describe('orders UI critical flows', () => {
@@ -153,5 +157,47 @@ describe('isPaymentMethodAllowed', () => {
 	it('leaves the other payment methods unrestricted', () => {
 		expect(isPaymentMethodAllowed('IBAN', 'PICKUP')).toBe(true)
 		expect(isPaymentMethodAllowed('LIQPAY', 'NOVA_POST')).toBe(true)
+	})
+})
+
+describe('order list URL state', () => {
+	const parse = (query: string) => parseOrdersListParams(new URLSearchParams(query))
+
+	it('reads page, size and filters back from the address', () => {
+		expect(parse('page=3&limit=50&order_status=SHIPPED&payment_status=PAID')).toEqual({
+			page: 3,
+			limit: 50,
+			orderStatus: 'SHIPPED',
+			paymentStatus: 'PAID'
+		})
+	})
+
+	it('falls back to defaults for anything it cannot use', () => {
+		expect(parse('page=-2&limit=7&order_status=ON_HOLD&payment_status=nope')).toEqual({
+			page: 1,
+			limit: 20,
+			orderStatus: 'all',
+			paymentStatus: 'all'
+		})
+		expect(parse('page=2.5').page).toBe(1)
+	})
+
+	it('writes only what differs from the defaults', () => {
+		expect(
+			ordersListQuery({ page: 1, limit: 20, orderStatus: 'all', paymentStatus: 'all' })
+		).toBe('')
+		expect(
+			ordersListQuery({ page: 4, limit: 10, orderStatus: 'NEW', paymentStatus: 'all' })
+		).toBe('?page=4&limit=10&order_status=NEW')
+	})
+
+	it('round-trips', () => {
+		const state = {
+			page: 2,
+			limit: 50,
+			orderStatus: 'RETURNING',
+			paymentStatus: 'PENDING'
+		} as const
+		expect(parse(ordersListQuery(state).slice(1))).toEqual(state)
 	})
 })

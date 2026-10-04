@@ -7,7 +7,8 @@ import toast from 'react-hot-toast'
 import { Button } from '@/common/components/ui/button'
 import { Badge } from '@/common/components/ui/badge'
 import { productsApi } from '../products.api'
-import type { ProductVariantFull } from '../products.schema'
+import { previewSalePrice, promoStateOf, type ProductVariantFull } from '../products.schema'
+import { formatAdminDateTime } from '@/common/utils/date.utils'
 import { VariantModal } from './VariantModal'
 import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 
@@ -133,7 +134,44 @@ export const VariantsSection = ({
 									<td className='py-3 pr-4 font-mono text-xs text-gray-700'>
 										{variant.vendor_product_sku || '—'}
 									</td>
-									<td className='py-3 pr-4 text-gray-700'>₴{variant.price}</td>
+									<td className='py-3 pr-4 text-gray-700'>
+										{promoStateOf(variant) === 'live' ? (
+											<span className='flex flex-wrap items-center gap-1.5'>
+												<s className='text-gray-400'>₴{variant.price}</s>
+												<span>
+													₴
+													{previewSalePrice(
+														variant.price,
+														variant.promo_percent as number
+													)}
+												</span>
+												<Badge
+													variant='outline'
+													className='border-red-200 bg-red-50 text-red-700'
+													title={
+														variant.promo_ends_at
+															? `Акція до ${formatAdminDateTime(variant.promo_ends_at)}`
+															: 'Акція без дати завершення'
+													}
+												>
+													−{variant.promo_percent} %
+												</Badge>
+											</span>
+										) : promoStateOf(variant) === 'ended' ? (
+											<span className='flex flex-wrap items-center gap-1.5'>
+												<span>₴{variant.price}</span>
+												<Badge
+													variant='outline'
+													className='border-gray-200 bg-gray-50 text-gray-500'
+													title={`Акція −${variant.promo_percent} % завершилась ${formatAdminDateTime(variant.promo_ends_at)}`}
+												>
+													акція завершилась
+												</Badge>
+											</span>
+										) : (
+											<>₴{variant.price}</>
+										)}
+									</td>
 									<td className='py-3 pr-4 text-gray-700'>{variant.stock}</td>
 									<td className='py-3 pr-4 text-gray-700'>
 										{variant.weight_g != null ? variant.weight_g : '—'}

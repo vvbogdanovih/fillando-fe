@@ -65,11 +65,14 @@ function OrderItemsList({ items }: { items: MyOrderItem[] }) {
 	)
 }
 
-/** Mirrors the backend rule: the buyer may act on payment while it is awaited and the order is not yet in fulfilment. */
+/** Mirrors the backend rule: the buyer may act on payment while it is awaited and the order has not shipped (no TTN yet, TD-0011). */
 const PAYMENT_OPEN_STATUSES = new Set(['PENDING', 'FAILED'])
-const PAYMENT_CHANGEABLE_ORDER_STATUSES = new Set(['NEW', 'CONFIRMED'])
-/** A closed order is never explained as «ви можете оплатити» — there is nothing to pay for. */
-const CLOSED_ORDER_STATUSES = new Set(['CANCELLED', 'RETURNED'])
+const PAYMENT_CHANGEABLE_ORDER_STATUSES = new Set(['NEW', 'PROCESSING', 'CONFIRMED'])
+/**
+ * A closed order is never explained as «ви можете оплатити» — there is nothing to pay for. A
+ * parcel on its way back (`RETURNING`, TD-0011) counts: the buyer refused or did not collect it.
+ */
+const CLOSED_ORDER_STATUSES = new Set(['CANCELLED', 'RETURNING', 'RETURNED'])
 
 /**
  * TD-0009's cooldown clock is not part of `myOrderSchema` yet (the schema passes unknown keys
@@ -173,6 +176,15 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					<p>Статус: {ORDER_STATUS_LABELS[order.order_status]}</p>
 					<p>Статус оплати: {PAYMENT_STATUS_LABELS[order.payment_status]}</p>
 					<p>Subtotal: {formatPrice(order.subtotal_price)}</p>
+					{order.applied_discount ? (
+						<p>
+							Знижка ({order.applied_discount.code}): -
+							{formatPrice(order.applied_discount.discount_amount)}
+						</p>
+					) : null}
+					{order.manual_discount ? (
+						<p>Знижка магазину: -{formatPrice(order.manual_discount.amount)}</p>
+					) : null}
 					<p>Total: {formatPrice(order.total_price)}</p>
 				</CardContent>
 			</Card>

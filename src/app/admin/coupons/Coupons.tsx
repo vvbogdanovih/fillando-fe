@@ -27,22 +27,12 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/common/components/ui/select'
+import { fromDateTimeLocal, toDateTimeLocal } from '@/common/utils/date.utils'
 import { couponsApi } from './coupons.api'
 import { couponFormSchema, type Coupon, type CouponFormValues } from './coupons.schema'
 
 type PanelState = { mode: 'create' } | { mode: 'edit'; couponId: string }
 type StatusFilter = 'all' | 'active' | 'inactive'
-
-function toDateTimeLocal(dateString: string): string {
-	const d = new Date(dateString)
-	if (Number.isNaN(d.getTime())) return ''
-	const pad = (n: number) => String(n).padStart(2, '0')
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function toApiDate(value: string): string {
-	return new Date(value).toISOString()
-}
 
 function mapApiFormError(message: string, setError: UseFormSetError<CouponFormValues>) {
 	const normalized = message.toLowerCase()
@@ -113,7 +103,7 @@ function CouponForm({
 		mutationFn: (values: CouponFormValues) =>
 			couponsApi.create({
 				discount_percent: values.discount_percent,
-				valid_until: toApiDate(values.valid_until),
+				valid_until: fromDateTimeLocal(values.valid_until),
 				is_active: values.is_active,
 				is_reusable: values.is_reusable
 			}),
@@ -133,7 +123,7 @@ function CouponForm({
 			if (!initial?.id) throw new Error('Не знайдено ID купона для оновлення')
 			return couponsApi.update(initial.id, {
 				discount_percent: values.discount_percent,
-				valid_until: toApiDate(values.valid_until),
+				valid_until: fromDateTimeLocal(values.valid_until),
 				is_active: values.is_active,
 				is_reusable: values.is_reusable
 			})

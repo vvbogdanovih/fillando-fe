@@ -52,6 +52,7 @@ export const API_URLS = {
 		BY_ID: (id: string) => `/products/${id}`, // GET / PATCH / DELETE
 		VALIDATE: `/products/validate`, // POST — check slug + SKU uniqueness before create
 		VARIANTS: (id: string) => `/products/${id}/variants`, // GET (list) / POST (add variant)
+		PROMOTION: (id: string) => `/products/${id}/promotion`, // PATCH — set/clear the promotion on every variant (TD-0012)
 		VARIANT_BY_ID: (id: string, variantId: string) => `/products/${id}/variants/${variantId}`, // GET / PATCH / DELETE
 		VARIANT_IMAGES: (id: string, variantId: string) =>
 			`/products/${id}/variants/${variantId}/images` // PATCH — set variant images

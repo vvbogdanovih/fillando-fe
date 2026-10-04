@@ -11,6 +11,10 @@ export const adminVariantSchema = z.object({
 	color: z.string().nullable(),
 	article: z.string().nullable(),
 	price: z.number(),
+	// The shop's own promotion (TD-0012); null — or absent from an older backend — without one.
+	sale_price: z.number().nullable().optional(),
+	promo_percent: z.number().nullable().optional(),
+	promo_ends_at: z.string().nullable().optional(),
 	in_stock: z.boolean(),
 	stock: z.number(),
 	synced_at: z.string().nullable()

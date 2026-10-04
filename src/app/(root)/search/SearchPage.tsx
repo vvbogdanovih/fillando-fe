@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { searchProducts, type SearchResponse } from './search.api'
 import { ProductGrid } from '@/app/(root)/[category]/components/ProductGrid'
-import { Pagination } from '@/app/(root)/[category]/components/Pagination'
+import { Pagination } from '@/common/components/Pagination'
 
 interface SearchPageProps {
 	q: string
