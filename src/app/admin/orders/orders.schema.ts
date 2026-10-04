@@ -81,6 +81,19 @@ const deliveryAddressSchema = z
 	.nullable()
 	.optional()
 
+const appliedDiscountSchema = z.object({
+	code: z.string(),
+	discount_percent: z.number(),
+	discount_amount: z.number()
+})
+
+/** The admin's fixed UAH discount granted after checkout; `reason` is admin-only. */
+const manualDiscountSchema = z.object({
+	amount: z.number(),
+	reason: z.string().optional(),
+	applied_at: z.string().optional()
+})
+
 export const orderSchema = z
 	.object({
 		_id: z.string().optional(),
@@ -94,10 +107,10 @@ export const orderSchema = z
 			.preprocess(value => parseNumberWithDefault(value, 0), z.number())
 			.default(0),
 		total_price: z.preprocess(value => parseNumberWithDefault(value, 0), z.number()).default(0),
-		applied_discount: z.preprocess(
-			value => parseOptionalNumber(value),
-			z.number().optional().nullable()
-		),
+		// The backend sends the coupon snapshot object; reading it as a number made it NaN and
+		// hid the coupon line from the summary.
+		applied_discount: appliedDiscountSchema.nullable().optional().catch(null),
+		manual_discount: manualDiscountSchema.nullable().optional().catch(null),
 		customer: customerSchema.default({ name: '', phone: '', email: '' }),
 		delivery_method: z
 			.preprocess(value => toUpperValue(value), z.enum(deliveryMethodValues))
@@ -177,6 +190,10 @@ export const patchOrderSchema = z.object({
 				quantity: z.number().int().positive()
 			})
 		)
+		.optional(),
+	manual_discount: z
+		.object({ amount: z.number().positive(), reason: z.string().min(1) })
+		.nullable()
 		.optional()
 })
 

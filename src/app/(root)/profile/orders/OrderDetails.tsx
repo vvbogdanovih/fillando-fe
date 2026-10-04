@@ -176,6 +176,15 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					<p>Статус: {ORDER_STATUS_LABELS[order.order_status]}</p>
 					<p>Статус оплати: {PAYMENT_STATUS_LABELS[order.payment_status]}</p>
 					<p>Subtotal: {formatPrice(order.subtotal_price)}</p>
+					{order.applied_discount ? (
+						<p>
+							Знижка ({order.applied_discount.code}): -
+							{formatPrice(order.applied_discount.discount_amount)}
+						</p>
+					) : null}
+					{order.manual_discount ? (
+						<p>Знижка магазину: -{formatPrice(order.manual_discount.amount)}</p>
+					) : null}
 					<p>Total: {formatPrice(order.total_price)}</p>
 				</CardContent>
 			</Card>

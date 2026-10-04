@@ -44,6 +44,7 @@ import {
 } from './orders.schema'
 import { OrderItemsList } from './orders.components'
 import { InvoiceModal } from './InvoiceModal'
+import { ManualDiscountCard } from './ManualDiscountCard'
 import { OrderStatusActions } from './OrderStatusActions'
 import { StatusHistoryCard } from './StatusHistoryCard'
 import { VendorEmailModal } from './VendorEmailModal'
@@ -376,8 +377,17 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 						</div>
 						{!!order.applied_discount && (
 							<div className='flex justify-between'>
-								<span>Знижка</span>
-								<span>-{formatPrice(order.applied_discount)}</span>
+								<span>
+									Знижка ({order.applied_discount.code},{' '}
+									{order.applied_discount.discount_percent}%)
+								</span>
+								<span>-{formatPrice(order.applied_discount.discount_amount)}</span>
+							</div>
+						)}
+						{!!order.manual_discount && (
+							<div className='flex justify-between'>
+								<span>Знижка магазину</span>
+								<span>-{formatPrice(order.manual_discount.amount)}</span>
 							</div>
 						)}
 						<div className='flex justify-between text-base font-semibold'>
@@ -387,6 +397,8 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					</CardContent>
 				</Card>
 			</div>
+
+			<ManualDiscountCard order={order} onUpdated={updateOrderInCache} />
 
 			<Card>
 				<CardHeader>

@@ -107,3 +107,19 @@ describe('OrderDetails — payment actions (TD-0009)', () => {
 		).not.toBeInTheDocument()
 	})
 })
+
+describe('OrderDetails — discounts', () => {
+	it('shows the coupon and the shop discount, never the admin reason', async () => {
+		renderDetails(
+			order({
+				subtotal_price: 1000,
+				total_price: 850,
+				applied_discount: { code: 'TEN', discount_percent: 10, discount_amount: 100 },
+				manual_discount: { amount: 50 }
+			})
+		)
+
+		expect(await screen.findByText(/Знижка \(TEN\)/)).toBeInTheDocument()
+		expect(screen.getByText(/Знижка магазину/)).toBeInTheDocument()
+	})
+})
