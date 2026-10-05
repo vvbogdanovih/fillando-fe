@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+	couponDiscountAmount,
 	effectivePrice,
 	formatPriceAsOf,
 	formatPromoEndsAt,
@@ -75,5 +76,40 @@ describe('promotions (TD-0012)', () => {
 		expect(formatPromoEndsAt('2026-11-01T22:30:00.000Z')).toBe('до 02.11')
 		expect(formatPromoEndsAt(null)).toBeNull()
 		expect(formatPromoEndsAt('nope')).toBeNull()
+	})
+})
+
+// The same figures live in the backend's coupon-pricing.spec.ts — the preview must match the order.
+describe('couponDiscountAmount (TD-0012, revised 2026-10-05)', () => {
+	const plain = { price: 500, listPrice: 500, quantity: 1 }
+	// 600 at −10 %: sale 540, the promotion already saves 60 a unit.
+	const onSale = { price: 540, listPrice: 600, quantity: 2 }
+
+	it('takes the full percent off a line without a promotion', () => {
+		expect(couponDiscountAmount([plain], 10)).toBe(50)
+	})
+
+	it('adds nothing to a promo line the coupon does not beat', () => {
+		expect(couponDiscountAmount([onSale], 10)).toBe(0)
+		expect(couponDiscountAmount([onSale], 5)).toBe(0)
+	})
+
+	it('lifts a promo line to the coupon percent of the regular price when the coupon is larger', () => {
+		// 15 % of 2 × 600 is 180; the sale already gave 120, so the coupon adds 60.
+		expect(couponDiscountAmount([onSale], 15)).toBe(60)
+	})
+
+	it('sums the lines: each one keeps the larger of its two discounts', () => {
+		expect(couponDiscountAmount([onSale, plain], 10)).toBe(50)
+		expect(couponDiscountAmount([onSale, plain], 15)).toBe(135)
+	})
+
+	it('measures a sale rounded to whole hryvnias from the regular price, so the line ends at exactly the coupon percent', () => {
+		expect(couponDiscountAmount([{ price: 539, listPrice: 599, quantity: 1 }], 15)).toBe(29.85)
+	})
+
+	it('answers two decimals and zero for an empty cart', () => {
+		expect(couponDiscountAmount([{ price: 333, listPrice: 333, quantity: 3 }], 7)).toBe(69.93)
+		expect(couponDiscountAmount([], 15)).toBe(0)
 	})
 })

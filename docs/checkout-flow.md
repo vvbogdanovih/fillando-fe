@@ -330,11 +330,15 @@ eye away from the line, and covered the summary while it faded. The coupon messa
 exception — the coupon input can be scrolled out of view when the button is pressed, so it is
 pinned **and** toasted; the shortfall's own line is scrolled into view instead.
 
-**A coupon acts on the lines that are not on promotion (TD-0012).** `displayItems[].onPromo` is
-`isPromoActive(variant | _meta)`; `couponEligibleSubtotal` sums the other lines and the previewed
-discount is `percent × couponEligibleSubtotal`, which is exactly what the server records in
-`applied_discount.discount_amount`. When promo lines are present a line under the coupon field says
-what the discount is counted from; when every line is on promo it says the coupon buys nothing. The
+**A coupon never stacks on a promotion — the larger discount wins on each line (TD-0012, revised
+2026-10-05).** `displayItems[].onPromo` is `isPromoActive(variant | _meta)` and `listPrice` the
+regular price; `couponDiscountAmount(displayItems, percent)` (`common/utils/price.utils.ts`) adds
+per line `max(0, listPrice × qty × percent/100 − (listPrice − price) × qty)`, which is exactly what
+the server records in `applied_discount.discount_amount` (its `coupon-pricing.ts` is the twin). A
+regular line takes the full percent; a −10 % sale met by a −15 % coupon ends at 15 % off the regular
+price; a coupon no larger than the sale adds nothing to that line. The summary row is «Знижка за
+купоном». Under the coupon field one line says which promo lines the coupon lifts («діє купон: −15 %
+від ціни без акції»), another which keep their sale; when the sum is 0 it says the coupon buys nothing. The
 coupon is **still sent**: that preview is computed from the page's own data, which for a guest is a
 localStorage snapshot that may be stale, so the server — which re-prices every line — decides. Its
 `400 COUPON_NOT_APPLICABLE` lands under the coupon field like any other coupon error. A guest line is

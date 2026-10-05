@@ -50,6 +50,37 @@ export const isPromoActive = (item: PromoPriced, now?: number): boolean =>
 export const effectivePrice = (item: PromoPriced, now?: number): number =>
 	isPromoActive(item, now) ? (item.sale_price as number) : item.price
 
+/** A checkout line as the coupon sees it: the unit price paid and the regular one it came from. */
+export interface CouponPricedLine {
+	/** What the shopper pays for one unit — the sale price while a promotion is on. */
+	price: number
+	/** The regular price the coupon is measured from; equals `price` without a promotion. */
+	listPrice: number
+	quantity: number
+}
+
+/**
+ * What a coupon takes off on top of the promotions already in the lines (TD-0012, rule revised
+ * 2026-10-05). A coupon never stacks on a sale: on each line the larger of the two discounts wins,
+ * both measured from the regular price — a −10 % sale met by a −15 % coupon ends at 15 % off the
+ * regular price, and a coupon no larger than the sale adds nothing to that line. A line without a
+ * promotion simply takes the coupon percent. Mirrors the backend's `couponDiscountAmount` in
+ * `fillando-be/src/modules/order/coupon-pricing.ts`, which writes `applied_discount.discount_amount`;
+ * zero means the server will refuse the coupon (`COUPON_NOT_APPLICABLE`).
+ */
+export const couponDiscountAmount = (
+	lines: readonly CouponPricedLine[],
+	percent: number
+): number => {
+	let amount = 0
+	for (const line of lines) {
+		const couponSaving = (line.listPrice * line.quantity * percent) / 100
+		const promoSaving = (line.listPrice - line.price) * line.quantity
+		amount += Math.max(0, couponSaving - promoSaving)
+	}
+	return Number(amount.toFixed(2))
+}
+
 /** «−15 %» — a real minus sign (U+2212). Null without an active promotion. */
 export const promoPercentLabel = (item: PromoPriced, now?: number): string | null =>
 	isPromoActive(item, now) && item.promo_percent != null ? `−${item.promo_percent} %` : null

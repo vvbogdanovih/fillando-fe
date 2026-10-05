@@ -618,35 +618,66 @@ describe('CheckoutPage — купон і акційні товари (TD-0012)',
 		await screen.findByText(/Купон валідний/)
 	}
 
-	it('previews the coupon over the regular lines only and says so', async () => {
+	it('leaves a promo line the coupon does not beat at its sale price and says so', async () => {
 		useCartStore.setState({ guestItems: [GUEST_ITEM, PROMO_GUEST_ITEM] })
 		renderCheckout()
 
 		await applyCoupon(10)
 
-		// 10 % of the 700 ₴ regular line, not of the 1 240 ₴ subtotal.
+		// 10 % of the 700 ₴ regular line; the 600 → 540 line already saves 10 %, so nothing more.
 		expect(
 			screen.getByText(
-				'Купон не діє на акційні товари (1 у кошику) — знижка рахується від 700 ₴.'
+				'Акційні товари (1 у кошику) лишаються за акційною ціною — їхня знижка не менша за купон.'
 			)
 		).toBeInTheDocument()
-		expect(screen.getByText('Знижка (на товари без акції)')).toBeInTheDocument()
+		expect(screen.getByText('Знижка за купоном')).toBeInTheDocument()
 		expect(screen.getByText(/-70 ₴ \(10%\)/)).toBeInTheDocument()
 		expect(screen.getByText(/1\s?170 ₴/)).toBeInTheDocument()
 	})
 
-	it('explains that a coupon buys nothing when every line is on promotion', async () => {
+	it('lifts a promo line to the coupon percent of the regular price when the coupon is larger — never stacked', async () => {
+		useCartStore.setState({ guestItems: [GUEST_ITEM, PROMO_GUEST_ITEM] })
+		renderCheckout()
+
+		await applyCoupon(15)
+
+		// Regular line: 15 % of 700 = 105. Promo line: 15 % of 600 is 90, the sale gave 60 → 30 more.
+		// Subtotal stays 1 240 (sale prices); 1 240 − 135 = 1 105.
+		expect(
+			screen.getByText(
+				'Для акційних товарів (1 у кошику) діє купон: −15% від ціни без акції замість акційної знижки.'
+			)
+		).toBeInTheDocument()
+		expect(screen.getByText(/-135 ₴ \(15%\)/)).toBeInTheDocument()
+		expect(screen.getByText(/1\s?105 ₴/)).toBeInTheDocument()
+	})
+
+	it('explains that a coupon buys nothing when every line is on a sale at least as large', async () => {
 		useCartStore.setState({ guestItems: [PROMO_GUEST_ITEM] })
 		renderCheckout()
 
 		await applyCoupon(10)
 
 		expect(
-			screen.getByText('Купон не діє: усі товари в кошику вже зі знижкою.')
+			screen.getByText(
+				'Купон не дає додаткової знижки: усі товари в кошику вже на акції з не меншою знижкою.'
+			)
 		).toBeInTheDocument()
 		expect(screen.queryByText(/^Знижка/)).not.toBeInTheDocument()
 		// The line is priced at the sale price everywhere it appears (unit price, line total).
 		expect(screen.getAllByText('540 ₴').length).toBeGreaterThan(0)
+	})
+
+	it('applies a larger coupon to an all-promo cart, measured from the regular price', async () => {
+		useCartStore.setState({ guestItems: [PROMO_GUEST_ITEM] })
+		renderCheckout()
+
+		await applyCoupon(15)
+
+		// 600 − 15 % = 510: the 540 sale price minus the 30 the coupon adds.
+		expect(screen.getByText(/-30 ₴ \(15%\)/)).toBeInTheDocument()
+		expect(screen.getByText('510 ₴')).toBeInTheDocument()
+		expect(screen.queryByText(/Купон не дає додаткової знижки/)).not.toBeInTheDocument()
 	})
 
 	it('still sends the coupon the page said cannot apply — the server decides, and its refusal lands under the field', async () => {

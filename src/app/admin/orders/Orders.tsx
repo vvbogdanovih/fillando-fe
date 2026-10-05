@@ -223,7 +223,7 @@ export function Orders() {
 					) : (
 						<>
 							<div className='overflow-x-auto'>
-								<table className='w-full min-w-[960px] text-sm'>
+								<table className='w-full min-w-[1080px] text-sm'>
 									<thead>
 										<tr className='border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase'>
 											<th className='px-3 py-2'>№</th>
@@ -232,6 +232,7 @@ export function Orders() {
 											<th className='px-3 py-2'>Сума</th>
 											<th className='px-3 py-2'>Статус</th>
 											<th className='px-3 py-2'>Оплата</th>
+											<th className='px-3 py-2'>ТТН</th>
 											<th className='px-3 py-2'>Товар</th>
 										</tr>
 									</thead>
@@ -305,6 +306,17 @@ export function Orders() {
 																]
 															}
 														</Badge>
+													</td>
+													<td className='px-3 py-3'>
+														{order.nova_post_ttn ? (
+															<span className='font-mono text-xs whitespace-nowrap'>
+																{order.nova_post_ttn}
+															</span>
+														) : (
+															<span className='text-muted-foreground'>
+																—
+															</span>
+														)}
 													</td>
 													<td className='px-3 py-3'>
 														{firstItem ? (

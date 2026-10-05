@@ -62,7 +62,7 @@ import {
 	WAREHOUSE_TYPE_LABELS
 } from './checkout.constants'
 import { submitLiqpayForm } from './liqpay.utils'
-import { effectivePrice, isPromoActive } from '@/common/utils/price.utils'
+import { couponDiscountAmount, effectivePrice, isPromoActive } from '@/common/utils/price.utils'
 
 type DisplayLine = {
 	variant_id: string
@@ -70,7 +70,9 @@ type DisplayLine = {
 	name: string
 	/** What the shopper pays for one unit — the sale price while a promotion is on (TD-0012). */
 	price: number
-	/** A promo line: already discounted, so a coupon leaves it alone. */
+	/** The regular price a coupon is measured from; equals `price` without a promotion. */
+	listPrice: number
+	/** A promo line: a coupon adds only what its percent gives beyond the sale, never on top of it. */
 	onPromo: boolean
 	thumbnail: string | null
 	stock?: number
@@ -191,6 +193,7 @@ export function CheckoutPage() {
 				quantity: i.quantity,
 				name: i.variant.name,
 				price: effectivePrice(i.variant),
+				listPrice: i.variant.price,
 				onPromo: isPromoActive(i.variant),
 				thumbnail: i.variant.thumbnail,
 				stock: i.variant.stock
@@ -205,6 +208,7 @@ export function CheckoutPage() {
 			quantity: i.quantity,
 			name: i._meta?.name ?? i.variant_id,
 			price: i._meta ? effectivePrice(i._meta, now) : 0,
+			listPrice: i._meta?.price ?? 0,
 			onPromo: i._meta ? isPromoActive(i._meta, now) : false,
 			thumbnail: i._meta?.thumbnail ?? null,
 			stock: undefined
@@ -629,17 +633,18 @@ export function CheckoutPage() {
 	const subtotal = total
 	const appliedDiscountPercent =
 		couponValidation && couponValidation.valid ? couponValidation.coupon.discount_percent : 0
-	// The same rule the server applies at POST /orders (TD-0012): a coupon acts on the lines that
-	// are not already on promotion. Previewed here so the figure the shopper sees is the one
+	// The same rule the server applies at POST /orders (TD-0012, revised 2026-10-05): a coupon
+	// never stacks on a promotion — on each line the larger discount wins, both taken off the
+	// regular price. Previewed here so the figure the shopper sees is the one
 	// `applied_discount.discount_amount` will carry.
-	const promoLineCount = displayItems.filter(l => l.onPromo).length
-	const couponEligibleSubtotal = displayItems
-		.filter(l => !l.onPromo)
-		.reduce((s, l) => s + l.price * l.quantity, 0)
 	const previewDiscountAmount =
-		appliedDiscountPercent > 0
-			? Number(((couponEligibleSubtotal * appliedDiscountPercent) / 100).toFixed(2))
-			: 0
+		appliedDiscountPercent > 0 ? couponDiscountAmount(displayItems, appliedDiscountPercent) : 0
+	// For the line under the coupon field: which promo lines the coupon lifts, and which keep their sale.
+	const promoLines = displayItems.filter(l => l.onPromo)
+	const promoLinesLifted = promoLines.filter(
+		l => couponDiscountAmount([l], appliedDiscountPercent) > 0
+	).length
+	const promoLinesKept = promoLines.length - promoLinesLifted
 	const previewTotal = Math.max(0, Number((subtotal - previewDiscountAmount).toFixed(2)))
 	const hasAppliedDiscount = previewDiscountAmount > 0
 	const couponValidationMessage =
@@ -1246,11 +1251,22 @@ export function CheckoutPage() {
 									{couponValidation.coupon.code})
 								</p>
 							)}
-						{showCouponPreview && promoLineCount > 0 && (
+						{showCouponPreview &&
+							promoLines.length > 0 &&
+							previewDiscountAmount <= 0 && (
+								<p className='text-muted-foreground text-xs'>
+									Купон не дає додаткової знижки: усі товари в кошику вже на акції
+									з не меншою знижкою.
+								</p>
+							)}
+						{showCouponPreview && previewDiscountAmount > 0 && promoLinesLifted > 0 && (
 							<p className='text-muted-foreground text-xs'>
-								{couponEligibleSubtotal > 0
-									? `Купон не діє на акційні товари (${promoLineCount} у кошику) — знижка рахується від ${couponEligibleSubtotal.toLocaleString('uk-UA')} ₴.`
-									: 'Купон не діє: усі товари в кошику вже зі знижкою.'}
+								{`Для акційних товарів (${promoLinesLifted} у кошику) діє купон: −${appliedDiscountPercent}% від ціни без акції замість акційної знижки.`}
+							</p>
+						)}
+						{showCouponPreview && previewDiscountAmount > 0 && promoLinesKept > 0 && (
+							<p className='text-muted-foreground text-xs'>
+								{`Акційні товари (${promoLinesKept} у кошику) лишаються за акційною ціною — їхня знижка не менша за купон.`}
 							</p>
 						)}
 						{hasCouponInput &&
@@ -1425,9 +1441,7 @@ export function CheckoutPage() {
 									</div>
 									<div className='flex items-center justify-between text-sm'>
 										<span className='text-muted-foreground'>
-											{promoLineCount > 0
-												? 'Знижка (на товари без акції)'
-												: 'Знижка'}
+											Знижка за купоном
 										</span>
 										<span>
 											-{previewDiscountAmount.toLocaleString('uk-UA')} ₴ (
