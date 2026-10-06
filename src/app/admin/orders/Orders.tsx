@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useEffect, useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Warehouse } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { Badge } from '@/common/components/ui/badge'
 import { Button } from '@/common/components/ui/button'
@@ -311,6 +311,21 @@ export function Orders() {
 														{order.nova_post_ttn ? (
 															<span className='font-mono text-xs whitespace-nowrap'>
 																{order.nova_post_ttn}
+															</span>
+														) : order.delivery_method === 'PICKUP' ? (
+															// A pickup never gets a TTN, so the empty cell is not a gap
+															// to fill — the icon says why it is empty.
+															<span
+																className='text-muted-foreground inline-flex items-center'
+																title='Самовивіз'
+															>
+																<Warehouse
+																	className='size-4'
+																	aria-hidden='true'
+																/>
+																<span className='sr-only'>
+																	Самовивіз
+																</span>
 															</span>
 														) : (
 															<span className='text-muted-foreground'>
