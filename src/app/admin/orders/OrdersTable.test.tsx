@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import type { ImgHTMLAttributes } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Orders } from './Orders'
@@ -83,5 +83,29 @@ describe('Orders list — ТТН column', () => {
 		const second = screen.getByText('#FO-0000002').closest('tr')
 		expect(second).not.toBeNull()
 		expect(second).toHaveTextContent('—')
+	})
+
+	it('marks a pickup order with the warehouse icon instead of a dash', async () => {
+		vi.mocked(ordersApi.getAll).mockResolvedValue({
+			items: [
+				row({
+					id: 'o3',
+					order_number: 'FO-0000003',
+					delivery_method: 'PICKUP',
+					nova_post_ttn: null
+				})
+			],
+			total: 1,
+			page: 1,
+			limit: 20
+		} as never)
+
+		renderOrders()
+
+		const pickup = (await screen.findByText('#FO-0000003')).closest('tr') as HTMLElement
+		const icon = within(pickup).getByTitle('Самовивіз')
+		expect(icon.querySelector('svg')).not.toBeNull()
+		// The cell itself, not the row: the empty «Товар» cell shows its own dash.
+		expect(icon.closest('td')).not.toHaveTextContent('—')
 	})
 })
