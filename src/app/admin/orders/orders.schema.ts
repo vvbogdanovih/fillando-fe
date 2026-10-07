@@ -234,6 +234,7 @@ export interface PatchTtnPayload {
 export interface GenerateReportPayload {
 	date_from: string
 	date_to: string
-	order_status?: OrderStatus
-	payment_status?: PaymentStatus
+	/** Statuses to include; absent means every status. */
+	order_status?: OrderStatus[]
+	payment_status?: PaymentStatus[]
 }
