@@ -30,6 +30,24 @@ export const ordersApi = {
 		})
 	},
 
+	/**
+	 * Every order behind one filter, not one page of it. The backend caps nothing but `page`
+	 * and `limit` are its only cursor, so the pages are walked in order until `total` is
+	 * reached; a list that grows between two requests is read once more on the next click.
+	 */
+	getAllPages: async (
+		params: Omit<OrdersListQuery, 'page' | 'limit'>,
+		pageSize = 100
+	): Promise<Order[]> => {
+		const orders: Order[] = []
+		for (let page = 1; ; page++) {
+			const response = await ordersApi.getAll({ ...params, page, limit: pageSize })
+			orders.push(...response.items)
+			if (response.items.length === 0 || orders.length >= response.total) break
+		}
+		return orders
+	},
+
 	getById: (id: string): Promise<Order> =>
 		httpService.get(API_URLS.ORDERS.BY_ID(id), {
 			schema: orderSchema
