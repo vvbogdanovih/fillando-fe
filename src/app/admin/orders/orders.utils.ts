@@ -155,3 +155,34 @@ export function ordersListQuery(next: OrdersListParams): string {
 	const value = query.toString()
 	return value ? `?${value}` : ''
 }
+
+/**
+ * Non-revenue statuses (the backend's `revenue.helpers.ts`): an order nobody will ship any
+ * more, so it never belongs on the «waiting for a TTN» list even though it has none.
+ */
+const CLOSED_ORDER_STATUSES: readonly OrderStatus[] = ['CANCELLED', 'RETURNING', 'RETURNED']
+
+/** A delivery that still has to be handed to a carrier: no TTN, not a pickup, not closed. */
+export const isAwaitingTtn = (order: Order): boolean =>
+	!order.nova_post_ttn &&
+	order.delivery_method !== 'PICKUP' &&
+	!CLOSED_ORDER_STATUSES.includes(order.order_status)
+
+/**
+ * The plain-text list the owner forwards to the person who books the shipments:
+ *
+ *     1. Замовлення #FO-0000103
+ *     +380999223450
+ *
+ * Numbered from the oldest order up, because that is the order they get booked in; the list
+ * on screen is newest first.
+ */
+export const formatAwaitingTtnList = (orders: readonly Order[]): string =>
+	orders
+		.filter(isAwaitingTtn)
+		.sort((a, b) => a.order_number.localeCompare(b.order_number))
+		.map((order, index) => {
+			const phone = order.customer?.phone?.trim() || '—'
+			return `${index + 1}. Замовлення #${order.order_number}\n${phone}`
+		})
+		.join('\n\n')

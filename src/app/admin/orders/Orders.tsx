@@ -41,6 +41,7 @@ import {
 	type PaymentStatus
 } from './orders.schema'
 import { ReportModal } from './ReportModal'
+import { CopyAwaitingTtnButton } from './CopyAwaitingTtnButton'
 
 export function Orders() {
 	const router = useRouter()
@@ -100,6 +101,10 @@ export function Orders() {
 					<div className='flex items-center justify-between gap-3'>
 						<CardTitle>Замовлення</CardTitle>
 						<div className='flex items-center gap-3'>
+							<CopyAwaitingTtnButton
+								orderStatus={orderStatus}
+								paymentStatus={paymentStatus}
+							/>
 							<ReportModal />
 							<div className='text-muted-foreground text-xs'>
 								Всього: {total} {isFetching ? '• Оновлення...' : ''}
