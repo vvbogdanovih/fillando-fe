@@ -18,7 +18,13 @@ export const formatPriceAsOf = (value: string | Date | null | undefined): string
 	const date = new Date(value)
 	if (Number.isNaN(date.getTime())) return null
 
-	return `ціна на ${date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })}`
+	// The price date is a Kyiv fact (the Prom sync stamps it); the browser's own zone would print
+	// the day before for anyone west of London — the same trap as the admin dashboard's day keys.
+	return `ціна на ${date.toLocaleDateString('uk-UA', {
+		day: '2-digit',
+		month: '2-digit',
+		timeZone: SHOP_TIME_ZONE
+	})}`
 }
 
 /**
