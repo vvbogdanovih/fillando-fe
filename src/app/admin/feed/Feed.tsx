@@ -7,6 +7,7 @@ import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { productsCount } from '@/common/utils'
 import { cn } from '@/common/utils/shad-cn.utils'
+import { KpiTile } from '../_components/KpiTile'
 import { feedApi } from './feed.api'
 import {
 	EXCLUSION_LABELS,
@@ -129,7 +130,8 @@ const StatusBanner = ({ status }: { status: FeedStatus }) => {
 				<div>
 					<p className='font-medium'>Фід ще генерується після запуску сервера</p>
 					<p className='text-sm'>
-						Публічна адреса відповідає 503 з Retry-After, доки перша генерація не завершиться.
+						Публічна адреса відповідає 503 з Retry-After, доки перша генерація не
+						завершиться.
 					</p>
 				</div>
 			</div>
@@ -179,30 +181,6 @@ const StatusBanner = ({ status }: { status: FeedStatus }) => {
 		</div>
 	)
 }
-
-const Kpi = ({
-	value,
-	label,
-	tone
-}: {
-	value: number
-	label: string
-	tone?: 'good' | 'warn' | 'bad'
-}) => (
-	<div className='rounded-xl border border-gray-200 bg-gray-50 p-4'>
-		<p
-			className={cn(
-				'text-3xl font-bold tabular-nums',
-				tone === 'good' && 'text-emerald-700',
-				tone === 'warn' && value > 0 && 'text-amber-700',
-				tone === 'bad' && value > 0 && 'text-red-700'
-			)}
-		>
-			{value}
-		</p>
-		<p className='text-sm text-gray-500'>{label}</p>
-	</div>
-)
 
 export const Feed = () => {
 	const queryClient = useQueryClient()
@@ -263,7 +241,11 @@ export const Feed = () => {
 						<div className='flex items-center gap-2'>
 							{xmlReady ? (
 								<Button variant='outline' asChild>
-									<a href={feedApi.publicXmlUrl()} target='_blank' rel='noreferrer'>
+									<a
+										href={feedApi.publicXmlUrl()}
+										target='_blank'
+										rel='noreferrer'
+									>
 										<ExternalLinkIcon className='size-4' />
 										Відкрити XML
 									</a>
@@ -303,7 +285,9 @@ export const Feed = () => {
 						<p className='text-sm text-gray-500'>Завантаження...</p>
 					) : isError || !status ? (
 						<div className='space-y-2'>
-							<p className='text-sm text-gray-500'>Помилка завантаження статусу фіда</p>
+							<p className='text-sm text-gray-500'>
+								Помилка завантаження статусу фіда
+							</p>
 							<Button variant='outline' size='sm' onClick={() => refetch()}>
 								Спробувати знову
 							</Button>
@@ -315,22 +299,34 @@ export const Feed = () => {
 							{summary && (
 								<>
 									<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-										<Kpi value={summary.item_count} label='товарів у фіді' tone='good' />
-										<Kpi
+										<KpiTile
+											value={summary.item_count}
+											label='товарів у фіді'
+											tone='good'
+										/>
+										<KpiTile
 											value={summary.in_stock}
 											label={`в наявності · ${summary.out_of_stock} немає`}
 										/>
 										{/* Kinds, not positions: the label says «попереджень», and
 										    summing `count` across kinds is neither number. */}
-										<Kpi value={summary.warning_kinds} label='попереджень' tone='warn' />
-										<Kpi value={summary.excluded.length} label='виключено з фіда' tone='bad' />
+										<KpiTile
+											value={summary.warning_kinds}
+											label='попереджень'
+											tone='warn'
+										/>
+										<KpiTile
+											value={summary.excluded.length}
+											label='виключено з фіда'
+											tone='bad'
+										/>
 									</div>
 
 									<section className='space-y-2'>
 										<h3 className='font-medium'>Виключено з фіда</h3>
 										<p className='text-sm text-gray-500'>
-											Ці товари Google не побачить узагалі — виправте причину й
-											перегенеруйте.
+											Ці товари Google не побачить узагалі — виправте причину
+											й перегенеруйте.
 										</p>
 										{summary.excluded.length === 0 ? (
 											<p className='rounded-lg border border-gray-200 p-3 text-sm text-gray-500'>
@@ -349,8 +345,12 @@ export const Feed = () => {
 													<tbody className='divide-y divide-gray-100'>
 														{summary.excluded.map(row => (
 															<tr key={row.sku}>
-																<td className='px-3 py-2 font-mono text-xs'>{row.sku}</td>
-																<td className='px-3 py-2'>{row.name}</td>
+																<td className='px-3 py-2 font-mono text-xs'>
+																	{row.sku}
+																</td>
+																<td className='px-3 py-2'>
+																	{row.name}
+																</td>
 																<td className='px-3 py-2 text-red-700'>
 																	{EXCLUSION_LABELS[row.reason]}
 																</td>
@@ -365,8 +365,8 @@ export const Feed = () => {
 									<section className='space-y-2'>
 										<h3 className='font-medium'>Попередження</h3>
 										<p className='text-sm text-gray-500'>
-											Це перевірка повноти даних каталогу. Товари залишаються у фіді;
-											попередження не означає, що Google їх відхилив.
+											Це перевірка повноти даних каталогу. Товари залишаються
+											у фіді; попередження не означає, що Google їх відхилив.
 										</p>
 										{summary.warnings.length === 0 ? (
 											<p className='rounded-lg border border-gray-200 p-3 text-sm text-gray-500'>
@@ -375,8 +375,8 @@ export const Feed = () => {
 										) : (
 											<>
 												<p className='text-sm text-gray-500'>
-													Позицій із попередженнями: {summary.warned_items} з{' '}
-													{summary.item_count}.
+													Позицій із попередженнями:{' '}
+													{summary.warned_items} з {summary.item_count}.
 												</p>
 												<ul className='space-y-2'>
 													{summary.warnings.map(w => {
@@ -389,9 +389,17 @@ export const Feed = () => {
 																<div className='flex items-start gap-2'>
 																	<AlertTriangle className='mt-0.5 size-4 shrink-0' />
 																	<div>
-																		<p className='font-medium'>{WARNING_COPY[w.code].title}</p>
+																		<p className='font-medium'>
+																			{
+																				WARNING_COPY[w.code]
+																					.title
+																			}
+																		</p>
 																		<p className='text-sm'>
-																			{WARNING_COPY[w.code].text}
+																			{
+																				WARNING_COPY[w.code]
+																					.text
+																			}
 																			{detail && (
 																				<>
 																					{' — '}
@@ -402,7 +410,8 @@ export const Feed = () => {
 																		{w.skus.length > 0 && (
 																			<p className='mt-1 font-mono text-xs text-amber-800'>
 																				{w.skus.join(', ')}
-																				{w.item_count > w.skus.length
+																				{w.item_count >
+																				w.skus.length
 																					? ` … ще ${w.item_count - w.skus.length}`
 																					: ''}
 																			</p>
@@ -410,7 +419,10 @@ export const Feed = () => {
 																	</div>
 																</div>
 																<span className='shrink-0 text-sm font-medium'>
-																	{warningCountLabel(w.count, w.unit)}
+																	{warningCountLabel(
+																		w.count,
+																		w.unit
+																	)}
 																</span>
 															</li>
 														)
