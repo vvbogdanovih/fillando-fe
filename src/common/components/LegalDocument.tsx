@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 
 export interface LegalSection {
+	/** Anchor for deep links (`/offer#delivery`); omitted sections get no id. */
+	id?: string
 	heading?: string
 	paragraphs?: ReactNode[]
 	items?: ReactNode[]
@@ -41,7 +43,11 @@ export function LegalDocument({
 
 			<article className='border-border bg-card flex flex-col gap-8 rounded-2xl border px-6 py-8 md:px-8'>
 				{sections.map((section, i) => (
-					<section key={section.heading ?? i} className='flex flex-col gap-3'>
+					<section
+						key={section.heading ?? i}
+						id={section.id}
+						className='flex scroll-mt-24 flex-col gap-3'
+					>
 						{section.heading && (
 							<h2 className='text-lg font-semibold'>{section.heading}</h2>
 						)}

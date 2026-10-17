@@ -600,7 +600,10 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 					{/* Delivery estimate from the shipping weight (TD-0006 §5.4). No weight — no
 					    number: an invented ₴ figure is worse than an honest «за тарифом». */}
 					{!isArchived && (
-						<div className='border-border bg-card flex items-center gap-3 rounded-xl border p-4'>
+						<Link
+							href={`${UI_URLS.OFFER}#delivery`}
+							className='border-border bg-card hover:border-primary group flex items-center gap-3 rounded-xl border p-4 transition-colors'
+						>
 							<div className='bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg'>
 								<Truck className='h-4 w-4' />
 							</div>
@@ -609,8 +612,11 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 									Нова Пошта — {shippingHeadline}
 								</p>
 								<p className='text-muted-foreground text-xs'>{shippingNote}</p>
+								<p className='text-muted-foreground group-hover:text-primary text-xs transition-colors'>
+									Умови та графік відправки →
+								</p>
 							</div>
-						</div>
+						</Link>
 					)}
 
 					{/* Wholesale note */}
