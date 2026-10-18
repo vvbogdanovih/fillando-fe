@@ -34,11 +34,13 @@ apiClient.interceptors.response.use(
 					refreshPromise = null
 				})
 			}
-			const isSuccessRefresh = await refreshPromise
+			await refreshPromise
 
-			if (isSuccessRefresh) {
-				return apiClient(originalRequest)
-			}
+			// Retry once either way. After a successful refresh the cookie is new; after a failed
+			// one the backend has cleared the cookies, so a route that admits guests (`/auth/me`,
+			// `POST /orders`) now answers as for a guest instead of 401. A route that requires a
+			// session answers 401 again, `_retry` is already set, and the error falls through.
+			return apiClient(originalRequest)
 		}
 		if (!originalRequest?.skipErrorToast) {
 			toast.error(errorMessage)
@@ -126,8 +128,6 @@ export class HttpService {
 	// Uses native fetch instead of apiClient (Axios) to avoid triggering the response
 	// interceptor again, which would cause an infinite 401 → refresh → 401 loop.
 	static async refreshToken(): Promise<boolean> {
-		const { logOut } = useAuthStore.getState()
-
 		const res = await fetch(API_BASE_URL + API_URLS.AUTH.REFRESH, {
 			method: 'POST',
 			credentials: 'include',
@@ -138,7 +138,11 @@ export class HttpService {
 		})
 
 		if (!res.ok) {
-			await logOut()
+			// Local sign-out only — never `logOut()`, which posts to `/auth/logout`. The backend
+			// already cleared the cookies with its 401, and that logout carried whatever refresh
+			// cookie the jar held at the moment: in a two-tab race, the other tab's freshly
+			// rotated token, so one lost refresh used to revoke the session for every tab.
+			useAuthStore.getState().setUser(null)
 			return false
 		}
 
