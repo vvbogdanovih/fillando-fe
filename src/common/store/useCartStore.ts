@@ -57,7 +57,11 @@ interface CartStore {
 	guestItems: GuestItem[]
 	isOpen: boolean
 
-	fetchCart: () => Promise<void>
+	/**
+	 * Reads the server cart. `silent` leaves `isLoading` alone: a background re-read (another
+	 * tab changed the cart, this tab came back into view) must not flash the checkout loader.
+	 */
+	fetchCart: (opts?: { silent?: boolean }) => Promise<void>
 	addItem: (variantId: string, quantity: number, meta?: GuestItemMeta) => Promise<void>
 	updateQuantity: (variantId: string, quantity: number) => Promise<void>
 	removeItem: (variantId: string) => Promise<void>
@@ -91,8 +95,8 @@ export const useCartStore = create<CartStore>()(
 			openCart: () => set({ isOpen: true }),
 			closeCart: () => set({ isOpen: false }),
 
-			fetchCart: async () => {
-				set({ isLoading: true })
+			fetchCart: async ({ silent = false } = {}) => {
+				if (!silent) set({ isLoading: true })
 				try {
 					const res = await httpService.get<CartResponse, unknown>(API_URLS.CART.BASE, {
 						skipErrorToast: true
@@ -101,7 +105,7 @@ export const useCartStore = create<CartStore>()(
 				} catch {
 					// Silent — user may not be authenticated or cart may be empty
 				} finally {
-					set({ isLoading: false, hasFetched: true })
+					set(silent ? { hasFetched: true } : { isLoading: false, hasFetched: true })
 				}
 			},
 

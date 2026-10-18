@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
 import { useConsentStore } from '@/common/store/useConsentStore'
+import { startCrossTabSync } from '@/common/store/cross-tab-sync'
 
 export const Providers = ({ children }: PropsWithChildren) => {
 	const [client] = useState(
@@ -18,6 +19,11 @@ export const Providers = ({ children }: PropsWithChildren) => {
 	// Auth check runs in the background so the server-rendered HTML stays
 	// visible to crawlers; routes that need the result wait on isAuthChecked.
 	useEffect(() => {
+		// Subscribed before rehydration on purpose: the `user` the next line restores is what
+		// triggers the first server-cart read, and later logins/logouts (this tab or another)
+		// go through the same subscription.
+		const stopCrossTabSync = startCrossTabSync()
+
 		// Stores use skipHydration so the first client render matches the
 		// server HTML; apply the persisted state now that we're mounted.
 		useAuthStore.persist.rehydrate()
@@ -26,14 +32,9 @@ export const Providers = ({ children }: PropsWithChildren) => {
 		// never closes for returning visitors and the ads tag never mounts.
 		useConsentStore.persist.rehydrate()
 
-		useAuthStore
-			.getState()
-			.checkAuth()
-			.then(() => {
-				if (useAuthStore.getState().isUserLoggedIn()) {
-					useCartStore.getState().fetchCart()
-				}
-			})
+		useAuthStore.getState().checkAuth()
+
+		return stopCrossTabSync
 	}, [])
 
 	return (

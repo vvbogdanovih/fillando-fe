@@ -47,7 +47,7 @@ When any request returns `401`, the interceptor:
    If not, starts one and stores the promise. If one is already running, awaits the same promise.
    This ensures that N concurrent 401s trigger exactly one `/auth/refresh` call.
 3. If refresh succeeds, retries the original request with the updated cookie.
-4. If refresh fails, calls `logOut()` and returns `false`.
+4. If refresh fails, signs out **locally** (`useAuthStore.setUser(null)`) — never `logOut()`, whose `POST /auth/logout` would revoke whatever refresh cookie the jar holds at that moment, in a two-tab race the other tab's fresh token (see [auth-flow.md § 6](./auth-flow.md#6-token-refresh-silent-mid-session)). The backend has already cleared the cookies with its 401. The original request is then still retried once: a route that admits guests (`GET /auth/me`, `POST /orders`) answers as for a guest, a protected route answers 401 again and, with `_retry` already set, that error is final.
 
 The `refreshPromise` variable is reset to `null` in the `.finally()` of every refresh attempt so the next 401 (in a future request cycle) starts a fresh refresh.
 
