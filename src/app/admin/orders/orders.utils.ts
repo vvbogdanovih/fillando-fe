@@ -1,3 +1,4 @@
+import { couponDiscountAmount, type CouponPricedLine } from '@/common/utils/price.utils'
 import {
 	orderStatusValues,
 	paymentStatusValues,
@@ -34,6 +35,64 @@ export const formatPrice = (value: number): string =>
 		currency: 'UAH',
 		maximumFractionDigits: 0
 	}).format(value)
+
+/** Kopecks shown — for a sum that will be collected or returned, not a glance at a list. */
+export const formatPriceExact = (value: number): string =>
+	new Intl.NumberFormat('uk-UA', {
+		style: 'currency',
+		currency: 'UAH',
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	}).format(value)
+
+/** A line of the edit as the preview prices it — a kept line at its snapshot, a new one at today's price. */
+export interface PreviewLine extends CouponPricedLine {
+	variant_id: string
+}
+
+export interface OrderTotalsPreview {
+	subtotal: number
+	couponAmount: number
+	manualDiscount: number
+	total: number
+}
+
+const round2 = (value: number): number => Number(value.toFixed(2))
+
+/**
+ * What the backend will write for these lines (FRD §9.2): the coupon re-priced over them by the
+ * same rule as checkout (`couponDiscountAmount`), the manual discount kept. A preview only — the
+ * server's answer is what the page shows after saving — but it is what the admin reads to the
+ * buyer on the phone before confirming a replacement, so it follows the server's arithmetic.
+ */
+export const previewOrderTotals = (
+	order: Pick<Order, 'applied_discount' | 'manual_discount'>,
+	lines: readonly PreviewLine[]
+): OrderTotalsPreview => {
+	const subtotal = round2(
+		lines.reduce((sum, line) => sum + round2(line.price * line.quantity), 0)
+	)
+	const couponAmount = order.applied_discount
+		? couponDiscountAmount(lines, order.applied_discount.discount_percent)
+		: 0
+	const manualDiscount = order.manual_discount?.amount ?? 0
+	return {
+		subtotal,
+		couponAmount,
+		manualDiscount,
+		total: round2(subtotal - couponAmount - manualDiscount)
+	}
+}
+
+/**
+ * On a paid order the stored total is what the buyer paid, so a new total is a sum to collect
+ * (positive) or return (negative) outside the system. `null` while the order is unpaid — the
+ * buyer simply pays the new total.
+ */
+export const settlementDelta = (
+	order: Pick<Order, 'payment_status' | 'total_price'>,
+	newTotal: number
+): number | null => (order.payment_status === 'PAID' ? round2(newTotal - order.total_price) : null)
 
 export const formatDate = (value: string): string => {
 	const date = new Date(value)

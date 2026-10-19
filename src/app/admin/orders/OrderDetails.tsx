@@ -17,6 +17,7 @@ import {
 	DropdownMenuTrigger
 } from '@/common/components/ui/dropdown-menu'
 import { Textarea } from '@/common/components/ui/textarea'
+import type { AdminVariant } from '@/app/(root)/price-sheet/price-sheet.schema'
 import { ordersApi, parsePatchOrderPayload } from './orders.api'
 import {
 	DELIVERY_METHOD_LABELS,
@@ -30,8 +31,12 @@ import {
 	buildOrderPatchPayload,
 	formatDate,
 	formatPrice,
+	formatPriceExact,
 	isPaymentMethodAllowed,
-	mapOrderErrorMessage
+	mapOrderErrorMessage,
+	previewOrderTotals,
+	settlementDelta,
+	type PreviewLine
 } from './orders.utils'
 import {
 	deliveryMethodValues,
@@ -45,6 +50,7 @@ import {
 import { OrderItemsList } from './orders.components'
 import { InvoiceModal } from './InvoiceModal'
 import { ManualDiscountCard } from './ManualDiscountCard'
+import { OrderLinePicker, variantLabel } from './OrderLinePicker'
 import { OrderStatusActions } from './OrderStatusActions'
 import { StatusHistoryCard } from './StatusHistoryCard'
 import { VendorEmailModal } from './VendorEmailModal'
@@ -156,6 +162,11 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 	const queryClient = useQueryClient()
 	const [editValues, setEditValues] = useState<PatchOrderPayload | null>(null)
 	const [ttnValue, setTtnValue] = useState('')
+	/**
+	 * The catalogue rows picked for lines that are not in the order yet — what the row and the
+	 * preview show until the save answers with the stored snapshot (FRD §9.2).
+	 */
+	const [addedLines, setAddedLines] = useState<Record<string, AdminVariant>>({})
 	const lastInitIdRef = useRef<string | null>(null)
 
 	const {
@@ -173,6 +184,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		if (lastInitIdRef.current === order.id) return
 		lastInitIdRef.current = order.id
 		setEditValues(normalizeEditValues(order))
+		setAddedLines({})
 		setTtnValue(order.nova_post_ttn ?? '')
 	}, [order])
 
@@ -265,16 +277,31 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 			return ordersApi.patchOrder(orderId, patchPayload)
 		},
 		onError: (error: Error) => {
-			toast.error(mapOrderErrorMessage(error.message))
+			// The backend's coded refusals (a sold-out line, an open LiqPay session, the same
+			// variant twice) are Ukrainian and say what to do — shown as they are.
+			const details = (error as Error & { details?: { code?: unknown; message?: unknown } })
+				.details
+			toast.error(
+				typeof details?.code === 'string' && typeof details?.message === 'string'
+					? details.message
+					: mapOrderErrorMessage(error.message)
+			)
 		},
 		onSuccess: updated => {
 			if (!updated) {
 				toast.success('Змін не виявлено')
 				return
 			}
+			// `order` here is still the copy from before the save — the cache is replaced below.
+			const delta = order ? settlementDelta(order, updated.total_price) : null
 			updateOrderInCache(updated)
 			setEditValues(normalizeEditValues(updated))
-			toast.success('Замовлення успішно оновлено')
+			setAddedLines({})
+			toast.success(
+				delta
+					? `Замовлення оновлено — ${delta > 0 ? 'доплата' : 'повернути'} ${formatPriceExact(Math.abs(delta))}`
+					: 'Замовлення успішно оновлено'
+			)
 		}
 	})
 
@@ -289,6 +316,21 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 		setEditValues(prev =>
 			prev?.items ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev
 		)
+	}
+
+	/** A catalogue variant becomes a new line of one; one already in the order gets one more. */
+	const addLine = (variant: AdminVariant) => {
+		setEditValues(prev => {
+			if (!prev?.items) return prev
+			const index = prev.items.findIndex(item => item.variant_id === variant.id)
+			if (index === -1) {
+				return { ...prev, items: [...prev.items, { variant_id: variant.id, quantity: 1 }] }
+			}
+			const nextItems = [...prev.items]
+			nextItems[index] = { ...nextItems[index], quantity: nextItems[index].quantity + 1 }
+			return { ...prev, items: nextItems }
+		})
+		setAddedLines(prev => (prev[variant.id] ? prev : { ...prev, [variant.id]: variant }))
 	}
 
 	if (isLoading) {
@@ -313,6 +355,32 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 	}
 
 	const deliveryAddress = (editValues.delivery_address ?? {}) as Record<string, unknown>
+
+	// The new total as the server will compute it (FRD §9.2): a kept line at the price it was
+	// sold for, a new one at today's price, the coupon re-priced over both. Shown only once the
+	// lines differ from the order — and, on a paid order, with the sum to collect or return.
+	const editedItems = editValues.items ?? []
+	const itemsChanged = buildOrderPatchPayload(order, editValues).items !== undefined
+	const previewLines: PreviewLine[] = editedItems.map(item => {
+		const original = order.items.find(source => source.variant_id === item.variant_id)
+		if (original) {
+			return {
+				variant_id: item.variant_id,
+				quantity: item.quantity,
+				price: original.price ?? 0,
+				listPrice: original.list_price ?? original.price ?? 0
+			}
+		}
+		const added = addedLines[item.variant_id]
+		return {
+			variant_id: item.variant_id,
+			quantity: item.quantity,
+			price: added?.sale_price ?? added?.price ?? 0,
+			listPrice: added?.price ?? 0
+		}
+	})
+	const preview = itemsChanged ? previewOrderTotals(order, previewLines) : null
+	const delta = preview ? settlementDelta(order, preview.total) : null
 
 	return (
 		<div className='max-w-[1400px] space-y-4 p-4 sm:space-y-6 sm:p-6'>
@@ -712,29 +780,33 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					/>
 
 					<div className='space-y-2'>
-						<Label>Товари (variant_id + quantity)</Label>
+						<div className='flex flex-wrap items-center justify-between gap-2'>
+							<Label>Товари</Label>
+							<OrderLinePicker
+								onPick={addLine}
+								disabled={fullEditMutation.isPending}
+							/>
+						</div>
 						<p className='text-muted-foreground text-xs'>
-							Змінюйте кількість або видаляйте товари — зміни застосуються після
-							«Зберегти зміни». Замовлення не може залишитись без товарів.
+							Змінюйте кількість, видаляйте товари або додайте інший — наприклад,
+							замість того, якого немає в наявності. Рядок, що лишається, зберігає
+							ціну на момент замовлення; новий береться за сьогоднішньою. Зміни
+							застосуються після «Зберегти зміни». Замовлення не може залишитись без
+							товарів.
 						</p>
 						<div className='space-y-2'>
-							{(editValues.items ?? []).map((item, index) => (
-								<div
-									key={item.variant_id}
-									className='grid gap-2 sm:grid-cols-[1fr_140px_auto]'
-								>
-									<div className='rounded-md border bg-gray-50 px-3 py-2 text-sm'>
-										{(() => {
-											const originalItem = order.items.find(
-												source => source.variant_id === item.variant_id
-											)
-											if (!originalItem)
-												return (
-													<span className='text-muted-foreground'>
-														Товар
-													</span>
-												)
-											return (
+							{editedItems.map((item, index) => {
+								const originalItem = order.items.find(
+									source => source.variant_id === item.variant_id
+								)
+								const addedItem = addedLines[item.variant_id]
+								return (
+									<div
+										key={item.variant_id}
+										className='grid gap-2 sm:grid-cols-[1fr_140px_auto]'
+									>
+										<div className='rounded-md border bg-gray-50 px-3 py-2 text-sm'>
+											{originalItem ? (
 												<>
 													<p className='font-medium'>
 														{originalItem.name}
@@ -742,40 +814,110 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 													<p className='text-muted-foreground text-xs'>
 														SKU: {originalItem.sku ?? '—'} • Vendor SKU:{' '}
 														{originalItem.vendor_sku ?? '—'}
+														{originalItem.price != null && (
+															<>
+																{' '}
+																• {formatPrice(originalItem.price)}
+																/шт.
+															</>
+														)}
 													</p>
 												</>
-											)
-										})()}
+											) : addedItem ? (
+												<>
+													<p className='font-medium'>
+														{variantLabel(addedItem)}{' '}
+														<Badge
+															variant='outline'
+															className='border-green-200 bg-green-50 text-green-700'
+														>
+															новий
+														</Badge>
+													</p>
+													<p className='text-muted-foreground text-xs'>
+														Артикул: {addedItem.article ?? '—'} •{' '}
+														{formatPrice(
+															addedItem.sale_price ?? addedItem.price
+														)}
+														/шт. • залишок: {addedItem.stock}
+													</p>
+												</>
+											) : (
+												<span className='text-muted-foreground'>Товар</span>
+											)}
+										</div>
+										<Input
+											type='number'
+											min={1}
+											max={
+												!originalItem && addedItem
+													? addedItem.stock
+													: undefined
+											}
+											aria-label='Кількість'
+											value={item.quantity}
+											onChange={e =>
+												setEditValues(prev => {
+													if (!prev?.items) return prev
+													const nextItems = [...prev.items]
+													nextItems[index] = {
+														...nextItems[index],
+														quantity: Number(e.target.value)
+													}
+													return { ...prev, items: nextItems }
+												})
+											}
+										/>
+										<Button
+											type='button'
+											variant='ghost'
+											className='justify-self-start text-red-500 hover:text-red-700 sm:justify-self-auto'
+											title='Видалити товар із замовлення'
+											disabled={editedItems.length <= 1}
+											onClick={() => removeItem(index)}
+										>
+											<Trash2Icon className='size-4' />
+										</Button>
 									</div>
-									<Input
-										type='number'
-										min={1}
-										value={item.quantity}
-										onChange={e =>
-											setEditValues(prev => {
-												if (!prev?.items) return prev
-												const nextItems = [...prev.items]
-												nextItems[index] = {
-													...nextItems[index],
-													quantity: Number(e.target.value)
-												}
-												return { ...prev, items: nextItems }
-											})
-										}
-									/>
-									<Button
-										type='button'
-										variant='ghost'
-										className='justify-self-start text-red-500 hover:text-red-700 sm:justify-self-auto'
-										title='Видалити товар із замовлення'
-										disabled={(editValues.items ?? []).length <= 1}
-										onClick={() => removeItem(index)}
-									>
-										<Trash2Icon className='size-4' />
-									</Button>
-								</div>
-							))}
+								)
+							})}
 						</div>
+						{preview && (
+							<div className='space-y-1 rounded-md border border-dashed px-3 py-2 text-sm'>
+								<div className='flex justify-between'>
+									<span>Нова сума</span>
+									<span className='font-semibold tabular-nums'>
+										{formatPriceExact(preview.total)}
+									</span>
+								</div>
+								{order.applied_discount && (
+									<p className='text-muted-foreground text-xs'>
+										Купон {order.applied_discount.code} перераховано: −
+										{formatPriceExact(preview.couponAmount)}
+									</p>
+								)}
+								{delta !== null && (
+									<p
+										className={
+											delta === 0
+												? 'text-muted-foreground text-xs'
+												: 'text-xs text-amber-700'
+										}
+									>
+										Клієнт оплатив {formatPriceExact(order.total_price)}.{' '}
+										{delta > 0
+											? `Доплата ${formatPriceExact(delta)}.`
+											: delta < 0
+												? `Повернути ${formatPriceExact(-delta)}.`
+												: 'Сума не змінилась.'}
+									</p>
+								)}
+								<p className='text-muted-foreground text-xs'>
+									Попередній підрахунок — остаточну суму визначить сервер після
+									збереження.
+								</p>
+							</div>
+						)}
 					</div>
 
 					<div className='space-y-2'>
