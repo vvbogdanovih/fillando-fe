@@ -8,7 +8,9 @@ import {
 	isPaymentMethodAllowed,
 	mapOrderErrorMessage,
 	ordersListQuery,
-	parseOrdersListParams
+	parseOrdersListParams,
+	previewOrderTotals,
+	settlementDelta
 } from './orders.utils'
 
 vi.mock('next/image', () => ({
@@ -199,5 +201,60 @@ describe('order list URL state', () => {
 			paymentStatus: 'PENDING'
 		} as const
 		expect(parse(ordersListQuery(state).slice(1))).toEqual(state)
+	})
+})
+
+describe('order line edit (FRD §9.2)', () => {
+	it('builds the PATCH payload with the added line after the kept one', () => {
+		const payload = buildOrderPatchPayload(baseOrder, {
+			customer: baseOrder.customer,
+			delivery_method: baseOrder.delivery_method,
+			delivery_address: baseOrder.delivery_address as Record<string, unknown>,
+			payment_method: baseOrder.payment_method,
+			comment: baseOrder.comment,
+			items: [
+				{ variant_id: 'v1', quantity: 2 },
+				{ variant_id: 'v2', quantity: 1 }
+			]
+		})
+
+		expect(payload).toEqual({
+			items: [
+				{ variant_id: 'v1', quantity: 2 },
+				{ variant_id: 'v2', quantity: 1 }
+			]
+		})
+	})
+
+	it('previews a kept line at its snapshot and a new one at today’s price, coupon re-priced', () => {
+		const totals = previewOrderTotals(
+			{
+				applied_discount: { code: 'TEN', discount_percent: 10, discount_amount: 0 },
+				manual_discount: null
+			},
+			[
+				// Sold at 500 under a −17 % sale from 600: the sale beats the coupon, so 0 here.
+				{ variant_id: 'v1', quantity: 2, price: 500, listPrice: 600 },
+				// A plain new line takes the full 10 %.
+				{ variant_id: 'v2', quantity: 1, price: 700, listPrice: 700 }
+			]
+		)
+
+		expect(totals).toEqual({ subtotal: 1700, couponAmount: 70, manualDiscount: 0, total: 1630 })
+	})
+
+	it('keeps the manual discount in the preview', () => {
+		const totals = previewOrderTotals(
+			{ applied_discount: null, manual_discount: { amount: 50 } },
+			[{ variant_id: 'v1', quantity: 1, price: 300, listPrice: 300 }]
+		)
+
+		expect(totals.total).toBe(250)
+	})
+
+	it('names the sum to collect or return only on a paid order', () => {
+		expect(settlementDelta({ payment_status: 'PAID', total_price: 1000 }, 1200)).toBe(200)
+		expect(settlementDelta({ payment_status: 'PAID', total_price: 1000 }, 850.5)).toBe(-149.5)
+		expect(settlementDelta({ payment_status: 'PENDING', total_price: 1000 }, 1200)).toBeNull()
 	})
 })

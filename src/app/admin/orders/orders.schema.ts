@@ -35,8 +35,10 @@ const parseNumberWithDefault = (value: unknown, fallback = 0): number => {
 const toUpperValue = (value: unknown): string | undefined =>
 	typeof value === 'string' ? value.trim().toUpperCase() : undefined
 
+// `items` — an admin edit of the lines: `from`/`to` carry the totals before and after, `note`
+// what changed and, on a paid order, the sum left to collect or return (FRD §9.2).
 const statusHistoryEntrySchema = z.object({
-	field: z.enum(['order_status', 'payment_status']),
+	field: z.enum(['order_status', 'payment_status', 'items']),
 	from: z.string().nullable().optional(),
 	to: z.string(),
 	at: z.string(),
@@ -58,6 +60,10 @@ const orderItemSchema = z.object({
 	vendor_sku: z.string().nullable().optional(),
 	quantity: z.preprocess(value => parseNumberWithDefault(value, 1), z.number()),
 	price: z.preprocess(value => parseOptionalNumber(value), z.number().optional()),
+	// The regular price the line was sold from and the sale it was under (TD-0012) — what the
+	// edit preview needs to re-price the coupon over a kept line exactly as the backend does.
+	list_price: z.preprocess(value => parseOptionalNumber(value), z.number().optional()),
+	promo_percent: z.number().nullable().optional().catch(null),
 	line_total: z.preprocess(value => parseNumberWithDefault(value, 0), z.number())
 })
 

@@ -1,16 +1,31 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, STATUS_ACTOR_LABELS } from './orders.constants'
 import type { StatusHistoryEntry } from './orders.schema'
-import { formatDate } from './orders.utils'
+import { formatDate, formatPriceExact } from './orders.utils'
+
+const FIELD_LABELS: Record<StatusHistoryEntry['field'], string> = {
+	order_status: 'Замовлення: ',
+	payment_status: 'Оплата: ',
+	items: 'Склад: '
+}
 
 function statusLabel(field: StatusHistoryEntry['field'], value: string | null | undefined) {
 	if (!value) return null
+	// A line edit records the totals before and after, not statuses.
+	if (field === 'items') {
+		const total = Number(value)
+		return Number.isFinite(total) ? formatPriceExact(total) : value
+	}
 	const labels: Record<string, string> =
 		field === 'order_status' ? ORDER_STATUS_LABELS : PAYMENT_STATUS_LABELS
 	return labels[value] ?? value
 }
 
-/** Who changed what and when (TD-0011 `status_history`), newest first. */
+/**
+ * Who changed what and when, newest first: every status move (TD-0011 `status_history`) and
+ * every edit of the lines (FRD §9.2) — the latter is where the sum a paid buyer still owes or
+ * is owed is written down.
+ */
 export function StatusHistoryCard({ history }: { history: StatusHistoryEntry[] }) {
 	if (history.length === 0) return null
 	const entries = [...history].reverse()
@@ -18,7 +33,7 @@ export function StatusHistoryCard({ history }: { history: StatusHistoryEntry[] }
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Історія статусів</CardTitle>
+				<CardTitle>Історія змін</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<ol className='space-y-3 text-sm'>
@@ -35,9 +50,7 @@ export function StatusHistoryCard({ history }: { history: StatusHistoryEntry[] }
 								</span>
 								<span className='min-w-0 flex-1'>
 									<span className='text-muted-foreground'>
-										{entry.field === 'order_status'
-											? 'Замовлення: '
-											: 'Оплата: '}
+										{FIELD_LABELS[entry.field]}
 									</span>
 									{from ? `${from} → ${to}` : to}
 									{entry.note && (
