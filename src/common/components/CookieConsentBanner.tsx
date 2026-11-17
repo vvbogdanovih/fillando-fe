@@ -5,7 +5,11 @@ import { UI_URLS } from '@/common/constants'
 import { useConsentStore } from '@/common/store/useConsentStore'
 
 /**
- * Cookie-consent banner gating the Google Ads tag.
+ * Cookie-consent banner: the visitor's answer to the Google tag (Consent Mode v2).
+ *
+ * The tag is loaded either way; «Прийняти» lets it keep cookies and lets the shop send Google the
+ * buyer's hashed contact and the ad click id, «Лише необхідні» keeps it cookieless. What the
+ * banner promises must stay true of `Analytics`, `ads-attribution.ts` and the privacy policy §7.
  *
  * `position: fixed` keeps it out of document flow, so it cannot shift layout (CLS
  * is currently 0 on every page and must stay there) and cannot become the LCP
@@ -38,8 +42,9 @@ export function CookieConsentBanner() {
 				<div className='flex-1 space-y-1'>
 					<p className='text-sm font-semibold'>Ми використовуємо файли cookie</p>
 					<p className='text-muted-foreground text-xs leading-relaxed'>
-						Аналітичні та рекламні cookie допомагають нам оцінювати ефективність
-						реклами. Без вашої згоди вони не завантажуються. Деталі —{' '}
+						Рекламні й аналітичні cookie Google допомагають нам оцінювати ефективність
+						реклами. Без вашої згоди ми їх не зберігаємо й не передаємо Google ваші
+						контактні дані. Деталі —{' '}
 						<Link href={UI_URLS.PRIVACY} className='text-primary-strong underline'>
 							у політиці конфіденційності
 						</Link>

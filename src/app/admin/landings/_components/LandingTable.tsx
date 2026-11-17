@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { Button } from '@/common/components/ui/button'
 import { Badge } from '@/common/components/ui/badge'
 import { DeleteConfirmDialog } from '@/app/admin/vendors/_components/DeleteConfirmDialog'
-import { categoriesApi } from '@/app/admin/categories/categories.api'
+import { useCategories, useCategoryOptions } from '@/app/admin/categories/categories.queries'
 import { revalidateStorefront } from '@/common/services/revalidate.service'
 import { landingsApi } from '../landings.api'
 import { LANDING_STATUS_LABELS, hasContent, type AdminLanding } from '../landings.schema'
@@ -26,12 +26,10 @@ export const LandingTable = ({ landings, query = '', onSelect }: LandingTablePro
 
 	// Two things come from the categories: the public address as the visitor sees it, and the
 	// human label behind each pinned attribute key.
-	const { data: categories = [] } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
+	const { data: categories = [] } = useCategoryOptions()
 	const slugById = new Map(categories.map(c => [c._id, c.slug]))
-	const labels = buildAttributeLabels(categories)
+	// Labels only for the categories the rows pin into, each read by id (Plan-0010 D06).
+	const labels = buildAttributeLabels(useCategories(landings.map(l => l.category_id)))
 
 	const { mutate: deleteLanding, isPending: isDeleting } = useMutation({
 		mutationFn: (id: string) => landingsApi.delete(id),

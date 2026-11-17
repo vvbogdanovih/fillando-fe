@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from '@/common/store/useAuthStore'
 import { useCartStore } from '@/common/store/useCartStore'
 import { trackBeginCheckout } from '@/common/lib/ga4-events'
+import { orderAttribution, rememberOrderContact } from '@/common/lib/ads-attribution'
 import { UI_URLS } from '@/common/constants'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { Button } from '@/common/components/ui/button'
@@ -59,13 +60,16 @@ import {
 	COD_MODAL,
 	DELIVERY_METHOD_LABELS,
 	isPaymentMethodAllowed,
-	WAREHOUSE_TYPE_LABELS
+	WAREHOUSE_TYPE_LABELS,
+	WAREHOUSE_TYPES
 } from './checkout.constants'
 import { submitLiqpayForm } from './liqpay.utils'
 import { couponDiscountAmount, effectivePrice, isPromoActive } from '@/common/utils/price.utils'
 
 type DisplayLine = {
 	variant_id: string
+	/** Analytics item id; undefined for a guest line stored before lines kept it. */
+	sku?: string
 	quantity: number
 	name: string
 	/** What the shopper pays for one unit — the sale price while a promotion is on (TD-0012). */
@@ -190,6 +194,7 @@ export function CheckoutPage() {
 		if (isAuth) {
 			return items.map(i => ({
 				variant_id: i.variant_id,
+				sku: i.variant.sku,
 				quantity: i.quantity,
 				name: i.variant.name,
 				price: effectivePrice(i.variant),
@@ -205,6 +210,7 @@ export function CheckoutPage() {
 		const now = Date.now()
 		return guestItems.map(i => ({
 			variant_id: i.variant_id,
+			sku: i._meta?.sku,
 			quantity: i.quantity,
 			name: i._meta?.name ?? i.variant_id,
 			price: i._meta ? effectivePrice(i._meta, now) : 0,
@@ -277,7 +283,7 @@ export function CheckoutPage() {
 	useEffect(() => {
 		if (!cartReady) return
 		if (!isLoadingCart && displayItems.length === 0 && !orderPlacedRef.current) {
-			router.replace(UI_URLS.CATALOG.FILAMENT)
+			router.replace(UI_URLS.CATALOG.ROOT)
 		}
 	}, [cartReady, displayItems.length, isLoadingCart, router])
 
@@ -290,8 +296,9 @@ export function CheckoutPage() {
 		beginCheckoutSent.current = true
 		trackBeginCheckout({
 			value: total,
+			// The SKU, as view_item / add_to_cart and the feed's `g:id` — never the Mongo id.
 			items: displayItems.map(i => ({
-				item_id: i.variant_id,
+				...(i.sku ? { item_id: i.sku } : {}),
 				item_name: i.name,
 				price: i.price,
 				quantity: i.quantity
@@ -518,11 +525,17 @@ export function CheckoutPage() {
 			// re-prices the cart and answers 400 COUPON_NOT_APPLICABLE when it really applies to
 			// nothing — shown under the coupon field — rather than the page silently dropping a
 			// coupon that would in fact have saved money (TD-0012).
-			return createOrder(buildCreateOrderPayload(values, getOrderItems()))
+			return createOrder({
+				...buildCreateOrderPayload(values, getOrderItems()),
+				// The buyer's cookie choice and, under «Прийняти», the ad click id of the visit.
+				attribution: orderAttribution()
+			})
 		},
 		onSuccess: async (data, values) => {
 			orderPlacedRef.current = true
 			setIsRedirecting(true)
+			// For the success page's enhanced conversion; kept only for a consenting buyer.
+			rememberOrderContact(String(data.order_number), values.customer)
 
 			// LiqPay: redirect the browser to the hosted checkout page. The order is
 			// already created as PENDING; the server callback flips it to PAID.
@@ -853,9 +866,9 @@ export function CheckoutPage() {
 								</div>
 
 								<div className='space-y-2'>
-									<Label>Тип відділення</Label>
+									<Label>Поштомат чи відділення</Label>
 									<div className='flex flex-col gap-2 sm:flex-row sm:flex-wrap'>
-										{(['PARCEL_LOCKER', 'POST', 'CARGO'] as const).map(t => (
+										{WAREHOUSE_TYPES.map(t => (
 											<label
 												key={t}
 												className={cn(
@@ -1487,7 +1500,7 @@ export function CheckoutPage() {
 
 			<div className='mt-8 text-center'>
 				<Link
-					href={UI_URLS.CATALOG.FILAMENT}
+					href={UI_URLS.CATALOG.ROOT}
 					className='text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline'
 				>
 					Повернутися до каталогу

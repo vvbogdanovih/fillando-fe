@@ -28,7 +28,7 @@ test.describe('/checkout — server-side order errors', () => {
 		await expect(submitButton(page)).toBeEnabled()
 		await submitButton(page).click()
 
-		const message = 'Доступно лише 3 шт. (FIL-0001) — зменште кількість, щоб оформити замовлення'
+		const message = 'Товару не вистачає на складі. Зменште кількість і спробуйте ще раз.'
 		await expect(page.getByRole('status').filter({ hasText: message })).toBeVisible()
 		// Exactly one occurrence on the page — the toast — nothing under the coupon input.
 		await expect(page.getByText(message)).toHaveCount(1)
@@ -81,7 +81,7 @@ test('hard load of /checkout keeps the seeded guest cart on the page', async ({
 	await expect(page.getByRole('heading', { name: 'Оформлення замовлення' })).toBeVisible()
 	await expect(checkoutForm(page).getByText(GUEST_ITEM._meta.name)).toBeVisible()
 
-	// Boot has settled once checkAuth() finished its 401 → refresh → logout chain; a redirect,
+	// Boot has settled once checkAuth() finished its 401 → refresh → local sign-out chain; a redirect,
 	// had one been scheduled, would have fired by then.
 	await waitForBoot(request)
 	await expect(page).toHaveURL(/\/checkout$/)

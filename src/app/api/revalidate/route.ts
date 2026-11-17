@@ -27,26 +27,29 @@ import { CACHE_TAGS, REVALIDATE_RESOURCES, type RevalidateResource } from '@/com
 const INVALIDATIONS: Record<RevalidateResource, { tags: string[]; paths: string[] }> = {
 	landings: {
 		tags: [CACHE_TAGS.LANDINGS, CACHE_TAGS.SITEMAP],
-		// /sitemap.xml needs both halves: the tag expires the memoised entry list (keyed on the
-		// product-variant count, which a landing edit never moves), and the path expires the
-		// force-static route's own daily render. Purging one leaves the sitemap up to ~48h stale.
+		// /sitemap.xml: the SITEMAP tag expires the memoised index and parts (`sitemap-files.ts`);
+		// the route itself is dynamic since Plan-0010 D06, so the path purge is only a safety net
+		// for an older build that still rendered it statically.
 		paths: ['/sitemap.xml']
 	},
 	products: {
 		// LANDINGS as well as PRODUCTS: the «Популярні види» tiles read `product_count` from
 		// /landings?category_id=, so a created or archived variant moves a number that lives in
 		// the landing entry, not in a product one. The sitemap memo carries PRODUCTS itself
-		// (sitemap.ts), which is what a new or archived variant needs.
+		// (`sitemap-files.ts`), which is what a new or archived variant needs.
 		tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.LANDINGS],
 		paths: ['/sitemap.xml']
 	},
 	categories: {
 		// One tag covers the category doc read by /[category] (its name, its dimension set) and
-		// the /categories list the storefront menu is built from in (root)/layout.tsx — the menu
-		// renders on every storefront page, so a rename or a new category has to reach it
-		// without `revalidatePath('/', 'layout')`, which stays unreachable from outside.
-		// The sitemap memo carries CATEGORIES itself (sitemap.ts) for the category URLs.
-		tags: [CACHE_TAGS.CATEGORIES],
+		// the category tree (`/categories/tree`) the storefront menu is built from in
+		// (root)/layout.tsx — the menu renders on every storefront page, so a rename or a new
+		// category has to reach it without `revalidatePath('/', 'layout')`, which stays
+		// unreachable from outside. The sitemap memo carries CATEGORIES itself
+		// (`sitemap-files.ts`) for the category URLs.
+		// Product detail embeds category names, units and the characteristics' order and
+		// visibility in its specification table.
+		tags: [CACHE_TAGS.CATEGORIES, CACHE_TAGS.PRODUCTS],
 		paths: ['/sitemap.xml']
 	}
 }

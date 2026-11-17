@@ -164,9 +164,9 @@ Consequences for call sites:
 - Never use it for user-specific data. It forwards no cookies, so anything behind auth returns
   `401` and throws.
 
-### The three deliberate catches
+### The deliberate catches
 
-The first two exist because the caught value is **not** what gets rendered and cached:
+The first exists because the caught value is **not** what gets rendered and cached:
 
 1. **`generateMetadata` in `src/app/(root)/[category]/page.tsx`.** `[category]` is the catch-all
    for every unknown top-level path, so a `null` category is marked `robots: noindex` to keep the
@@ -174,12 +174,8 @@ The first two exist because the caught value is **not** what gets rendered and c
    indexed (and ISR-cached) as "not found". `generateMetadata` therefore catches the throw and
    returns a neutral title **without** `noindex`; the page body below it calls `serverFetch` again
    uncaught, throws into the error boundary, and nothing is cached.
-2. **The count fetch in `src/app/sitemap.ts`** (`.catch(() => null)` → `count = -1`). The count is
-   only the cache key of `fetchSitemapEntries`; a wrong key at worst re-runs the entries fetch,
-   which has its own uncaught `serverFetch` calls. Nothing renders from the swallowed value.
-
-3. **`getCategoryNavLinks` in `src/common/utils/navigation.utils.ts`** (Plan-0004 PR-3). A
-   different shape from the first two, and the reason is scope rather than caching: the call sits
+2. **`getCategoryNavLinks` in `src/common/utils/navigation.utils.ts`** (Plan-0004 PR-3). A
+   different shape from the first, and the reason is scope rather than caching: the call sits
    in `(root)/layout.tsx`, the one server component every storefront page renders through. Letting
    it throw would send `/faq`, `/contacts`, `/offer` and the rest — pages that need nothing from
    the API — into the error boundary because the category endpoint blinked. Navigation is
@@ -187,7 +183,27 @@ The first two exist because the caught value is **not** what gets rendered and c
    instead of the site failing. Pages that genuinely need the API still fetch it themselves,
    uncaught, and still fail loudly.
 
-If you find yourself adding a fourth, write down which of these shapes it is: the caught value is
+3. **`loadStorefrontSettings`** (`common/utils/storefront-settings.server.ts`, Plan-0010 F05/F11) —
+   the second shape: `(root)/layout.tsx` reads the settings for the strip above the header, which simply
+   is not rendered on an outage, and the catalogue hub for its collections. **The home page does not use
+   this catch** (audit 14.11.2026): it calls `readStorefrontSettings`, which throws on an outage like the
+   page's first «Новинки» read. The home page is prerendered and kept for an hour, and with the outage
+   caught one failed read during a regeneration was cached as a page without its copy, H1 and shelves;
+   thrown, the regeneration fails and the previous page stays. Only a 404 (an older backend without
+   `/storefront-settings`) or an answer of an unknown shape still drops the blocks — the banner falls back
+   to the shop's name and «До каталогу». The catalogue hub (`/catalog`, groups — Plan-0010 P20) has the same
+   shape: its strips (`loadStrip`, `common/utils/catalog-strips.server.ts`), tile photos and landings
+   (`catalog/catalog-hub.server.ts`) are caught, while the tree it is built from is read uncaught.
+
+4. **`GET /api/catalog-nav/<id>`** (`app/api/catalog-nav/[id]/route.ts`, Plan-0010 D06.5, audit
+   31.10) — the first shape in a route handler: the caught failure becomes a `503 {links: []}` with
+   `Cache-Control: no-store`, which nothing caches; the menu shows its error and reads the branch again
+   on «Спробувати ще» or when it is reopened.
+
+Not a catch but related: the catalogue's cursor walks (`common/utils/catalog-tree.server.ts`) repeat a
+walk once with `cache: 'no-store'` on a 409 or a mixed revision, then throw like any upstream failure.
+
+If you find yourself adding another catch, write down which of these shapes it is: the caught value is
 not what gets cached, or the call is decoration on pages that do not otherwise need the API.
 
 ### Second argument: `init`
@@ -235,34 +251,45 @@ Four things about it are load-bearing:
 The frontend needs `INTERNAL_API_TOKEN` in `.env` (local) and `.env.prod` (production runtime,
 _not_ a `Dockerfile.prod` build arg), matching the backend's value.
 
-### Sitemap: `revalidate: 0` inside `unstable_cache`, and `force-static`
+### Sitemap: one verified export and one artifact cache
 
-`src/app/sitemap.ts` has two cache layers that must not fight each other, and one route-level flag
-that keeps the second one alive.
+**Since 2026-10-29 (Plan-0010 B05/F10) the sitemap is files.** `src/common/utils/sitemap-files.ts`
+reads the backend's index `GET /catalog/sitemap` (`{revision, epoch, parts: [{from, to, urls}]}`) and
+each part `GET /catalog/sitemap/part?revision&epoch[&from][&to]` with the index's revision, both with
+no-store inside `unstable_cache` (`catalog-sitemap-index-v2`, `catalog-sitemap-part-v2` keyed by the
+index and the part number), daily, tagged SITEMAP/PRODUCTS/CATEGORIES as before. Routes:
+`src/app/sitemap.xml/route.ts` — while the backend has one part (today's catalogue, below ~20 000 URLs)
+the `<urlset>` itself, rendered by Next's own sitemap serializer exactly as the former `sitemap.ts`
+metadata route did; with more parts a `<sitemapindex>` of `src/app/sitemap/[part]/route.ts` files
+(`/sitemap/<n>.xml`). robots.txt keeps naming `/sitemap.xml`. Home and static pages go into the first
+file only, `/catalog` with the categories (also the first), so the files list every URL once. A part
+the backend refuses as of another revision (409, the catalogue changed after the cached index) is
+served from a fresh index and the cached one is expired. Each backend part stays below 50 000 URLs
+and 2 MiB. The paragraphs below describe the single-export version this replaced; validation,
+failure and `lastModified` rules are unchanged.
 
-**Entries.** `fetchSitemapEntries` is `unstable_cache(…, ['sitemap-entries'], { revalidate: 86400 })`,
-called with the product-variant count as its only argument — the count is the cache key, so a new
-product busts the entry while category/slug edits are picked up by the daily revalidation (a hard
-`revalidate: false` would serve stale URLs forever). Inside it the two `serverFetch` calls pass
-`{ next: { revalidate: 0 } }`: `unstable_cache` owns caching here — Next forces fetches inside it to
-`no-store` anyway — so the explicit `0` states what actually happens instead of pretending the
-default hour-long fetch cache is a second layer underneath.
+`src/app/sitemap.ts` now fetches `GET /catalog/sitemap` once, with no-store, inside
+`unstable_cache` keyed `catalog-sitemap-snapshot-v1`. The backend brackets all three
+URL sources with one revision/epoch barrier. The memo remains daily (86400) and
+carries SITEMAP/PRODUCTS/CATEGORIES tags. There is no count-key fetch or count fallback.
 
-The two fetches run in `Promise.all` and are **not** caught. If either throws, the cached entry
-keeps being served while the failed re-run is logged; on a cold cache the route errors. Both beat the
-previous behaviour of caching an empty sitemap for a day. `null` (a genuine 404) is the only case
-that maps to "no entries" (`variants ?? []`, `categories ?? []`).
+`buildSitemapEntries` validates the complete export before constructing routes.
+Missing endpoint (404), unavailable backend, absent source arrays or malformed
+rows throw; none becomes an empty list. An explicitly empty complete export is
+valid. Failed regeneration cannot replace the prior complete artifact.
 
-**Count.** The route function itself does one more `serverFetch` for `/products/variants/count`
-with `revalidate: 0`, caught to `null` → `-1` (see
-[the two deliberate catches](#the-two-deliberate-catches)).
+The route is force-dynamic: the Data Cache owns the artifact, without a second
+force-static route snapshot or build-time API dependency. Existing invalidation
+still expires the memo's tags and the sitemap path. This does not implement the
+future purge-ACK gate for visibility changes: a previously verified stale artifact
+may be served while a regeneration fails. No automatic HTTP 503 mapping for a cold
+Next metadata-route failure is claimed.
 
-**`export const dynamic = 'force-static'`.** That count fetch is a `revalidate: 0` fetch at route
-level. Without `force-static` Next treats it as dynamic usage (`markCurrentScopeAsDynamic` in
-`next/dist/server/lib/patch-fetch`) and drops the whole route out of ISR — every crawler hit would
-re-run it. With `force-static` plus `export const revalidate = 86400` the fetch simply re-runs on
-each daily regeneration, exactly as the bare `fetch` did before `serverFetch` replaced it. Keep the
-two exports together; removing `dynamic` looks harmless and silently makes the sitemap dynamic.
+URLs retain their legacy structure until redirect-backed migration. lastModified
+is emitted only for a valid stored updatedAt; neither absent dates nor static
+pages use generation time as a fictitious content edit. Deploy the backend endpoint
+before this frontend. Pagination/sitemap splitting and v2 visibility exports remain
+pending; this release preserves the existing all-URLs-in-one-document scope.
 
 ### On-demand revalidation
 
@@ -293,4 +320,4 @@ Two rules that live with the tags rather than with the endpoint:
 | `src/app/(root)/products/[slug]/page.tsx`         | `/products/by-slug/:slug` (metadata + page)                                       | —          |
 | `src/app/(root)/search/page.tsx`                  | `/products/search?…`                                                              | —          |
 | `src/common/utils/navigation.utils.ts`            | `/categories`                                                                     | —          |
-| `src/app/sitemap.ts`                              | `/products/variants/count`, `/products/variants/slugs`, `/categories`, `/landings/slugs` | — (the `unstable_cache` memo carries `sitemap`) |
+| `src/common/utils/sitemap-files.ts` (`/sitemap.xml`, `/sitemap/<n>.xml`) | `/catalog/sitemap`, `/catalog/sitemap/part` | — (the `unstable_cache` memos carry `sitemap`) |

@@ -111,14 +111,15 @@ describe('POST /api/revalidate', () => {
 
 		expect(res.status).toBe(200)
 		expect(revalidateTag).toHaveBeenCalledWith('categories', { expire: 0 })
+		expect(revalidateTag).toHaveBeenCalledWith('products', { expire: 0 })
 		expect(revalidatePath).toHaveBeenCalledWith('/sitemap.xml')
 	})
 
-	it('does not touch product caches on a category write', async () => {
+	it('purges product detail alongside categories because it embeds display rules and units', async () => {
 		await purge('categories')
 
-		expect(revalidateTag).not.toHaveBeenCalledWith('products', expect.anything())
-		expect(revalidateTag.mock.calls.length + revalidatePath.mock.calls.length).toBe(2)
+		expect(revalidateTag).toHaveBeenCalledWith('products', { expire: 0 })
+		expect(revalidateTag.mock.calls.length + revalidatePath.mock.calls.length).toBe(3)
 	})
 
 	it('reports back the tags and paths it purged', async () => {

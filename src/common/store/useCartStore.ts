@@ -8,6 +8,8 @@ import { useAuthStore } from './useAuthStore'
 export interface CartVariant {
 	name: string
 	slug: string
+	/** The analytics item id; absent from an older backend. */
+	sku?: string
 	/** Regular price; the line is priced at `sale_price ?? price` (TD-0012). */
 	price: number
 	sale_price?: number | null
@@ -41,6 +43,8 @@ export interface GuestItemMeta {
 	promo_ends_at?: string | null
 	thumbnail: string | null
 	slug: string
+	/** The analytics item id (`begin_checkout`); absent on lines stored before it was kept. */
+	sku?: string
 }
 
 export interface GuestItem {

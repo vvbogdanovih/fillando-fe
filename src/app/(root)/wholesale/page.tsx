@@ -48,10 +48,7 @@ export default function WholesalePage() {
 			{/* Benefits */}
 			<section className='mb-12 grid gap-6 md:grid-cols-3'>
 				{BENEFITS.map(({ icon: Icon, title, text }) => (
-					<div
-						key={title}
-						className='border-border bg-card rounded-2xl border p-6'
-					>
+					<div key={title} className='border-border bg-card rounded-2xl border p-6'>
 						<div className='bg-primary/10 text-primary mb-4 flex h-10 w-10 items-center justify-center rounded-xl'>
 							<Icon className='size-5' />
 						</div>
@@ -75,8 +72,7 @@ export default function WholesalePage() {
 				<div className='border-border bg-card h-fit rounded-2xl border p-6 md:p-8'>
 					<h2 className='mb-2 text-2xl font-bold'>Або напишіть нам</h2>
 					<p className='text-muted-foreground mb-6 text-sm'>
-						Швидше поговорити напряму? Ми на зв&apos;язку в месенджерах та за
-						телефоном.
+						Швидше поговорити напряму? Ми на зв&apos;язку в месенджерах та за телефоном.
 					</p>
 					<div className='flex flex-col gap-4'>
 						<a

@@ -7,12 +7,13 @@ import { Button } from '@/common/components/ui/button'
 import { Badge } from '@/common/components/ui/badge'
 import { categoriesApi } from '../categories.api'
 import { DeleteConfirmDialog } from './DeleteConfirmDialog'
-import type { Category } from '../categories.schema'
+import { CATEGORY_OPTIONS_KEY } from '../categories.queries'
+import type { CategoryOption } from '../categories.schema'
 
 interface CategoryListProps {
-	categories: Category[]
+	categories: CategoryOption[]
 	selectedId: string | null
-	onSelect: (category: Category | null) => void
+	onSelect: (category: CategoryOption | null) => void
 	onCreate: () => void
 }
 
@@ -23,7 +24,7 @@ export const CategoryList = ({ categories, selectedId, onSelect, onCreate }: Cat
 	const { mutate: deleteCategory, isPending: isDeleting } = useMutation({
 		mutationFn: (id: string) => categoriesApi.delete(id),
 		onSuccess: (_, id) => {
-			queryClient.setQueryData<Category[]>(['categories'], prev =>
+			queryClient.setQueryData<CategoryOption[]>(CATEGORY_OPTIONS_KEY, prev =>
 				prev ? prev.filter(c => c._id !== id) : []
 			)
 			setDeletingId(null)
@@ -80,7 +81,7 @@ export const CategoryList = ({ categories, selectedId, onSelect, onCreate }: Cat
 							<p className='truncate text-xs text-gray-400'>{category.slug}</p>
 							<div className='mt-1 flex items-center gap-2'>
 								<Badge variant='secondary' className='text-xs'>
-									{category.required_attributes.length} атр.
+									{category.attribute_count} атр.
 								</Badge>
 								<span className='text-xs text-gray-400'>
 									order: {category.order}

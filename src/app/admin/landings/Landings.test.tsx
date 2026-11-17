@@ -10,7 +10,7 @@ afterEach(cleanup)
 const getAll = vi.fn()
 vi.mock('./landings.api', () => ({ landingsApi: { getAll: () => getAll(), delete: vi.fn() } }))
 vi.mock('@/app/admin/categories/categories.api', () => ({
-	categoriesApi: { getAll: () => Promise.resolve([]) }
+	categoriesApi: { getOptions: () => Promise.resolve([]), getById: () => new Promise(() => {}) }
 }))
 // The screen reaches the storefront purge through the table; mocked at the service so the
 // assertions here stay about what is on screen.

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { waitFor, act, cleanup, render, screen, within } from '@testing-library/react'
 import type { ImgHTMLAttributes } from 'react'
 import { hydrateRoot, type Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
@@ -70,10 +70,7 @@ const data = (
 		id: 'p1',
 		name: 'Kingroon PLA 1,75 мм 1 кг',
 		description: null,
-		attributes: [
-			{ k: 'vyrobnyk', l: 'Виробник', v: 'Kingroon' },
-			{ k: 'polymer', l: 'Тип пластику', v: 'PLA' }
-		],
+		attributes: [{ k: 'polymer', l: 'Тип пластику', v: 'PLA' }],
 		variant_type: { key: 'kolir', label: 'Колір' },
 		manufacturer: 'Kingroon'
 	},
@@ -103,13 +100,15 @@ const data = (
 	],
 	category_slug: 'filament',
 	category_name: 'Філамент',
-	spooled_counterpart: null,
 	...patch
 })
 
 const RENDERED_AT = '2026-10-04T23:59:30.000Z'
 
-const renderPage = (initialData: ProductDetailData) => {
+const renderPage = (
+	initialData: ProductDetailData,
+	categoryPath: { _id: string; name: string; slug: string }[] | null = null
+) => {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 	const view = render(
 		<QueryClientProvider client={client}>
@@ -117,6 +116,7 @@ const renderPage = (initialData: ProductDetailData) => {
 				slug={initialData.variant.slug}
 				initialData={initialData}
 				renderedAt={RENDERED_AT}
+				categoryPath={categoryPath}
 			/>
 		</QueryClientProvider>
 	)
@@ -124,11 +124,62 @@ const renderPage = (initialData: ProductDetailData) => {
 }
 
 describe('ProductPage', () => {
-	it('shows the brand chip, the weight-based delivery estimate and a live buy button', () => {
+	describe('category path too long to embed (Plan-0010 D06.4)', () => {
+		const deep = Array.from({ length: 1500 }, (_, n) => ({
+			_id: `g${n}`,
+			name: `Рівень ${n}`,
+			slug: `level-${n}`
+		}))
+		const own = { _id: 'c1', name: 'Філамент', slug: 'filament' }
+		const crumbs = (container: HTMLElement) =>
+			[...container.querySelectorAll('script[type="application/ld+json"]')]
+				.map(node => JSON.parse(node.textContent ?? '{}'))
+				.find(item => item['@type'] === 'BreadcrumbList') as {
+				itemListElement: { name: string }[]
+			}
+		it('renders the whole path the server read, in the trail and in BreadcrumbList', () => {
+			const { container } = renderPage(
+				data(
+					{},
+					{ category_path: [own], category_path_paged: true, category_path_total: 1501 }
+				),
+				[...deep, own]
+			)
+			const list = crumbs(container)
+			// Головна, Каталог, 1 500 ancestors, the category, the product.
+			expect(list.itemListElement).toHaveLength(1504)
+			expect(list.itemListElement[2].name).toBe('Рівень 0')
+			expect(list.itemListElement[1502].name).toBe('Філамент')
+		})
+		it('keeps the embedded path at an ordinary depth', () => {
+			const { container } = renderPage(data({}, { category_path: [deep[0], own] }))
+			expect(crumbs(container).itemListElement.map(item => item.name)).toEqual([
+				'Головна',
+				'Каталог',
+				'Рівень 0',
+				'Філамент',
+				'Kingroon PLA 1,75 мм 1 кг — Чорний (Black)'
+			])
+		})
+		it('repeats the category page trail: Головна › Каталог › the path (owner, 01.11.2026)', () => {
+			renderPage(data({}, { category_path: [deep[0], own] }))
+			const trail = screen.getByRole('navigation', { name: 'Хлібні крихти' })
+			const links = within(trail).getAllByRole('link')
+			expect(links.map(link => [link.textContent, link.getAttribute('href')])).toEqual([
+				['Головна', '/'],
+				['Каталог', '/catalog'],
+				['Рівень 0', '/level-0'],
+				['Філамент', '/filament']
+			])
+		})
+	})
+
+	it('shows no brand chip, the weight-based delivery estimate and a live buy button', () => {
 		renderPage(data())
 
-		// The chip above the title only: the spec table no longer repeats «Виробник».
-		expect(screen.getAllByText('Kingroon')).toHaveLength(1)
+		// The brand reaches the page only as a row of the table the admin configures (owner,
+		// 2026-11-08); `manufacturer` stays for the structured data and analytics.
+		expect(screen.queryByText('Kingroon')).not.toBeInTheDocument()
 		expect(
 			screen.getByText(/Нова Пошта — орієнтовно 93 ₴, доставка 1–3 дні/)
 		).toBeInTheDocument()
@@ -138,6 +189,41 @@ describe('ProductPage', () => {
 		expect(screen.getByText(/Колір/)).toBeInTheDocument()
 	})
 
+	/**
+	 * The backend orders a v2 table by the category's definitions and leaves out what is not
+	 * marked «У таблиці характеристик на сторінці товару» (owner, 2026-11-05): the page prints the
+	 * rows as sent — no reordering, hiding or emphasis of its own.
+	 */
+	it('prints the specification rows as the backend sends them', () => {
+		const base = data()
+		renderPage(
+			data(
+				{},
+				{
+					product: {
+						...base.product,
+						attributes: [
+							{ k: 'spool_included', l: 'Котушка в комплекті', v: 'Ні (рефіл)' },
+							{ k: 'material', l: 'Матеріал', v: 'PLA Silk' },
+							{ k: 'vaha', l: 'Вага', v: 1, unit: 'кг' }
+						]
+					},
+					attribute_notice: null
+				}
+			)
+		)
+
+		const rows = screen
+			.getAllByRole('row')
+			.map(row => [...row.querySelectorAll('td')].map(cell => cell.textContent))
+		expect(rows).toEqual([
+			['Котушка в комплекті', 'Ні (рефіл)'],
+			['Матеріал', 'PLA Silk'],
+			['Вага', '1 кг']
+		])
+		expect(screen.getByText('Ні (рефіл)')).not.toHaveClass('text-amber-700')
+	})
+
 	/** The switcher hides itself below two variants; the caption is still part of the page. */
 	it('names the chosen colour even when the product has a single one', () => {
 		const single = data()
@@ -145,6 +231,62 @@ describe('ProductPage', () => {
 
 		expect(screen.getByText(/Колір:/)).toBeInTheDocument()
 		expect(screen.getByText('Чорний (Black)')).toBeInTheDocument()
+	})
+
+	describe('purchase notice (Plan-0010 F08; product data since 2026-11-05)', () => {
+		const refill = {
+			attributes: [
+				{ k: 'polymer', l: 'Тип пластику', v: 'PLA' },
+				{ k: 'spool_included', l: 'Котушка в комплекті', v: 'Ні (рефіл)' }
+			]
+		}
+
+		it('takes the notice and the photo badge from the v2 product', () => {
+			const base = data()
+			renderPage(
+				data(
+					{},
+					{
+						product: { ...base.product, ...refill },
+						attribute_notice: {
+							title: 'Рефіл без котушки',
+							text: 'Потрібна власна котушка.',
+							badge: 'Рефіл'
+						}
+					}
+				)
+			)
+
+			expect(screen.getByText('Рефіл')).toBeInTheDocument()
+			expect(screen.getByText('Рефіл без котушки')).toBeInTheDocument()
+			// No built-in filament wording on a v2 page.
+			expect(screen.queryByText('Без котушки')).not.toBeInTheDocument()
+			expect(screen.queryByText('Це рефіл — без котушки')).not.toBeInTheDocument()
+		})
+
+		it('shows nothing of it on a v2 page whose product has no notice', () => {
+			const base = data()
+			renderPage(
+				data(
+					{},
+					{
+						product: { ...base.product, ...refill },
+						attribute_notice: null
+					}
+				)
+			)
+
+			expect(screen.queryByText('Без котушки')).not.toBeInTheDocument()
+			expect(screen.queryByText('Це рефіл — без котушки')).not.toBeInTheDocument()
+		})
+
+		it('keeps the built-in refill card on a legacy page', () => {
+			const base = data()
+			renderPage(data({}, { product: { ...base.product, ...refill } }))
+
+			expect(screen.getByText('Без котушки')).toBeInTheDocument()
+			expect(screen.getByText('Це рефіл — без котушки')).toBeInTheDocument()
+		})
 	})
 
 	it('quotes no number when the weight is unknown', () => {
@@ -228,10 +370,11 @@ describe('ProductPage', () => {
 			const { container, client } = renderPage(
 				data({ sale_price: 356, promo_percent: 15, promo_ends_at: '2020-01-01T00:00:00Z' })
 			)
+			// Two colours → the page's markup is a ProductGroup whose first variant is this SKU.
 			const offer = () =>
 				JSON.parse(
 					container.querySelector('script[type="application/ld+json"]')!.textContent!
-				).offers
+				).hasVariant[0].offers
 			expect(screen.getByText('356 ₴')).toBeInTheDocument()
 			expect(offer().price).toBe(356)
 			expect(offer().priceSpecification[0].price).toBe(419)
@@ -247,7 +390,7 @@ describe('ProductPage', () => {
 				)
 			})
 			expect(screen.getByText('419 ₴')).toBeInTheDocument()
-			expect(screen.queryByText('356 ₴')).not.toBeInTheDocument()
+			await waitFor(() => expect(screen.queryByText('356 ₴')).not.toBeInTheDocument())
 			expect(offer().price).toBe(419)
 			expect(offer()).not.toHaveProperty('priceSpecification')
 		})

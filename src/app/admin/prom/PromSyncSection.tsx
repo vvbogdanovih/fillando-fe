@@ -24,6 +24,7 @@ export const PromSyncSection = () => {
 	const [updated, setUpdated] = useState(0)
 	const [pricesUpdated, setPricesUpdated] = useState(0)
 	const [skipped, setSkipped] = useState(0)
+	const [deferred, setDeferred] = useState(0)
 	const [errors, setErrors] = useState(0)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -46,6 +47,7 @@ export const PromSyncSection = () => {
 		setUpdated(0)
 		setPricesUpdated(0)
 		setSkipped(0)
+		setDeferred(0)
 		setErrors(0)
 		setIsSyncing(true)
 
@@ -84,6 +86,7 @@ export const PromSyncSection = () => {
 				setUpdated(data.updated)
 				setPricesUpdated(data.pricesUpdated)
 				setSkipped(data.skipped)
+				setDeferred(data.deferred)
 				setErrors(data.errors)
 				return
 			}
@@ -97,8 +100,9 @@ export const PromSyncSection = () => {
 				setUpdated(data.updated)
 				setPricesUpdated(data.pricesUpdated)
 				setSkipped(data.skipped)
+				setDeferred(data.deferred)
 				setErrors(data.errors)
-				const msg = `Готово: оновлено ${data.updated}, з них цін ${data.pricesUpdated}, пропущено ${data.skipped}, помилок ${data.errors} (усього ${data.total})`
+				const msg = `Готово: оновлено ${data.updated}, з них цін ${data.pricesUpdated}, пропущено ${data.skipped}${data.deferred ? `, відкладено до наступної синхронізації ${data.deferred} (каталог саме оновлювався)` : ''}, помилок ${data.errors} (усього ${data.total})`
 				setSuccessMessage(msg)
 				toast.success(msg)
 				return
@@ -155,6 +159,7 @@ export const PromSyncSection = () => {
 							<p>Оновлено: {updated}</p>
 							<p>Змінено цін: {pricesUpdated}</p>
 							<p>Пропущено: {skipped}</p>
+							{deferred > 0 && <p>Відкладено (каталог оновлюється): {deferred}</p>}
 							<p>Помилок: {errors}</p>
 						</div>
 					</div>

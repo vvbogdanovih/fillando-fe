@@ -1,14 +1,12 @@
-import { API_URLS } from '@/common/constants/api-routes.constants'
-import { CACHE_TAGS } from '@/common/constants/cache-tags.constants'
-import { FALLBACK_CATEGORY_LINKS, type NavLink } from '@/common/constants/navigation.constants'
+import {
+	FALLBACK_CATEGORY_LINKS,
+	NAV_BRANCH_LINKS,
+	NAV_FULL_LINKS,
+	type NavLink
+} from '@/common/constants/navigation.constants'
 import { UI_URLS } from '@/common/constants/ui-routes.constants'
-import { serverFetch } from './server-fetch.utils'
-
-interface NavCategory {
-	slug: string
-	name: string
-	order?: number
-}
+import { loadCatalogTree } from './catalog-tree.server'
+import type { CatalogTreeNode } from './catalog-tree.utils'
 
 /** `/filament/` and `/filament` are the same address; compare them as one. */
 const stripTrailingSlash = (path: string) =>
@@ -42,7 +40,8 @@ export function isNavLinkActive(pathname: string, href: string): boolean {
  * holds no secret (its single module-level value is the public `NEXT_PUBLIC_API_BASE_URL`) and
  * no server-only API, so the unused export shakes out. Do not add one that does.
  *
- * Storefront categories as navigation links, for the header, the mobile menu and the footer.
+ * Storefront categories as navigation links, for the header, the mobile menu and the footer —
+ * the public tree's non-empty root nodes, with their non-empty branches nested below them.
  *
  * These were hard-coded to a single `/filament` entry, so a new category was invisible to both
  * shoppers and crawlers until someone remembered to edit two components.
@@ -55,22 +54,45 @@ export function isNavLinkActive(pathname: string, href: string): boolean {
  * still fail loudly, because they fetch it themselves without a catch.
  */
 export async function getCategoryNavLinks(): Promise<readonly NavLink[]> {
-	let categories: NavCategory[] | null = null
+	let tree: CatalogTreeNode[]
 	try {
-		// The same URL, and therefore the same Data Cache entry, as the reads in `Home` and in
-		// the category route. `next.tags` is not part of the cache key, so an untagged call here
-		// would overwrite that entry with an untagged one and the `categories` purge would stop
-		// biting for everyone (Plan-0005 I-h).
-		categories = await serverFetch<NavCategory[]>(API_URLS.CATEGORIES.BASE, {
-			next: { tags: [CACHE_TAGS.CATEGORIES] }
-		})
+		tree = await loadCatalogTree()
 	} catch {
 		return FALLBACK_CATEGORY_LINKS
 	}
-
-	if (!categories || categories.length === 0) return FALLBACK_CATEGORY_LINKS
-
-	return [...categories]
-		.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name, 'uk'))
-		.map(category => ({ href: `/${category.slug}`, label: category.name }))
+	if (tree.length === 0) return FALLBACK_CATEGORY_LINKS
+	return categoryNavLinks(tree)
 }
+
+/**
+ * The tree as navigation links (Plan-0010 D06.5, owner 30.10.2026): up to `NAV_FULL_LINKS`
+ * category links the whole non-empty tree, exactly as before; above it the roots and their
+ * sub-categories (at most `NAV_BRANCH_LINKS` each, the rest «Усі (N)») — a deeper branch opens on
+ * demand. At 10 000 categories the whole tree was ~2.3 MB of HTML on every page.
+ */
+export function categoryNavLinks(tree: CatalogTreeNode[]): NavLink[] {
+	let links = 0
+	for (const stack = [...tree]; stack.length; links++) stack.push(...stack.pop()!.children)
+	if (links <= NAV_FULL_LINKS) return tree.map(toNavLink)
+	return tree.map(root => ({ href: root.href, label: root.name, ...navLevel(root.children) }))
+}
+
+/** One level of a large catalogue's menu: the first sub-categories, deeper ones on demand. */
+export function navLevel(nodes: CatalogTreeNode[]): Pick<NavLink, 'children' | 'more'> {
+	if (!nodes.length) return {}
+	return {
+		children: nodes.slice(0, NAV_BRANCH_LINKS).map(node => ({
+			href: node.href,
+			label: node.name,
+			...(node.children.length ? { lazy: true as const, id: node.id } : {})
+		})),
+		...(nodes.length > NAV_BRANCH_LINKS ? { more: nodes.length - NAV_BRANCH_LINKS } : {})
+	}
+}
+
+/** A tree node as a link, its non-empty descendants nested at any depth (TD-0013 F06). */
+const toNavLink = (node: CatalogTreeNode): NavLink => ({
+	href: node.href,
+	label: node.name,
+	...(node.children.length ? { children: node.children.map(toNavLink) } : {})
+})

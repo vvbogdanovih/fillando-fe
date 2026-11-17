@@ -33,7 +33,7 @@ import {
 	type ProductFormValues,
 	type ProductDetail
 } from '../products.schema'
-import { categoriesApi } from '../../categories/categories.api'
+import { useCategory } from '../../categories/categories.queries'
 
 interface ProductEditFormProps {
 	product: ProductDetail
@@ -63,13 +63,11 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 	const watchedCategoryId = useWatch({ control, name: 'category_id' })
 	const watchedAttributes = useWatch({ control, name: 'attributes' })
 
-	// Fetch categories to resolve required attributes for the selected category
-	const { data: categories = [] } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
-
-	const selectedCategory = categories.find(c => c._id === watchedCategoryId)
+	// The selected category with its required attributes, read by id (Plan-0010 D06). Only the
+	// category of the current id counts: a re-seed must wait for it, not run on an empty list.
+	const { data: fetchedCategory } = useCategory(watchedCategoryId)
+	const selectedCategory =
+		fetchedCategory?._id === watchedCategoryId ? fetchedCategory : undefined
 
 	const requiredAttrs = selectedCategory?.required_attributes ?? []
 
@@ -78,6 +76,7 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 	const prevCategoryId = useRef(watchedCategoryId)
 	useEffect(() => {
 		if (prevCategoryId.current === watchedCategoryId) return
+		if (watchedCategoryId && !selectedCategory) return // its characteristics are loading
 		prevCategoryId.current = watchedCategoryId
 		if (!watchedCategoryId) return
 		const requiredKeys = new Set(requiredAttrs.map(attr => toAttrKey(attr.label)))
@@ -89,7 +88,7 @@ export const ProductEditForm = ({ product }: ProductEditFormProps) => {
 			...currentCustomAttrs
 		])
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [watchedCategoryId])
+	}, [watchedCategoryId, selectedCategory])
 
 	const onSubmit = handleSubmit(async values => {
 		const description =

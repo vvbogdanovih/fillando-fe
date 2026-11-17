@@ -463,8 +463,19 @@ asserts `router.replace` was never called.
 
 ## 8. Purchase conversion
 
-Always through `gtag()` from `common/lib/gtag.ts`, which pushes onto `window.dataLayer` — the tag is
-consent-gated and may not have loaded (see the Analytics paragraph in `CLAUDE.md`).
+Always through `gtag()` from `common/lib/gtag.ts`, which pushes onto `window.dataLayer` — gtag.js
+may not have loaded yet (see the Analytics paragraph in `CLAUDE.md`).
+
+Since 2026-11-16 the conversion is sent **whatever the cookie answer** (Consent Mode v2): the tag
+is always loaded and, without «Прийняти», reports it as a cookieless ping. Two things ride on the
+checkout for a consenting buyer only (`common/lib/ads-attribution.ts`):
+
+- `POST /orders` carries `attribution: { consent, gclid?, gbraid?, wbraid? }` — the banner's answer
+  and the ad click id of the visit. Without consent it is `{ consent }` alone; the backend stores
+  the click id, the buyer's IP and User-Agent only under `granted`.
+- `rememberOrderContact` keeps the buyer's e-mail and phone in `sessionStorage` (it survives the
+  LiqPay round trip in the same tab); the success page takes it once and sets it as `user_data`
+  **before** the conversion event — enhanced conversions, hashed by gtag.js in the browser.
 
 ```ts
 const shouldConvert = isLiqpay ? lookup?.payment_status === 'PAID' : true

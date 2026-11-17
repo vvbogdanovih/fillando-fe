@@ -13,7 +13,10 @@ import { cn } from '@/common/utils/shad-cn.utils'
 import { MANUFACTURERS } from '@/common/constants'
 import { priceSheetApi } from './price-sheet.api'
 import type { AdminVariant } from './price-sheet.schema'
+import { priceSheetSections, priceSheetSummary, type PriceSheetSection } from './price-sheet.utils'
 import { PriceTag } from '@/common/components/PriceTag'
+import { effectivePrice } from '@/common/utils/price.utils'
+import { trackAddToCart } from '@/common/lib/ga4-events'
 
 const LIMIT = 50
 
@@ -63,6 +66,7 @@ export const PriceSheet = () => {
 
 	const items = data?.pages.flatMap(p => p.items) ?? []
 	const total = data?.pages[0]?.total ?? 0
+	const sections = priceSheetSections(items, data?.pages.flatMap(p => p.categories ?? []) ?? [])
 
 	// Infinite scroll: load the next page when the sentinel enters the viewport.
 	const sentinelRef = useRef<HTMLDivElement>(null)
@@ -88,7 +92,8 @@ export const PriceSheet = () => {
 					<div>
 						<h1 className='text-2xl font-semibold text-gray-900'>Прайс-лист</h1>
 						<p className='mt-1 text-sm text-gray-500'>
-							Швидка ревізія товарів. Сортування: спочатку ті, що в наявності.
+							Кожна категорія — зі своїми характеристиками. Спочатку ті, що в
+							наявності.
 						</p>
 					</div>
 					<div className='flex flex-wrap items-center gap-2'>
@@ -121,81 +126,33 @@ export const PriceSheet = () => {
 				</div>
 			</div>
 
-			<div className='mt-6 rounded-lg border bg-white'>
-				<table className='hidden w-full text-sm md:table'>
-					<thead>
-						<tr>
-							<th className={`${TH} w-14`}>Фото</th>
-							<th className={TH}>Назва</th>
-							<th className={TH}>Виробник</th>
-							<th className={TH}>Матеріал</th>
-							<th className={TH}>Колір</th>
-							<th className={TH}>Артикул</th>
-							<th className={`${TH} text-right`}>Вартість</th>
-							<th className={`${TH} text-right`}>Кількість</th>
-							<th className={TH}>Синхронізовано</th>
-							<th className={`${TH} text-right`} />
-						</tr>
-					</thead>
-					<tbody className='divide-y divide-gray-100'>
-						{status === 'pending' ? (
-							<tr>
-								<td colSpan={10} className='px-3 py-12 text-center text-gray-400'>
-									<Loader2 className='mx-auto h-5 w-5 animate-spin' />
-								</td>
-							</tr>
-						) : isError ? (
-							<tr>
-								<td colSpan={10} className='px-3 py-12 text-center text-red-600'>
-									Помилка завантаження.{' '}
-									<button className='underline' onClick={() => refetch()}>
-										Спробувати ще раз
-									</button>
-								</td>
-							</tr>
-						) : items.length === 0 ? (
-							<tr>
-								<td colSpan={10} className='px-3 py-12 text-center text-gray-400'>
-									Нічого не знайдено
-								</td>
-							</tr>
-						) : (
-							items.map(item => <Row key={item.id} item={item} />)
-						)}
-					</tbody>
-				</table>
-
-				{/* Mobile cards */}
-				<div className='md:hidden'>
-					{status === 'pending' ? (
-						<div className='py-12 text-center text-gray-400'>
-							<Loader2 className='mx-auto h-5 w-5 animate-spin' />
-						</div>
-					) : isError ? (
-						<div className='py-12 text-center text-red-600'>
-							Помилка завантаження.{' '}
-							<button className='underline' onClick={() => refetch()}>
-								Спробувати ще раз
-							</button>
-						</div>
-					) : items.length === 0 ? (
-						<div className='py-12 text-center text-gray-400'>Нічого не знайдено</div>
-					) : (
-						<ul className='divide-y divide-gray-100'>
-							{items.map(item => (
-								<MobileCard key={item.id} item={item} />
-							))}
-						</ul>
-					)}
+			{status === 'pending' ? (
+				<div className='mt-6 rounded-lg border bg-white py-12 text-center text-gray-400'>
+					<Loader2 className='mx-auto h-5 w-5 animate-spin' />
 				</div>
+			) : isError ? (
+				<div className='mt-6 rounded-lg border bg-white py-12 text-center text-red-600'>
+					Помилка завантаження.{' '}
+					<button className='underline' onClick={() => refetch()}>
+						Спробувати ще раз
+					</button>
+				</div>
+			) : items.length === 0 ? (
+				<div className='mt-6 rounded-lg border bg-white py-12 text-center text-gray-400'>
+					Нічого не знайдено
+				</div>
+			) : (
+				sections.map((section, index) => (
+					<Section key={`${section.id}-${index}`} section={section} />
+				))
+			)}
 
-				{/* Infinite-scroll sentinel + loader */}
-				{hasNextPage && (
-					<div ref={sentinelRef} className='flex justify-center py-4 text-gray-400'>
-						{isFetchingNextPage && <Loader2 className='h-4 w-4 animate-spin' />}
-					</div>
-				)}
-			</div>
+			{/* Infinite-scroll sentinel + loader */}
+			{hasNextPage && (
+				<div ref={sentinelRef} className='flex justify-center py-4 text-gray-400'>
+					{isFetchingNextPage && <Loader2 className='h-4 w-4 animate-spin' />}
+				</div>
+			)}
 
 			<p className='mt-3 text-xs text-gray-500'>
 				Показано {items.length} з {total}
@@ -205,7 +162,57 @@ export const PriceSheet = () => {
 	)
 }
 
-const Row = memo(function Row({ item }: { item: AdminVariant }) {
+/** One category: its name, then its own table — the columns its catalogue filters it by. */
+function Section({ section }: { section: PriceSheetSection }) {
+	return (
+		<section className='mt-6'>
+			{section.name && (
+				<h2 className='mb-2 text-lg font-semibold text-gray-900'>{section.name}</h2>
+			)}
+			<div className='rounded-lg border bg-white'>
+				<table className='hidden w-full text-sm md:table'>
+					<thead>
+						<tr>
+							<th className={`${TH} w-14`}>Фото</th>
+							<th className={TH}>Назва</th>
+							{section.columns.map(column => (
+								<th key={column.key} className={TH}>
+									{column.label}
+								</th>
+							))}
+							{section.variant_column && <th className={TH}>Варіант</th>}
+							<th className={TH}>Артикул</th>
+							<th className={`${TH} text-right`}>Вартість</th>
+							<th className={`${TH} text-right`}>Кількість</th>
+							<th className={TH}>Синхронізовано</th>
+							<th className={`${TH} text-right`} />
+						</tr>
+					</thead>
+					<tbody className='divide-y divide-gray-100'>
+						{section.items.map(item => (
+							<Row key={item.id} item={item} section={section} />
+						))}
+					</tbody>
+				</table>
+
+				{/* Mobile cards */}
+				<ul className='divide-y divide-gray-100 md:hidden'>
+					{section.items.map(item => (
+						<MobileCard key={item.id} item={item} section={section} />
+					))}
+				</ul>
+			</div>
+		</section>
+	)
+}
+
+const Row = memo(function Row({
+	item,
+	section
+}: {
+	item: AdminVariant
+	section: PriceSheetSection
+}) {
 	return (
 		<tr className='group hover:bg-gray-50'>
 			<td className='px-3 py-1.5'>
@@ -250,9 +257,16 @@ const Row = memo(function Row({ item }: { item: AdminVariant }) {
 					</Link>
 				</div>
 			</td>
-			<td className='px-3 py-1.5 text-gray-700'>{item.manufacturer || '—'}</td>
-			<td className='px-3 py-1.5 text-gray-700'>{item.material || '—'}</td>
-			<td className='px-3 py-1.5 text-gray-700'>{item.color || '—'}</td>
+			{section.columns.map(column => (
+				<td key={column.key} className='px-3 py-1.5 text-gray-700'>
+					{item.values?.[column.key] ?? '—'}
+				</td>
+			))}
+			{section.variant_column && (
+				<td className='px-3 py-1.5 text-gray-700'>
+					{item.variant_label ?? item.color ?? '—'}
+				</td>
+			)}
 			<td className='px-3 py-1.5 font-mono text-xs text-gray-700'>{item.article || '—'}</td>
 			<td className='px-3 py-1.5 text-right whitespace-nowrap text-gray-900'>
 				<PriceTag item={item} className='justify-end' priceClassName='font-medium' />
@@ -274,7 +288,13 @@ const Row = memo(function Row({ item }: { item: AdminVariant }) {
 	)
 })
 
-const MobileCard = memo(function MobileCard({ item }: { item: AdminVariant }) {
+const MobileCard = memo(function MobileCard({
+	item,
+	section
+}: {
+	item: AdminVariant
+	section: PriceSheetSection
+}) {
 	const href = `/products/${item.slug}`
 	return (
 		<li className='flex gap-3 p-3'>
@@ -311,9 +331,8 @@ const MobileCard = memo(function MobileCard({ item }: { item: AdminVariant }) {
 						priceClassName='font-medium'
 					/>
 				</div>
-				<div className='mt-0.5 flex flex-wrap gap-x-2 text-xs text-gray-500'>
-					{[item.manufacturer, item.material, item.color].filter(Boolean).join(' · ') ||
-						'—'}
+				<div className='mt-0.5 text-xs text-gray-500'>
+					{priceSheetSummary(item, section)}
 				</div>
 				{item.article && (
 					<div className='mt-0.5 font-mono text-xs text-gray-500'>{item.article}</div>
@@ -386,7 +405,15 @@ const AddToCartButton = memo(function AddToCartButton({ item }: { item: AdminVar
 				sale_price: item.sale_price ?? null,
 				promo_ends_at: item.promo_ends_at ?? null,
 				thumbnail: item.image,
-				slug: item.slug
+				slug: item.slug,
+				...(item.article ? { sku: item.article } : {})
+			})
+			trackAddToCart({
+				...(item.article ? { item_id: item.article } : {}),
+				item_name: item.name,
+				price: effectivePrice(item),
+				quantity: 1,
+				...(item.manufacturer ? { item_brand: item.manufacturer } : {})
 			})
 		} catch (err) {
 			toast.error(mapCartErrorMessage(err instanceof Error ? err.message : undefined))

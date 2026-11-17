@@ -44,6 +44,13 @@ export function Footer({ categories }: { categories: NavLink[] }) {
 								{label}
 							</Link>
 						))}
+						{/* The header keeps only search, the account and the cart (TD-0015). */}
+						<Link
+							href={UI_URLS.PRICE_SHEET}
+							className='text-muted-foreground hover:text-primary text-sm transition-colors'
+						>
+							Прайс-лист
+						</Link>
 						<Link
 							href={UI_URLS.WHOLESALE}
 							className='text-muted-foreground hover:text-primary text-sm transition-colors'

@@ -115,3 +115,35 @@ describe('CategoryForm — Google Merchant section', () => {
 		expect(unit).toHaveValue('кг')
 	})
 })
+
+// The category carries no product-page settings any more (owner, 2026-11-05): the order and
+// visibility of the specification rows belong to the characteristics.
+it('saves the characteristics without any product-page presentation', async () => {
+	update.mockResolvedValue(initial)
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<CategoryForm initial={initial} onClose={vi.fn()} />
+		</QueryClientProvider>
+	)
+	expect(screen.queryByText(/Характеристики в картці товару/)).not.toBeInTheDocument()
+	fireEvent.click(screen.getByRole('button', { name: 'Зберегти' }))
+	await waitFor(() =>
+		expect(update).toHaveBeenCalledWith(
+			'category1',
+			expect.objectContaining({
+				required_attributes: initial.required_attributes.map(
+					({ key: _key, ...rest }) => rest
+				)
+			})
+		)
+	)
+	expect(update.mock.calls[0][1]).not.toHaveProperty('presentation')
+})
+
+it('does not prefill a filament taxonomy for a new category', () => {
+	renderForm()
+	expect(
+		screen.queryByRole('button', { name: 'Підставити для філаменту' })
+	).not.toBeInTheDocument()
+	expect(screen.getByLabelText('Google-категорія (ID)')).toHaveValue('')
+})

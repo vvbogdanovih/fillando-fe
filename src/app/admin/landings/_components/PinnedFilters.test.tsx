@@ -7,38 +7,38 @@ import { PinnedFilters } from './PinnedFilters'
 // vitest runs without `globals`, so RTL's automatic cleanup is not registered.
 afterEach(cleanup)
 
-vi.mock('@/app/admin/categories/categories.api', () => ({
-	categoriesApi: {
-		getAll: () =>
-			Promise.resolve([
-				{
-					_id: 'cat1',
-					name: 'Філамент',
-					slug: 'filament',
-					image: null,
-					order: 0,
-					required_attributes: [
-						{
-							key: 'reinforcement',
-							label: 'Армування',
-							filter_type: 'multi-select',
-							is_required: true,
-							unit: null
-						},
-						{
-							key: 'finish',
-							label: 'Ефект поверхні',
-							filter_type: 'multi-select',
-							is_required: true,
-							unit: null
-						}
-					],
-					createdAt: '',
-					updatedAt: ''
-				}
-			])
+vi.mock('@/app/admin/categories/categories.api', async () => {
+	const { mockCategoriesApi } = await import('@/app/admin/categories/categories.test-utils')
+	return {
+		categoriesApi: mockCategoriesApi([
+			{
+				_id: 'cat1',
+				name: 'Філамент',
+				slug: 'filament',
+				image: null,
+				order: 0,
+				required_attributes: [
+					{
+						key: 'reinforcement',
+						label: 'Армування',
+						filter_type: 'multi-select',
+						is_required: true,
+						unit: null
+					},
+					{
+						key: 'finish',
+						label: 'Ефект поверхні',
+						filter_type: 'multi-select',
+						is_required: true,
+						unit: null
+					}
+				],
+				createdAt: '',
+				updatedAt: ''
+			}
+		])
 	}
-}))
+})
 
 // Wrapped rather than passed: the factory runs before the `const` below is initialised.
 const getCatalogProducts = vi.fn<(params: Record<string, string>) => Promise<unknown>>()

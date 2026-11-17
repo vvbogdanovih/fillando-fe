@@ -8,7 +8,7 @@ const novaPostValues: CheckoutFormValues = {
 	payment_method: 'IBAN',
 	city_ref: 'city-ref',
 	city_name: 'Київ',
-	warehouse_type: 'POST',
+	warehouse_type: 'BRANCH',
 	warehouse_number: 1,
 	warehouse_description: 'Відділення №1'
 }

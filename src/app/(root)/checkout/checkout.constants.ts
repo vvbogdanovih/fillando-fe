@@ -6,11 +6,18 @@ export const DELIVERY_METHOD_LABELS: Record<CheckoutFormValues['delivery_method'
 	PICKUP: 'Самовивіз'
 }
 
-export const WAREHOUSE_TYPE_LABELS = {
+/**
+ * Two choices, not three: `BRANCH` is post and cargo branches in one list. A buyer does not know
+ * which kind their branch is, and a town with cargo branches only showed an empty list under
+ * «Поштове». The weight limit of a branch is part of its name in the list.
+ */
+export const WAREHOUSE_TYPES = ['PARCEL_LOCKER', 'BRANCH'] as const
+export type WarehouseType = (typeof WAREHOUSE_TYPES)[number]
+
+export const WAREHOUSE_TYPE_LABELS: Record<WarehouseType, string> = {
 	PARCEL_LOCKER: 'Поштомат (до 20 кг)',
-	POST: 'Поштове відділення (до 30 кг)',
-	CARGO: 'Вантажне відділення (до 1100 кг)'
-} as const
+	BRANCH: 'Відділення'
+}
 
 // The delivery/payment compatibility rule now lives in `common/constants/payment.constants.ts`,
 // shared with the payment-method change on the success page and in the account (TD-0009).

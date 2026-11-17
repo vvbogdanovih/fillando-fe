@@ -1,3 +1,4 @@
+import { readPageNumber } from './page-number'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
@@ -9,9 +10,41 @@ import {
 } from '@/common/utils/seo.utils'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
+import { redirectIfMoved, type MovedTargetDecision } from '@/common/utils/moved-route.server'
 import { CACHE_TAGS } from '@/common/constants'
 import type { Category } from '@/app/admin/categories/categories.schema'
 import type { CatalogResponse } from './catalog.api'
+import { TypedRoute, typedRouteDecision, typedRouteMetadata } from '../catalog/typed-route'
+import type { PublicCategory } from '../catalog/typed-catalog.types'
+
+/**
+ * Groups and v2 product categories are typed listings (TD-0013); a flat v1 product category
+ * keeps the legacy catalogue, its colour/attribute filters and landings until it is migrated.
+ */
+const typedCategory = (category: Category): PublicCategory | null => {
+	const candidate = category as Category & Partial<PublicCategory>
+	return candidate.kind === 'group' || candidate.attribute_contract_version === 2
+		? (candidate as unknown as PublicCategory)
+		: null
+}
+
+/**
+ * An old address of a moved category answers in one hop (P03): the current category decides —
+ * a legacy query translated, a landing matched, a page past the end a 404 here.
+ */
+async function movedCategoryDecision(
+	target: string,
+	searchParams: Record<string, string | string[] | undefined>
+): Promise<MovedTargetDecision> {
+	const slug = target.slice(1)
+	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return null
+	// The page's own category fetch: same URL, same tags.
+	const data = await serverFetch<Category>(`/categories/slug/${slug}`, {
+		next: { tags: [CACHE_TAGS.CATEGORIES] }
+	})
+	const typed = data && typedCategory(data)
+	return typed ? typedRouteDecision(typed, searchParams) : null
+}
 
 interface PageProps {
 	params: Promise<{ category: string }>
@@ -40,8 +73,12 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 	// response is committed with a 200 before notFound() can change the status,
 	// so mark unknown slugs noindex to keep the soft-404 out of the index.
 	if (!categoryData) {
+		// An old address of a category whose slug changed answers one permanent redirect (B07).
+		await redirectIfMoved([category], sp, movedCategoryDecision)
 		return { title: 'Сторінку не знайдено', robots: { index: false, follow: false } }
 	}
+	const typed = typedCategory(categoryData)
+	if (typed) return typedRouteMetadata(typed, sp)
 	const label = categoryData.name ?? formatSlug(category)
 	let { canonical, robots } = listingIndexing(`/${category}`, sp)
 
@@ -76,17 +113,6 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 	}
 }
 
-/**
- * Mirrors the page parsing in `listingIndexing`; used only to label the title. Exported because
- * the landing route needs the very same numbering — `?page=2` is indexable and self-canonical
- * there too, so a title without the number gives two indexed URLs one heading.
- */
-export function readPageNumber(value: string | string[] | undefined): number {
-	const raw = Array.isArray(value) ? value[0] : value
-	const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : NaN
-	return Number.isFinite(parsed) && parsed > 1 ? parsed : 1
-}
-
 export default async function CategoryPage({ params, searchParams }: PageProps) {
 	const { category } = await params
 	const sp = await searchParams
@@ -99,7 +125,12 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 	})
 	// This dynamic segment catches every unknown top-level path — unknown slugs
 	// must 404, not render an empty page.
-	if (!categoryData) notFound()
+	if (!categoryData) {
+		await redirectIfMoved([category], sp, movedCategoryDecision)
+		notFound()
+	}
+	const typed = typedCategory(categoryData)
+	if (typed) return <TypedRoute category={typed} searchParams={sp} />
 
 	const query = new URLSearchParams()
 	query.set('category_id', categoryData._id)

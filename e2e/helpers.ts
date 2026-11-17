@@ -2,7 +2,7 @@ import { expect, type APIRequestContext, type BrowserContext, type Page } from '
 
 // Keep in sync with STOREFRONT_PORT / MOCK_API_PORT in playwright.config.ts.
 export const STOREFRONT_ORIGIN = 'http://localhost:9100'
-export const MOCK_API = 'http://localhost:9001'
+export const MOCK_API = 'http://localhost:19001'
 export const LIQPAY_SINK_URL = `${MOCK_API}/liqpay-sink`
 export const ORDER_NUMBER = 'FO-0000123'
 
@@ -26,7 +26,7 @@ export const GUEST_ITEM = {
 
 type StorageSeed = {
 	cart?: (typeof GUEST_ITEM)[]
-	/** 'denied' hides the cookie banner without loading gtag.js — dataLayer stays a plain array. */
+	/** 'denied' hides the cookie banner. gtag.js is never loaded on a local host either way. */
 	consent?: 'granted' | 'denied'
 }
 
@@ -87,12 +87,14 @@ export const lookupRequests = (log: MockRequest[]) =>
 
 /**
  * The storefront has booted once `Providers` ran `checkAuth()`: GET /auth/me → 401 →
- * interceptor refresh → 401 → logout. Waiting for the tail of that chain replaces a fixed
+ * interceptor refresh → 401 → local sign-out (without POST /auth/logout). Waiting for the tail of that chain replaces a fixed
  * sleep wherever a spec needs "the app is hydrated and its first effects have run".
  */
 export async function waitForBoot(request: APIRequestContext) {
 	await expect
-		.poll(async () => (await mockRequests(request)).some(r => r.path === '/auth/logout'))
+		.poll(async () =>
+			(await mockRequests(request)).some(r => r.path === '/auth/refresh' && r.status === 401)
+		)
 		.toBe(true)
 }
 

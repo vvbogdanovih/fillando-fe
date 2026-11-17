@@ -16,6 +16,8 @@ const itemCls = cn(
 interface UserMenuProps {
 	user: User
 	onLogout: () => void
+	/** The header's action look («Кабінет» with its icon, TD-0015); the name is inside the menu. */
+	className?: string
 }
 
 /**
@@ -23,30 +25,38 @@ interface UserMenuProps {
  * Radix Popper + @floating-ui (~11 KB gz) stay out of the shared storefront
  * chunk — the overwhelming majority of catalog traffic is signed out.
  */
-export function UserMenu({ user, onLogout }: UserMenuProps) {
+export function UserMenu({ user, onLogout, className }: UserMenuProps) {
 	const [avatarError, setAvatarError] = useState(false)
 	const isPrivileged = user.role === Role.ADMIN || user.role === Role.MODERATOR
 
 	return (
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger asChild>
-				<button className='border-border/50 bg-card hover:border-border flex items-center gap-2 rounded-xl border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none'>
+				<button
+					aria-label={`Кабінет: ${user.name}`}
+					className={cn('focus:outline-none', className)}
+				>
 					{user.picture && !avatarError ? (
 						// eslint-disable-next-line @next/next/no-img-element
 						<img
 							src={user.picture}
-							alt={user.name}
+							alt=''
 							referrerPolicy='no-referrer'
-							className='h-6 w-6 rounded-full object-cover'
+							className='size-[22px] rounded-full object-cover'
 							onError={() => setAvatarError(true)}
 						/>
 					) : (
-						<div className='bg-primary text-primary-foreground flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold'>
+						<span
+							aria-hidden
+							className='bg-primary text-primary-foreground flex size-[22px] items-center justify-center rounded-full text-[11px] font-bold'
+						>
 							{user.name[0].toUpperCase()}
-						</div>
+						</span>
 					)}
-					<span className='font-medium'>{user.name}</span>
-					<ChevronDown className='text-muted-foreground h-3.5 w-3.5' />
+					<span className='flex items-center gap-0.5'>
+						Кабінет
+						<ChevronDown className='text-muted-foreground size-3' aria-hidden />
+					</span>
 				</button>
 			</DropdownMenu.Trigger>
 

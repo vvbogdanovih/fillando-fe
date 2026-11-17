@@ -1,3 +1,4 @@
+import { ProductWorkspaceGate } from '../../ProductWorkspaceGate'
 import { EditProduct } from './EditProduct'
 
 type Props = {
@@ -6,5 +7,9 @@ type Props = {
 
 export default async function EditProductPage({ params }: Props) {
 	const { id } = await params
-	return <EditProduct id={id} />
+	return (
+		<ProductWorkspaceGate productId={id}>
+			<EditProduct id={id} />
+		</ProductWorkspaceGate>
+	)
 }

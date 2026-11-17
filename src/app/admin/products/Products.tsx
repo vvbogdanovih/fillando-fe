@@ -11,7 +11,7 @@ import { Button } from '@/common/components/ui/button'
 import { UI_URLS } from '@/common/constants'
 import { productsApi } from './products.api'
 import { vendorsApi } from '../vendors/vendors.api'
-import { categoriesApi } from '../categories/categories.api'
+import { useCategoryOptions } from '../categories/categories.queries'
 import { DeleteConfirmDialog } from './_components/DeleteConfirmDialog'
 import { PriceListModal } from './PriceListModal'
 
@@ -41,10 +41,7 @@ export const Products = () => {
 		queryFn: () => vendorsApi.getAll()
 	})
 
-	const { data: categories = [] } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
+	const { data: categories = [] } = useCategoryOptions()
 
 	const vendorMap = useMemo(() => new Map(vendors.map(v => [v._id, v.name])), [vendors])
 

@@ -19,7 +19,7 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/common/components/ui/select'
-import { categoriesApi } from '@/app/admin/categories/categories.api'
+import { useCategoryOptions } from '@/app/admin/categories/categories.queries'
 import { revalidateStorefront } from '@/common/services/revalidate.service'
 import { landingsApi } from '../landings.api'
 import {
@@ -87,10 +87,7 @@ export const LandingForm = ({ initial, onClose }: LandingFormProps) => {
 		initial?.image ? { status: 'existing', url: initial.image } : { status: 'none' }
 	)
 
-	const { data: categories = [] } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
+	const { data: categories = [] } = useCategoryOptions()
 
 	const {
 		register,

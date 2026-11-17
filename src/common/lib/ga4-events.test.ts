@@ -6,7 +6,13 @@ vi.mock('@/common/constants/analytics.constants', () => analytics)
 vi.mock('./gtag', () => ({ gtag: vi.fn() }))
 
 import { gtag } from './gtag'
-import { trackAddToCart, trackBeginCheckout, trackPurchase, trackViewItem } from './ga4-events'
+import {
+	claimPurchaseTracking,
+	trackAddToCart,
+	trackBeginCheckout,
+	trackPurchase,
+	trackViewItem
+} from './ga4-events'
 
 const item = { item_id: 'FL-000342', item_name: 'Sunlu PLA Silk — Gold', price: 549 }
 
@@ -62,5 +68,29 @@ describe('ga4-events', () => {
 		trackViewItem(item)
 		trackPurchase({ transaction_id: 'x' })
 		expect(gtag).not.toHaveBeenCalled()
+	})
+
+	describe('claimPurchaseTracking (F12)', () => {
+		beforeEach(() => window.localStorage.clear())
+
+		it('claims an order once per browser and keeps the list bounded', () => {
+			expect(claimPurchaseTracking('FO-0000001')).toBe(true)
+			expect(claimPurchaseTracking('FO-0000001')).toBe(false)
+			for (let n = 2; n <= 60; n++) claimPurchaseTracking(`FO-${n}`)
+			const stored = JSON.parse(window.localStorage.getItem('fillando-tracked-orders')!)
+			expect(stored).toHaveLength(50)
+			// The oldest fell out of the window; a recent one is still remembered.
+			expect(claimPurchaseTracking('FO-60')).toBe(false)
+		})
+
+		it('reports when storage is broken or throws, so a purchase is never lost', () => {
+			window.localStorage.setItem('fillando-tracked-orders', '{not json')
+			expect(claimPurchaseTracking('FO-0000002')).toBe(true)
+			const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+				throw Error('blocked')
+			})
+			expect(claimPurchaseTracking('FO-0000002')).toBe(true)
+			getItem.mockRestore()
+		})
 	})
 })

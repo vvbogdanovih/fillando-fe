@@ -17,7 +17,7 @@ import { VariantsBlock } from './VariantsBlock'
 import type { ImageUploadItem } from './ImageDropzone'
 import { productsApi } from '../products.api'
 import { productFormSchema, type ProductFormValues } from '../products.schema'
-import { categoriesApi } from '../../categories/categories.api'
+import { useCategory } from '../../categories/categories.queries'
 
 const DEFAULT_VARIANT = {
 	v_value: null,
@@ -94,19 +94,17 @@ export const ProductForm = () => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [variantTypeAttrValue, watchedVariantTypeKey, watchedHasVariants])
 
-	// Fetch categories to resolve required attributes for the selected category
-	const { data: categories = [] } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
-
-	const selectedCategory = categories.find(c => c._id === watchedCategoryId)
+	// The selected category with its required attributes, read by id (Plan-0010 D06). Only the
+	// category of the current id counts: a re-seed must wait for it, not run on an empty list.
+	const { data: fetchedCategory } = useCategory(watchedCategoryId)
+	const selectedCategory =
+		fetchedCategory?._id === watchedCategoryId ? fetchedCategory : undefined
 
 	const requiredAttrs = selectedCategory?.required_attributes ?? []
 
 	// When category changes, re-seed required attributes while preserving custom ones
 	useEffect(() => {
-		if (!watchedCategoryId) return
+		if (!watchedCategoryId || !selectedCategory) return
 
 		const requiredKeys = new Set(requiredAttrs.map(attr => toAttrKey(attr.label)))
 		const currentCustomAttrs = attributesFieldArray.fields

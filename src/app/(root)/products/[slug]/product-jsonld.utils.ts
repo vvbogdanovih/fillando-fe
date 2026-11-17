@@ -54,21 +54,51 @@ const availabilityOf = (variant: ProductDetailData['variant']) => {
 	return stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
 }
 
+/** The variant properties Google supports in `variesBy` that this catalogue can express. */
+const VARIES_BY = {
+	color: 'https://schema.org/color',
+	size: 'https://schema.org/size',
+	material: 'https://schema.org/material'
+} as const
+
+export interface ProductJsonLdNames {
+	/** The product without the variant value: the ProductGroup's name. */
+	group: string
+	/** The variant value as the page prints it («Чорний (Black)», «63 А»). */
+	variant: string | null
+}
+
 /**
  * The only author of Product JSON-LD on the site. Every field degrades by absence: a product
- * without a manufacturer attribute has no `brand`, one without a weight has no `weight` and
- * no `shippingDetails`, a single-variant product has no group id. Nothing is invented and no
+ * without a brand (`product.manufacturer`) has no `brand`, one without a weight has no `weight` and
+ * no `shippingDetails`, a single-variant product has no group. Nothing is invented and no
  * placeholder stands in — a wrong value is what gets a listing disapproved, an absent one is
  * merely less rich.
+ *
+ * Multi-page variants (TD-0013 SEO matrix, Plan-0010 F09): every SKU page repeats a self-contained
+ * `ProductGroup` — stable `productGroupID`, the full `Product` of this SKU and URL-only references
+ * to the other public SKUs, no `ProductGroup.url` — when the axis is a supported variant property
+ * (colour, size, material). Any other axis (current, length…) is not passed off as one: the page
+ * keeps a plain `Product` with `inProductGroupWithID` and the axis as `additionalProperty`.
  */
 export const buildProductJsonLd = (
 	data: ProductDetailData,
 	displayName: string,
-	renderedAt: Date
+	renderedAt: Date,
+	names: ProductJsonLdNames = { group: displayName, variant: null }
 ): Record<string, unknown> => {
 	const { variant, product, siblings } = data
 	const description = product.description?.html ? stripHtml(product.description.html) : ''
+	// A v2 page names its material/size through the category's semantics; the legacy page keeps
+	// the filament rule (`polymer`), which is what its feed sends too.
+	const typed = data.semantic_values !== undefined
 	const polymer = product.attributes.find(attr => attr.k === 'polymer')
+	const material = typed
+		? data.semantic_values?.material
+		: polymer === undefined
+			? null
+			: String(polymer.v)
+	const size = typed ? data.semantic_values?.size : null
 	// Use the same server-priced snapshot as PriceTag. Re-checking expiry against the browser's
 	// clock would change only the markup while the visible price still shows that snapshot.
 	// Archived variants show the regular price on both surfaces.
@@ -81,15 +111,16 @@ export const buildProductJsonLd = (
 		.toISOString()
 		.slice(0, 10)
 
+	const url = `${SITE_URL}/products/${variant.slug}`
 	const schema: Record<string, unknown> = {
-		'@context': 'https://schema.org',
 		'@type': 'Product',
 		name: displayName,
+		url,
 		sku: variant.sku,
 		image: variant.images,
 		offers: {
 			'@type': 'Offer',
-			url: `${SITE_URL}/products/${variant.slug}`,
+			url,
 			// What the shopper pays — the same pair the Merchant feed sends (`g:price` regular,
 			// `g:sale_price` sale), so Google never sees the page and the feed disagree (TD-0012).
 			price: onPromo ? effectivePrice(variant) : variant.price,
@@ -117,13 +148,13 @@ export const buildProductJsonLd = (
 	}
 
 	if (description) schema.description = description
-	// The «Виробник» attribute, never the shop name: a brand that is not the maker is a typical
+	// The backend's brand (v2: the brand entity, else the characteristic marked «Бренд»; v1: the
+	// «Виробник» attribute), never the shop name: a brand that is not the maker is a typical
 	// reason for an item-level disapproval on a product without a GTIN.
 	if (product.manufacturer) schema.brand = { '@type': 'Brand', name: product.manufacturer }
-	// Same threshold as the variant switcher: a group of one is not a group.
-	if (siblings.length > 1) schema.inProductGroupWithID = product.id
 	if (variant.color?.name_uk) schema.color = variant.color.name_uk
-	if (polymer !== undefined) schema.material = String(polymer.v)
+	if (material) schema.material = material
+	if (size) schema.size = size
 	if (variant.weight_g !== null && variant.weight_g !== undefined) {
 		schema.weight = {
 			'@type': 'QuantitativeValue',
@@ -132,5 +163,46 @@ export const buildProductJsonLd = (
 		}
 	}
 
-	return schema
+	// Same threshold as the variant switcher: a group of one is not a group.
+	if (siblings.length <= 1) return { '@context': 'https://schema.org', ...schema }
+
+	const axis = typed ? product.variant_type?.semantic : variant.color ? 'color' : undefined
+	const variesBy = axis && axis !== 'generic' ? VARIES_BY[axis] : undefined
+	if (!variesBy)
+		return {
+			'@context': 'https://schema.org',
+			...schema,
+			inProductGroupWithID: product.id,
+			...(product.variant_type && names.variant
+				? {
+						additionalProperty: [
+							{
+								'@type': 'PropertyValue',
+								name: product.variant_type.label,
+								value: names.variant
+							}
+						]
+					}
+				: {})
+		}
+
+	return {
+		'@context': 'https://schema.org',
+		'@type': 'ProductGroup',
+		name: names.group,
+		productGroupID: product.id,
+		...(description ? { description } : {}),
+		...(schema.brand ? { brand: schema.brand } : {}),
+		variesBy: [variesBy],
+		hasVariant: [
+			schema,
+			// URL only: each of them is fully described on its own page.
+			...siblings
+				.filter(sibling => sibling.slug !== variant.slug)
+				.map(sibling => ({
+					'@type': 'Product',
+					url: `${SITE_URL}/products/${sibling.slug}`
+				}))
+		]
+	}
 }

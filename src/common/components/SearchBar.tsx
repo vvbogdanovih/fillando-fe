@@ -1,12 +1,17 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { UI_URLS } from '@/common/constants'
 import { cn } from '@/common/utils/shad-cn.utils'
+import { startNavigationProgress } from './NavigationProgress'
 
-export function DesktopSearchBar() {
+/**
+ * The header's search (TD-0015): a wide field with «Знайти», as a marketplace's — the main way in.
+ * `className` sizes it: wide on a computer, the whole row on a phone.
+ */
+export function SearchBar({ className }: { className?: string } = {}) {
 	const [query, setQuery] = useState('')
 	const inputRef = useRef<HTMLInputElement>(null)
 	const router = useRouter()
@@ -14,6 +19,7 @@ export function DesktopSearchBar() {
 	const submit = () => {
 		const trimmed = query.trim()
 		if (trimmed.length < 2) return
+		startNavigationProgress(`${UI_URLS.SEARCH}?q=${encodeURIComponent(trimmed)}`)
 		router.push(`${UI_URLS.SEARCH}?q=${encodeURIComponent(trimmed)}`)
 	}
 
@@ -27,25 +33,27 @@ export function DesktopSearchBar() {
 	}
 
 	return (
-		<div className='relative w-full max-w-sm'>
-			<Search className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+		<div
+			className={cn(
+				'border-primary bg-card flex h-12 w-full items-center overflow-hidden rounded-xl border-2',
+				className
+			)}
+		>
+			<Search className='text-muted-foreground ml-3 h-4 w-4 shrink-0' aria-hidden />
 			<input
 				ref={inputRef}
-				type='text'
+				type='search'
 				value={query}
 				onChange={e => setQuery(e.target.value)}
 				onKeyDown={handleKeyDown}
-				placeholder='Пошук товарів...'
-				className={cn(
-					'border-border/50 bg-card placeholder:text-muted-foreground h-9 w-full rounded-xl border py-2 pl-9 text-sm shadow-sm transition-colors',
-					query ? 'pr-16' : 'pr-9',
-					'focus:border-primary focus:ring-primary/20 focus:ring-2 focus:outline-none'
-				)}
+				placeholder='Я шукаю…'
+				aria-label='Пошук товарів'
+				className='placeholder:text-muted-foreground h-full min-w-0 flex-1 bg-transparent px-2 text-[15px] outline-none [&::-webkit-search-cancel-button]:hidden'
 			/>
 			{query && (
 				<button
 					onClick={clear}
-					className='text-muted-foreground hover:text-foreground absolute top-1/2 right-8 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors'
+					className='text-muted-foreground hover:text-foreground flex h-8 w-8 shrink-0 items-center justify-center transition-colors'
 					aria-label='Очистити пошук'
 				>
 					<X className='h-3.5 w-3.5' />
@@ -53,90 +61,10 @@ export function DesktopSearchBar() {
 			)}
 			<button
 				onClick={submit}
-				className='text-muted-foreground hover:text-primary absolute top-1/2 right-1.5 flex h-6 w-6 -translate-y-1/2 items-center justify-center transition-colors'
-				aria-label='Пошук'
+				className='bg-primary text-primary-foreground h-full shrink-0 px-5 text-sm font-semibold transition hover:brightness-105'
 			>
-				<Search className='h-4 w-4' />
+				Знайти
 			</button>
 		</div>
-	)
-}
-
-export function MobileSearchToggle() {
-	const [open, setOpen] = useState(false)
-	const [query, setQuery] = useState('')
-	const inputRef = useRef<HTMLInputElement>(null)
-	const router = useRouter()
-
-	const submit = useCallback(() => {
-		const trimmed = query.trim()
-		if (trimmed.length < 2) return
-		router.push(`${UI_URLS.SEARCH}?q=${encodeURIComponent(trimmed)}`)
-		setOpen(false)
-	}, [query, router])
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === 'Enter') submit()
-	}
-
-	const clear = () => {
-		setQuery('')
-		inputRef.current?.focus()
-	}
-
-	return (
-		<>
-			<button
-				onClick={() => {
-					setOpen(true)
-					setTimeout(() => inputRef.current?.focus(), 100)
-				}}
-				aria-label='Пошук'
-				className='border-border/50 bg-card hover:border-primary hover:text-primary flex h-9 w-9 items-center justify-center rounded-xl border shadow-sm transition-colors md:hidden'
-			>
-				<Search className='h-4 w-4' />
-			</button>
-
-			{open && (
-				<div className='fixed inset-0 z-[60] md:hidden'>
-					<div className='absolute inset-0 bg-black/60' onClick={() => setOpen(false)} />
-					<div className='bg-background border-border/50 relative flex items-center gap-2 border-b px-4 py-3'>
-						<Search className='text-muted-foreground h-4 w-4 shrink-0' />
-						<input
-							ref={inputRef}
-							type='text'
-							value={query}
-							onChange={e => setQuery(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder='Пошук товарів...'
-							className='flex-1 bg-transparent text-sm outline-none'
-							autoFocus
-						/>
-						{query && (
-							<button
-								onClick={clear}
-								className='text-muted-foreground hover:text-foreground transition-colors'
-								aria-label='Очистити'
-							>
-								<X className='h-4 w-4' />
-							</button>
-						)}
-						<button
-							onClick={submit}
-							className='text-primary hover:text-primary/80 transition-colors'
-							aria-label='Шукати'
-						>
-							<Search className='h-4 w-4' />
-						</button>
-						<button
-							onClick={() => setOpen(false)}
-							className='text-muted-foreground hover:text-foreground text-sm font-medium transition-colors'
-						>
-							Закрити
-						</button>
-					</div>
-				</div>
-			)}
-		</>
 	)
 }

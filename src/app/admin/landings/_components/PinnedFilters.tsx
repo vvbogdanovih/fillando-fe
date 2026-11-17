@@ -12,7 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/common/components/ui/select'
-import { categoriesApi } from '@/app/admin/categories/categories.api'
+import { useCategory } from '@/app/admin/categories/categories.queries'
 import { catalogFacets, getCatalogProducts } from '@/app/(root)/[category]/catalog.api'
 import { productsCount } from '@/common/utils'
 import { attributeLabel, buildAttributeLabels } from './landing-attributes'
@@ -46,11 +46,8 @@ export const PinnedFilters = ({ categoryId, value, onChange }: PinnedFiltersProp
 		enabled: !!categoryId
 	})
 
-	const { data: categories = [] } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
-	const labels = buildAttributeLabels(categories)
+	const { data: category } = useCategory(categoryId)
+	const labels = buildAttributeLabels(category ? [category] : [])
 
 	const { total, isCounting } = useLandingMatchCount(categoryId, value)
 

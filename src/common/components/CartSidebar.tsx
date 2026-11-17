@@ -152,7 +152,7 @@ export function CartSidebar() {
 							</div>
 							<Dialog.Close asChild>
 								<Link
-									href={UI_URLS.CATALOG.FILAMENT}
+									href={UI_URLS.CATALOG.ROOT}
 									className='border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 mt-2 rounded-lg border px-5 py-2 text-sm font-medium transition-colors'
 								>
 									Перейти до каталогу

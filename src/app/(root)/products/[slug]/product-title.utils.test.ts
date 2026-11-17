@@ -1,27 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { productPageTitle } from './product-title.utils'
-
+import { productPageTitle, productDisplayName } from './product-title.utils'
 describe('productPageTitle', () => {
-	it('adds the category word and diameter to a short name', () => {
-		expect(productPageTitle('Kingroon PLA Silk Rainbow', 'Золотий (Gold)')).toBe(
-			'Kingroon PLA Silk Rainbow — Золотий (Gold) — філамент (пластик для 3D-принтера) 1,75 мм'
+	it('uses actual category without inventing diameter', () => {
+		expect(productPageTitle('Kingroon PLA', 'Чорний', 'Філамент')).toBe(
+			'Kingroon PLA — Філамент — Чорний'
+		)
+		expect(productPageTitle('Електроковдра', '150 × 180 см', 'Електроковдри')).toBe(
+			'Електроковдра — Електроковдри — 150 × 180 см'
+		)
+		expect(productPageTitle('AVR', '63 А', 'Автомати вводу резерву')).not.toMatch(
+			/філамент|1,75/
 		)
 	})
+	it('retains variant suffix and avoids repeated category text', () => {
+		expect(productPageTitle('Філамент Kingroon 2,85 мм', 'Чорний', 'Філамент')).toBe(
+			'Філамент Kingroon 2,85 мм — Чорний'
+		)
+		expect(productPageTitle('AVR', null)).toBe('AVR')
+		expect(productPageTitle('Ковдра', 'XL')).toBe('Ковдра — XL')
+	})
+})
 
-	it('says nothing twice for a long name that still carries them', () => {
-		expect(
-			productPageTitle(
-				'Філамент (пластик для 3D принтера) Kingroon PLA 1,75 мм 1 кг',
-				'Чорний'
-			)
-		).toBe('Філамент (пластик для 3D принтера) Kingroon PLA 1,75 мм 1 кг — Чорний')
+describe('productDisplayName', () => {
+	it('prints the name as written, then the variation', () => {
+		expect(productDisplayName('Kingroon PLA', 'Чорний (Black)')).toBe(
+			'Kingroon PLA — Чорний (Black)'
+		)
+		expect(productDisplayName('АВР', '32 А')).toBe('АВР — 32 А')
 	})
 
-	it('keeps a product that names its own diameter as it is', () => {
-		expect(productPageTitle('Kingroon PLA 2,85 мм', null)).toBe('Kingroon PLA 2,85 мм')
-	})
-
-	it('works without a variant value', () => {
-		expect(productPageTitle('Kingroon TPU', null)).toBe('Kingroon TPU — філамент (пластик для 3D-принтера) 1,75 мм')
+	it('adds nothing without a variation', () => {
+		expect(productDisplayName('Соло-котушка Kingroon')).toBe('Соло-котушка Kingroon')
+		expect(productDisplayName('Ковдра', null)).toBe('Ковдра')
 	})
 })

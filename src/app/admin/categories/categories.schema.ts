@@ -30,7 +30,26 @@ export const categorySchema = z.object({
 	updatedAt: z.string()
 })
 
-export const categoriesListSchema = z.array(categorySchema)
+/**
+ * One product category of `GET /categories/options` (Plan-0010 D06): what a select or a list
+ * shows, without the characteristics — those come with `GET /categories/:id`.
+ */
+export const categoryOptionSchema = z.object({
+	_id: z.string(),
+	name: z.string(),
+	slug: z.string(),
+	kind: z.literal('product'),
+	attribute_contract_version: z.union([z.literal(1), z.literal(2)]),
+	order: z.number(),
+	image: z.string().nullable(),
+	attribute_count: z.number()
+})
+export const categoryOptionsPageSchema = z.object({
+	revision: z.number(),
+	items: z.array(categoryOptionSchema),
+	next_cursor: z.string().nullable()
+})
+export type CategoryOption = z.infer<typeof categoryOptionSchema>
 
 // --- Form schemas (no attr_id, no server fields) ---
 

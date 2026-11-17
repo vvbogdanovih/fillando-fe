@@ -27,6 +27,7 @@ import { JsonLd } from '@/common/components/JsonLd'
 import { SITE_URL } from '@/common/constants/seo.constants'
 import { Breadcrumbs } from '@/common/components/Breadcrumbs'
 import type { Category } from '@/app/admin/categories/categories.schema'
+import { startNavigationProgress } from '@/common/components/NavigationProgress'
 
 export interface LandingContent {
 	h1: string
@@ -159,6 +160,7 @@ export const CatalogPage = ({
 			}
 		}
 		next.delete('page')
+		startNavigationProgress(`?${next.toString()}`)
 		router.push(`?${next.toString()}`)
 	}
 
@@ -166,6 +168,7 @@ export const CatalogPage = ({
 		const next = new URLSearchParams(searchParams.toString())
 		next.set('limit', String(limit))
 		next.delete('page')
+		startNavigationProgress(`?${next.toString()}`)
 		router.push(`?${next.toString()}`)
 	}
 

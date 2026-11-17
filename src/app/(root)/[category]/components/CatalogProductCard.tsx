@@ -1,72 +1,43 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ShoppingCart, Check, Loader2 } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { CatalogItem } from '../catalog.api'
-import { useCartStore } from '@/common/store/useCartStore'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { formatPriceAsOf, formatPromoEndsAt, promoPercentLabel } from '@/common/utils/price.utils'
-import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
-import { catalogItemName, colorLabel } from '@/common/utils/color.utils'
+import { colorLabel } from '@/common/utils/color.utils'
 import { ColorSwatch } from '@/common/components/ColorSwatch'
 import { PriceTag } from '@/common/components/PriceTag'
 import { Badge } from '@/common/components/ui/badge'
+import { useCardCart } from './useCardCart'
 
 interface CatalogProductCardProps {
 	item: CatalogItem
 	href: string
 	/** Above-the-fold card: skip lazy-load and bump network priority. */
 	priority?: boolean
+	/**
+	 * How wide the photo is at each breakpoint, so the browser picks the right derivative tier
+	 * (inert while `NEXT_PUBLIC_USE_IMAGE_DERIVATIVES` is off). The default is the catalogue grid's;
+	 * a strip with more columns passes its own.
+	 */
+	sizes?: string
 }
 
-export const CatalogProductCard = ({ item, href, priority = false }: CatalogProductCardProps) => {
-	const addItem = useCartStore(s => s.addItem)
-	const openCart = useCartStore(s => s.openCart)
-	const inAuthCart = useCartStore(s => s.items.some(i => i.variant_id === item.id))
-	const inGuestCart = useCartStore(s => s.guestItems.some(i => i.variant_id === item.id))
-	const isInCart = inAuthCart || inGuestCart
-	const [isAdding, setIsAdding] = useState(false)
+const CATALOG_GRID_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
 
-	// «Чорний (Black)», the same string the product page shows and the same one it puts in the
-	// cart — otherwise one variant reaches the basket under two different names.
-	const displayName = catalogItemName(item)
-
-	const availableQuantity = item.quantity ?? item.stock
-	const isOutOfStock = availableQuantity <= 0
+export const CatalogProductCard = ({
+	item,
+	href,
+	priority = false,
+	sizes = CATALOG_GRID_SIZES
+}: CatalogProductCardProps) => {
+	const { displayName, isInCart, isAdding, isOutOfStock, handleCartButton } = useCardCart(item)
 	const priceAsOf = isOutOfStock ? formatPriceAsOf(item.price_updated_at) : null
 	// «−15 %» while the promotion is on; the server already nulls the trio when it is not.
 	const promoLabel = promoPercentLabel(item)
 	const promoEnds = formatPromoEndsAt(item.promo_ends_at)
-
-	const handleCartButton = async (e: React.MouseEvent) => {
-		e.preventDefault()
-		e.stopPropagation()
-
-		if (isInCart) {
-			openCart()
-			return
-		}
-
-		if (isAdding || isOutOfStock) return
-		setIsAdding(true)
-		try {
-			await addItem(item.id, 1, {
-				name: displayName,
-				price: item.price,
-				sale_price: item.sale_price ?? null,
-				promo_ends_at: item.promo_ends_at ?? null,
-				thumbnail: item.main_image,
-				slug: item.slug
-			})
-		} catch (err) {
-			toast.error(mapCartErrorMessage(err instanceof Error ? err.message : undefined))
-		} finally {
-			setIsAdding(false)
-		}
-	}
 
 	return (
 		<div
@@ -94,7 +65,7 @@ export const CatalogProductCard = ({ item, href, priority = false }: CatalogProd
 								alt={displayName}
 								fill
 								className={cn('object-cover', isOutOfStock && 'grayscale')}
-								sizes='(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
+								sizes={sizes}
 								preload={priority}
 								fetchPriority={priority ? 'high' : undefined}
 							/>

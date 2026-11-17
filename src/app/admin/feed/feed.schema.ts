@@ -55,9 +55,16 @@ export const feedSummarySchema = z.object({
 	in_stock: z.number(),
 	out_of_stock: z.number(),
 	typed_by_landing: z.number(),
+	/** The first exclusions in SKU order — the whole list on any real catalogue (≤ 500). */
 	excluded: z.array(
 		z.object({ sku: z.string(), name: z.string(), reason: feedExclusionReasonSchema })
 	),
+	/**
+	 * Every excluded row and the same total by reason (Plan-0010 D06). Absent from a backend that
+	 * predates them — then `excluded` is the whole list; read through `excludedTotal`.
+	 */
+	excluded_count: z.number().optional(),
+	excluded_by_reason: z.record(z.string(), z.number()).optional(),
 	warnings: z.array(feedWarningSchema),
 	/** Distinct warning kinds — the KPI counts kinds, not the positions behind them. */
 	warning_kinds: z.number(),
@@ -82,9 +89,15 @@ export type FeedWarning = z.infer<typeof feedWarningSchema>
 export type FeedWarningUnit = z.infer<typeof feedWarningUnitSchema>
 export type FeedFailureReason = z.infer<typeof feedFailureReasonSchema>
 
+/** How many rows the run excluded, whether or not `excluded` lists them all. */
+export const excludedTotal = (summary: FeedSummary): number =>
+	summary.excluded_count ?? summary.excluded.length
+
 /** What the admin reads instead of the code. Reasons remove the item; warnings only weaken it. */
 export const EXCLUSION_LABELS: Record<FeedExclusionReason, string> = {
-	missing_brand: 'Немає атрибута «Виробник» — Google вимагає бренд',
+	// Since 2026-11-05 a v2 product's brand is its brand entity or the characteristic marked
+	// «Бренд» — never a label like «Виробник».
+	missing_brand: 'Немає бренду: ні бренду товару, ні характеристики з позначкою «Бренд»',
 	no_images: 'Немає жодного фото',
 	no_price: 'Ціна відсутня або нуль',
 	dangling_product: 'Товар варіанта не знайдено',

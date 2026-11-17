@@ -4,7 +4,7 @@ import { NO_INDEX } from '@/common/constants/seo.constants'
 
 export const metadata: Metadata = { title: 'Вхід', ...NO_INDEX }
 
-export const LoginPage = () => {
+const LoginPage = () => {
 	return <Login />
 }
 

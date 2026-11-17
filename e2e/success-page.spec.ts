@@ -35,7 +35,11 @@ async function expectNoConversion(page: Page, request: APIRequestContext, lookup
 test.describe('/checkout/success', () => {
 	test.beforeEach(async ({ context, request }) => {
 		await resetMockRequests(request)
-		await seedStorage(context, { consent: 'denied' })
+		// A visitor who accepted cookies. gtag.js is not loaded on a local host (`Analytics`), so
+		// `dataLayer` stays the plain queue the app pushes to and nothing leaves for Google; the
+		// route below is the second lock on that.
+		await context.route('**://www.googletagmanager.com/**', route => route.abort())
+		await seedStorage(context, { consent: 'granted' })
 	})
 
 	test('LiqPay PAID: thank-you card and exactly one purchase conversion', async ({ page }) => {
@@ -66,7 +70,7 @@ test.describe('/checkout/success', () => {
 		await expect(page.getByText('Оплата не пройшла').first()).toBeVisible()
 		const retry = page.getByRole('button', { name: 'Повторити оплату карткою' })
 		await expect(retry).toBeVisible()
-		await expect(page.getByRole('link', { name: 'Обрати інший спосіб оплати' })).toBeVisible()
+		await expect(page.getByRole('button', { name: 'Обрати інший спосіб оплати' })).toBeVisible()
 		await expectNoConversion(page, request, 1)
 
 		await retry.click()
@@ -90,7 +94,7 @@ test.describe('/checkout/success', () => {
 
 		// The backend's 400 message is toasted verbatim (retryMutation.onError) …
 		await expect(
-			page.getByRole('status').filter({ hasText: 'Order is already paid' })
+			page.getByRole('status').filter({ hasText: 'Замовлення вже оплачено' })
 		).toBeVisible()
 		// … and the lookup is refetched so the card can catch up with the new status.
 		await waitForLookups(request, 2)
@@ -168,5 +172,45 @@ test.describe('/checkout/success', () => {
 		})
 
 		expect(lookupRequests(await mockRequests(request))).toEqual([])
+	})
+})
+
+test.describe('/checkout/success without cookie consent', () => {
+	test.beforeEach(async ({ context, request }) => {
+		await resetMockRequests(request)
+		await context.route('**://www.googletagmanager.com/**', route => route.abort())
+		await seedStorage(context, { consent: 'denied' })
+	})
+
+	// Consent Mode v2 (owner 2026-11-16): the answer no longer decides whether the purchase is
+	// reported, only how the tag sends it — so it is queued under the denied state it opened with.
+	test('queues the conversion once, after the denied consent default, and no contact data', async ({
+		page
+	}) => {
+		await page.goto(successUrl({ order: ORDER_NUMBER, payment: 'COD', total: '700' }))
+		await expect(
+			page.getByRole('heading', { name: 'Дякуємо за замовлення!' }).first()
+		).toBeVisible()
+
+		await expect.poll(() => conversionEvents(page)).toHaveLength(1)
+		const queue = await page.evaluate(() =>
+			Array.from(
+				(window as Window & { dataLayer?: ArrayLike<unknown>[] }).dataLayer ?? [],
+				entry => Array.from(entry)
+			)
+		)
+		expect(queue[0].slice(0, 2)).toEqual(['consent', 'default'])
+		expect(queue[0][2]).toMatchObject({ ad_storage: 'denied', ad_user_data: 'denied' })
+		// The stored «Лише необхідні» is repeated to the tag as an update; nothing is ever granted.
+		const granted = queue.filter(
+			entry =>
+				entry[0] === 'consent' &&
+				Object.values(entry[2] as Record<string, string>).includes('granted')
+		)
+		expect(granted).toEqual([])
+		expect(queue.some(entry => entry[0] === 'set' && entry[1] === 'user_data')).toBe(false)
+		expect(
+			await page.evaluate(() => localStorage.getItem('fillando-tracked-orders'))
+		).toContain(ORDER_NUMBER)
 	})
 })

@@ -12,7 +12,8 @@ vi.hoisted(() => {
 })
 
 // The route body imports it; only `generateMetadata` is under test here.
-vi.mock('next/navigation', () => ({ notFound: vi.fn() }))
+const { notFound } = vi.hoisted(() => ({ notFound: vi.fn() }))
+vi.mock('next/navigation', () => ({ notFound, permanentRedirect: vi.fn() }))
 // Not under test, and rendering it would pull in `next/image` and the cart store.
 vi.mock('./ProductPage', () => ({ ProductPage: () => null }))
 
@@ -26,11 +27,11 @@ vi.mock('@/common/utils/server-fetch.utils', () => ({
 	serverFetch: (path: string, init?: unknown) => serverFetch(path, init)
 }))
 
-import { generateMetadata } from './page'
+import ProductRoute, { generateMetadata } from './page'
 
 const SLUG = 'kingroon-pla-silk-rainbow-gold'
 /** `variantLabel` + `productPageTitle` over the fixture below, spelled out not recomputed. */
-const TITLE = 'Kingroon PLA Silk Rainbow — Золотий (Gold) — філамент (пластик для 3D-принтера) 1,75 мм'
+const TITLE = 'Kingroon PLA Silk Rainbow — Філамент — Золотий (Gold)'
 const CANONICAL = `${SITE_URL}/products/${SLUG}`
 const PRODUCTS_READ = { next: { tags: [CACHE_TAGS.PRODUCTS] } }
 
@@ -77,16 +78,22 @@ beforeEach(() => {
 describe('generateMetadata — what a crawler is told to do with the page', () => {
 	it('takes an archived variant out of the index while its links keep passing on', async () => {
 		// TD-0006 §5.4: a discontinued product answers 200 for live ads and backlinks, so the
-		// only thing keeping it out of the index is this `robots` key. The rest of the page keeps
-		// its identity — an archived variant that also lost its title or canonical would be a
-		// different regression with the same green suite.
+		// only thing keeping it out of the index is this `robots` key. The canonical rule moved
+		// to TD-0013's «Архівний SKU» row (owner decision 31.10.2026): noindex + canonical are
+		// contradictory signals, so an archived page carries no canonical. Its title and the
+		// OpenGraph url stay — an archived variant that also lost those would be a different
+		// regression with the same green suite.
 		serverFetch.mockImplementation(() => Promise.resolve(detail({ status: 'archived' })))
 
 		const meta = await metadata()
 
 		expect(meta.robots).toEqual({ index: false, follow: true })
 		expect(meta.title).toBe(TITLE)
-		expect(meta.alternates?.canonical).toBe(CANONICAL)
+		expect(meta.alternates?.canonical).toBeUndefined()
+		expect(meta.openGraph?.url).toBe(CANONICAL)
+		// An active variant keeps its self-canonical.
+		serverFetch.mockImplementation(() => Promise.resolve(detail()))
+		expect((await metadata()).alternates?.canonical).toBe(CANONICAL)
 	})
 
 	it('says nothing about robots for a variant on sale', async () => {
@@ -139,7 +146,7 @@ describe('generateMetadata — the title and the canonical', () => {
 			)
 		)
 
-		expect((await metadata()).title).toBe('Kingroon PLA Silk Rainbow — 1 кг — філамент (пластик для 3D-принтера) 1,75 мм')
+		expect((await metadata()).title).toBe('Kingroon PLA Silk Rainbow — Філамент — 1 кг')
 	})
 
 	it('falls back to the variant name when the axis has no value at all', async () => {
@@ -187,5 +194,49 @@ describe('generateMetadata — the description under the title in a search resul
 		)
 
 		expect((await metadata()).description).toBe(`Купити ${TITLE} у Fillando`)
+	})
+})
+
+it('titles a v2 payload like its H1', async () => {
+	// `attribute_notice` (null here: no purchase notice) is what marks the v2 payload.
+	const value: ProductDetailData = { ...detail(), attribute_notice: null }
+	serverFetch.mockResolvedValue(value)
+	expect((await metadata()).title).toBe('Kingroon PLA Silk Rainbow — Золотий (Gold)')
+})
+
+describe('the page body — a path read in pages (Plan-0010 D06.4)', () => {
+	const paged = {
+		...detail(),
+		category_path: [{ _id: 'c1', name: 'Категорія', slug: 'category' }],
+		category_path_paged: true as const
+	}
+	const page = () => ProductRoute({ params: Promise.resolve({ slug: SLUG }) })
+	beforeEach(() => notFound.mockReset())
+
+	it('reads the whole path and renders', async () => {
+		serverFetch.mockImplementation(path =>
+			Promise.resolve(
+				path.startsWith('/categories/c1/ancestors')
+					? {
+							revision: 1,
+							total: 1,
+							items: [{ _id: 'g', name: 'Група', slug: 'group' }],
+							next_cursor: null
+						}
+					: paged
+			)
+		)
+		await page()
+		expect(notFound).not.toHaveBeenCalled()
+		expect(serverFetch).toHaveBeenCalledWith('/categories/c1/ancestors?limit=1000', {
+			next: { tags: [CACHE_TAGS.CATEGORIES] }
+		})
+	})
+	it('is a 404 when the category was hidden after the product was read', async () => {
+		serverFetch.mockImplementation(path =>
+			Promise.resolve(path.startsWith('/categories/c1/ancestors') ? null : paged)
+		)
+		await page()
+		expect(notFound).toHaveBeenCalled()
 	})
 })

@@ -31,7 +31,7 @@ const websiteSchema = {
 	}
 }
 
-export const HomePage = () => {
+const HomePage = () => {
 	return (
 		<>
 			<JsonLd data={websiteSchema} />

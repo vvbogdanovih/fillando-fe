@@ -1,6 +1,8 @@
 import '@/common/lib/zod-locale'
 import * as z from 'zod'
 import { emailSchema } from '@/common/schemas'
+import type { OrderAttribution } from '@/common/lib/ads-attribution'
+import { WAREHOUSE_TYPES } from './checkout.constants'
 
 const phoneRegex = /^\+380\d{9}$/
 const couponCodeRegex = /^[A-Z0-9]{10}$/
@@ -30,7 +32,7 @@ export const checkoutFormSchema = z
 			),
 		city_ref: z.string().optional(),
 		city_name: z.string().optional(),
-		warehouse_type: z.enum(['PARCEL_LOCKER', 'POST', 'CARGO']).optional(),
+		warehouse_type: z.enum(WAREHOUSE_TYPES).optional(),
 		warehouse_number: z.number().optional(),
 		warehouse_description: z.string().optional(),
 		courier_city_name: z.string().optional(),
@@ -58,7 +60,7 @@ export const checkoutFormSchema = z
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ['warehouse_type'],
-					message: 'Оберіть тип відділення'
+					message: 'Оберіть поштомат або відділення'
 				})
 			}
 			if (data.warehouse_number === undefined || Number.isNaN(data.warehouse_number)) {
@@ -132,6 +134,8 @@ export type CreateOrderPayload = {
 	}
 	comment?: string
 	coupon_code?: string
+	/** Ad attribution of the visit — added by the checkout, not built from the form. */
+	attribution?: OrderAttribution
 }
 
 export function formatOrderNumber(orderNumber: number | string): string {

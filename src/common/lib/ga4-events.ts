@@ -14,7 +14,12 @@ import { gtag } from './gtag'
  */
 
 export type Ga4Item = {
-	item_id: string
+	/**
+	 * The SKU — the Merchant feed's `g:id` — on every event, so GA4 joins the funnel and Ads
+	 * matches the catalogue. Omitted (GA4 then keys on `item_name`) only for a guest cart line
+	 * stored before lines carried their SKU; never the Mongo variant id.
+	 */
+	item_id?: string
 	item_name: string
 	price: number
 	quantity?: number
@@ -63,4 +68,29 @@ export const trackPurchase = (params: { transaction_id: string; value?: number }
 		currency: CURRENCY,
 		...(params.value !== undefined ? { value: round(params.value) } : {})
 	})
+}
+
+const TRACKED_ORDERS_KEY = 'fillando-tracked-orders'
+
+/**
+ * Whether this browser already reported the purchase of `orderNumber`, recording it if not.
+ * A reload, the back button or the e-mail link back to `/checkout/success` would otherwise send
+ * the Ads conversion and the GA4 purchase again; `transaction_id` deduplication is a safety net
+ * on Google's side, not a reason to send twice. Storage that throws (private mode, blocked site
+ * data) answers «not yet», so the event is never lost — at worst it repeats, as before.
+ */
+export const claimPurchaseTracking = (orderNumber: string): boolean => {
+	try {
+		const raw = window.localStorage.getItem(TRACKED_ORDERS_KEY)
+		const seen: unknown = raw ? JSON.parse(raw) : []
+		const list = Array.isArray(seen) ? seen.filter(item => typeof item === 'string') : []
+		if (list.includes(orderNumber)) return false
+		window.localStorage.setItem(
+			TRACKED_ORDERS_KEY,
+			JSON.stringify([...list, orderNumber].slice(-50))
+		)
+	} catch {
+		// Storage unavailable: report, as before this guard existed.
+	}
+	return true
 }

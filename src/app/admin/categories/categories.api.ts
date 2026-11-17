@@ -1,13 +1,46 @@
 import { httpService } from '@/common/services/http.service'
-import { API_URLS } from '@/common/constants'
-import { categorySchema, categoriesListSchema, type CategoryPayload } from './categories.schema'
+import { API_URLS, CATEGORY_TREE_PAGE_MAX } from '@/common/constants'
+import {
+	categoryOptionsPageSchema,
+	categorySchema,
+	type CategoryOption,
+	type CategoryPayload
+} from './categories.schema'
 
 // --- Category CRUD ---
 
 export const categoriesApi = {
-	getAll: () =>
-		httpService.get(API_URLS.CATEGORIES.BASE, {
-			schema: categoriesListSchema
+	/**
+	 * Every visible product category for a select, page by page (Plan-0010 D06): the old full
+	 * list with definitions was 17.7 MB at 10 000 categories. One revision for the whole walk —
+	 * a catalogue change in between is a 409 from the server or a different revision here.
+	 */
+	async getOptions(): Promise<CategoryOption[]> {
+		const items: CategoryOption[] = []
+		const cursors = new Set<string>()
+		let revision: number | undefined
+		let cursor: string | null = null
+		do {
+			const page: { revision: number; items: CategoryOption[]; next_cursor: string | null } =
+				await httpService.get(API_URLS.CATEGORIES.OPTIONS, {
+					params: { limit: CATEGORY_TREE_PAGE_MAX, ...(cursor ? { cursor } : {}) },
+					schema: categoryOptionsPageSchema
+				})
+			if (revision !== undefined && revision !== page.revision)
+				throw Error('Список категорій змінився. Оновіть сторінку.')
+			revision = page.revision
+			items.push(...page.items)
+			cursor = page.next_cursor
+			if (cursor && cursors.has(cursor)) throw Error('Не вдалося завантажити категорії.')
+			if (cursor) cursors.add(cursor)
+		} while (cursor)
+		return items
+	},
+
+	/** One category with its characteristics — what a form needs of the selected category. */
+	getById: (id: string) =>
+		httpService.get(API_URLS.CATEGORIES.BY_ID(id), {
+			schema: categorySchema
 		}),
 
 	create: (data: CategoryPayload) =>

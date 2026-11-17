@@ -23,31 +23,31 @@ vi.mock('@/common/services/revalidate.service', () => ({
 	revalidateStorefront: (...args: unknown[]) => revalidateStorefront(...args)
 }))
 
-vi.mock('@/app/admin/categories/categories.api', () => ({
-	categoriesApi: {
-		getAll: () =>
-			Promise.resolve([
-				{
-					_id: 'cat1',
-					name: 'Філамент',
-					slug: 'filament',
-					image: null,
-					order: 0,
-					required_attributes: [
-						{
-							key: 'polymer',
-							label: 'Тип пластику',
-							filter_type: 'multi-select',
-							is_required: true,
-							unit: null
-						}
-					],
-					createdAt: '',
-					updatedAt: ''
-				}
-			])
+vi.mock('@/app/admin/categories/categories.api', async () => {
+	const { mockCategoriesApi } = await import('@/app/admin/categories/categories.test-utils')
+	return {
+		categoriesApi: mockCategoriesApi([
+			{
+				_id: 'cat1',
+				name: 'Філамент',
+				slug: 'filament',
+				image: null,
+				order: 0,
+				required_attributes: [
+					{
+						key: 'polymer',
+						label: 'Тип пластику',
+						filter_type: 'multi-select',
+						is_required: true,
+						unit: null
+					}
+				],
+				createdAt: '',
+				updatedAt: ''
+			}
+		])
 	}
-}))
+})
 
 // The publish guard asks the catalogue how many products the pinned filters match; the pinned
 // filters editor reads the same response's `facets`. `catalogFacets` stays real.

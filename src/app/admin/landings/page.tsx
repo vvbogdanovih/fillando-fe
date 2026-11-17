@@ -1,5 +1,10 @@
 import { Landings } from './Landings'
+import { LandingsWorkspaceGate } from './LandingsWorkspaceGate'
 
 export default function LandingsPage() {
-	return <Landings />
+	return (
+		<LandingsWorkspaceGate>
+			<Landings />
+		</LandingsWorkspaceGate>
+	)
 }

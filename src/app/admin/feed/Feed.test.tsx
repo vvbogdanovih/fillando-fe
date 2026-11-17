@@ -102,12 +102,42 @@ describe('Feed screen', () => {
 		expect(screen.getByText('в наявності · 14 немає')).toBeInTheDocument()
 		expect(screen.getByText('FL-000301')).toBeInTheDocument()
 		expect(screen.getByText('Немає жодного фото')).toBeInTheDocument()
-		expect(screen.getByText(/Google вимагає бренд/)).toBeInTheDocument()
+		expect(
+			screen.getByText(
+				'Немає бренду: ні бренду товару, ні характеристики з позначкою «Бренд»'
+			)
+		).toBeInTheDocument()
 		expect(screen.getByText('Не заповнена вага')).toBeInTheDocument()
 		expect(screen.getByRole('link', { name: /Відкрити XML/ })).toHaveAttribute(
 			'href',
 			'http://api.test/feeds/google-shopping.xml'
 		)
+	})
+
+	it('counts every exclusion and says when the list is only the first of them (D06)', async () => {
+		getStatus.mockResolvedValueOnce(
+			feedStatus({
+				summary: summary({
+					excluded_count: 1203,
+					excluded_by_reason: { missing_brand: 1200, no_images: 3 }
+				})
+			})
+		)
+		renderScreen()
+
+		await screen.findByText(/Фід актуальний/)
+		expect(screen.getByText('1203')).toBeInTheDocument()
+		expect(screen.getByText(/Показано перші 2 з 1203 за SKU/)).toHaveTextContent(
+			'Немає бренду: ні бренду товару, ні характеристики з позначкою «Бренд» — 1200; Немає жодного фото — 3'
+		)
+	})
+
+	it('reads the list as the whole of it from a backend without the totals', async () => {
+		getStatus.mockResolvedValueOnce(feedStatus())
+		renderScreen()
+
+		await screen.findByText(/Фід актуальний/)
+		expect(screen.queryByText(/Показано перші/)).not.toBeInTheDocument()
 	})
 
 	it('counts warning kinds in the KPI, not the positions behind them', async () => {

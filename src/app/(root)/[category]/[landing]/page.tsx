@@ -2,12 +2,15 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CatalogPage } from '../CatalogPage'
-import { readPageNumber } from '../page'
+import { readPageNumber } from '../page-number'
 import { serverFetch } from '@/common/utils/server-fetch.utils'
 import { CACHE_TAGS } from '@/common/constants'
 import { listingIndexing } from '@/common/utils/seo.utils'
 import type { Category } from '@/app/admin/categories/categories.schema'
 import type { CatalogResponse } from '../catalog.api'
+import { TypedRoute, typedRouteMetadata, type TypedLanding } from '../../catalog/typed-route'
+import type { PublicCategory } from '../../catalog/typed-catalog.types'
+import { redirectIfMoved } from '@/common/utils/moved-route.server'
 
 interface LandingResponse {
 	_id: string
@@ -19,9 +22,32 @@ interface LandingResponse {
 	bottom_html: string
 	faq: { q: string; a: string }[]
 	filters: Record<string, string[]>
+	/** Typed pins of a landing under a v2 category (TD-0013); absent on v1. */
+	filters_v2?: TypedLanding['filters_v2']
+	contract_version?: number
 	category_slug: string
 	category_name: string
 }
+
+/** Same URL and tag array as the category route's reads — one Data Cache entry. */
+const loadCategory = (category: string) =>
+	serverFetch<Category & Partial<PublicCategory>>(`/categories/slug/${category}`, {
+		next: { tags: [CACHE_TAGS.CATEGORIES] }
+	})
+
+/** A landing of a v2 category renders the typed listing with its `filters_v2` pinned. */
+const typedPair = (
+	category: (Category & Partial<PublicCategory>) | null,
+	landing: LandingResponse | null
+) =>
+	category &&
+	landing?.filters_v2 &&
+	(category.kind === 'group' || category.attribute_contract_version === 2)
+		? {
+				category: category as unknown as PublicCategory,
+				landing: landing as unknown as TypedLanding
+			}
+		: null
 
 interface PageProps {
 	params: Promise<{ category: string; landing: string }>
@@ -60,8 +86,12 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 	// The streamed response commits a 200 before `notFound()` can change the status, so an
 	// unknown or draft address has to say `noindex` here or it is indexed as a soft 404.
 	if (!data) {
+		// An old landing address (its own or its category's slug changed) redirects once (B07).
+		await redirectIfMoved([category, landing], sp)
 		return { title: 'Сторінку не знайдено', robots: { index: false, follow: false } }
 	}
+	const typed = typedPair(await loadCategory(category), data)
+	if (typed) return typedRouteMetadata(typed.category, sp, typed.landing)
 
 	const { canonical, robots } = listingIndexing(landingPath(category, landing), sp)
 
@@ -96,12 +126,16 @@ export default async function LandingRoutePage({ params, searchParams }: PagePro
 	const [categoryData, landingData] = await Promise.all([
 		// Same URL as the two tagged reads in the category route, so the tag array must match
 		// byte for byte — `next.tags` is not part of the cache key (Plan-0005 I-h).
-		serverFetch<Category>(`/categories/slug/${category}`, {
-			next: { tags: [CACHE_TAGS.CATEGORIES] }
-		}),
+		loadCategory(category),
 		loadLanding(category, landing)
 	])
-	if (!categoryData || !landingData) notFound()
+	if (!categoryData || !landingData) {
+		await redirectIfMoved([category, landing], sp)
+		notFound()
+	}
+	const typed = typedPair(categoryData, landingData)
+	if (typed)
+		return <TypedRoute category={typed.category} searchParams={sp} landing={typed.landing} />
 
 	// The pinned filters win over anything in the query string, so the listing can never be
 	// wider than the address promises.

@@ -12,8 +12,6 @@ const baseState: PriceListFormState = {
 	categoryIds: [],
 	allCategories: true,
 	inStockOnly: false,
-	tier1Percent: '10',
-	tier2Percent: '15',
 	orientation: 'portrait'
 }
 
@@ -23,8 +21,6 @@ describe('buildPriceListPayload', () => {
 
 		expect(payload).toEqual({
 			in_stock_only: false,
-			tier1_percent: 10,
-			tier2_percent: 15,
 			orientation: 'portrait'
 		})
 		expect('category_ids' in payload).toBe(false)
@@ -40,8 +36,6 @@ describe('buildPriceListPayload', () => {
 
 		expect(payload).toEqual({
 			in_stock_only: true,
-			tier1_percent: 10,
-			tier2_percent: 15,
 			orientation: 'portrait',
 			category_ids: ['cat-1', 'cat-2']
 		})
@@ -53,15 +47,10 @@ describe('buildPriceListPayload', () => {
 		)
 	})
 
-	it('converts the percent strings to numbers', () => {
-		const payload = buildPriceListPayload({
-			...baseState,
-			tier1Percent: '7',
-			tier2Percent: '12.5'
-		})
+	it('sends no discounts: the PDF is a stock extract (owner, 2026-11-06)', () => {
+		const payload = buildPriceListPayload(baseState)
 
-		expect(payload.tier1_percent).toBe(7)
-		expect(payload.tier2_percent).toBe(12.5)
+		expect(Object.keys(payload).sort()).toEqual(['in_stock_only', 'orientation'])
 	})
 })
 

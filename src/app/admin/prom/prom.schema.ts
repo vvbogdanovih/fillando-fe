@@ -8,6 +8,8 @@ const promSyncProgressSchema = z.object({
 	updated: z.number(),
 	pricesUpdated: z.number(),
 	skipped: z.number(),
+	/** Held back while a catalogue operation ran (TD-0013); absent from an older backend. */
+	deferred: z.number().default(0),
 	errors: z.number()
 })
 
@@ -18,6 +20,8 @@ const promSyncDoneSchema = z.object({
 	updated: z.number(),
 	pricesUpdated: z.number(),
 	skipped: z.number(),
+	/** Held back while a catalogue operation ran (TD-0013); absent from an older backend. */
+	deferred: z.number().default(0),
 	errors: z.number()
 })
 
