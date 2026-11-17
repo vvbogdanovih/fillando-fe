@@ -134,3 +134,10 @@ Nothing is written to `localStorage` by the sync itself, so tabs cannot echo eac
 `useAuthStore` persists only `user` to `localStorage` under the key `auth-storage`. `isAuthChecked` is intentionally not persisted — it resets to `false` on every page load and is only set to `true` after `checkAuth()` completes.
 
 Both `useAuthStore` (`auth-storage`) and `useCartStore` (`fillando-cart`) use `skipHydration: true` and are rehydrated manually from `Providers` on mount — see [Why rehydrate manually](#why-rehydrate-manually-skiphydration) under App boot.
+
+### Submit validation (local update, 2026-10-26)
+
+AuthForm keeps the submit button available until submitting/pending. It does not
+gate the button on the previous `isValid` value: `handleSubmit` runs the existing
+Zod validation and invokes the handler only for valid values. This avoids an
+unusable login button while retaining validation and duplicate-submit protection.

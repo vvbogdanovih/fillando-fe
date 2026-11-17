@@ -6,11 +6,11 @@
 // Every request is logged to stdout and kept in memory; the specs read the log through
 // `GET /__e2e/requests` and reset it with `DELETE /__e2e/requests`.
 //
-// Env: MOCK_API_PORT (default 9001), MOCK_API_ALLOW_ORIGIN — the storefront origin allowed by
+// Env: MOCK_API_PORT (default 19001), MOCK_API_ALLOW_ORIGIN — the storefront origin allowed by
 // CORS (default http://localhost:9100, the port playwright.config.ts starts `next dev` on).
 import http from 'node:http'
 
-const PORT = Number(process.env.MOCK_API_PORT ?? 9001)
+const PORT = Number(process.env.MOCK_API_PORT ?? 19001)
 const STOREFRONT_ORIGIN = process.env.MOCK_API_ALLOW_ORIGIN ?? 'http://localhost:9100'
 
 const ORDER_NUMBER = 'FO-0000123'
@@ -93,6 +93,10 @@ function lookupOrder(orderNumber, token) {
 		order_number: orderNumber,
 		payment_method: 'LIQPAY',
 		payment_status: paymentStatus,
+		order_status: 'NEW',
+		delivery_method: 'NOVA_POST',
+		can_change_payment_method: paymentStatus !== 'PAID',
+		liqpay_retry_after_seconds: paymentStatus === 'PENDING' ? 600 : null,
 		total_price: ORDER_TOTAL
 	})
 }
@@ -108,8 +112,8 @@ function handle(method, url, body) {
 		return { status: 204 }
 	}
 
-	// Boot: Providers → checkAuth → 401 → interceptor refresh → 401 → logOut. `/auth/logout`
-	// MUST answer 200, or the interceptor loops refresh → logout → refresh forever.
+	// Boot: Providers → checkAuth → 401 → refresh → 401 → local sign-out.
+	// Explicit logout is still available, but refresh failure must not revoke another tab.
 	if (method === 'GET' && path === '/auth/me') return json(401, { message: 'Not authenticated' })
 	if (method === 'POST' && path === '/auth/refresh') {
 		return json(401, { message: 'Not authenticated' })

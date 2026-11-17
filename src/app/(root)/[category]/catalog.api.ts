@@ -30,7 +30,47 @@ export interface CatalogItem extends PromoFields {
 	color: PublicColor | null
 }
 
+/**
+ * What a product's other SKUs add to its first one in a strip (`GET /products/catalog/v2/strip`):
+ * the SKUs of the product under the strip's scope and filters — an «Акції» group is the SKUs on
+ * sale, not the whole product.
+ */
+export interface StripGroup {
+	/** The product's name, without the SKU value. */
+	name: string
+	count: number
+	in_stock: number
+	/** How many of them are on a live promotion. */
+	on_sale: number
+	/** What the shopper pays, over the in-stock SKUs; over all of them when none is in stock. */
+	price_min: number
+	price_max: number
+	/** Distinct dictionary colours; equal to `count` when the group is a row of colours. */
+	colors_count: number
+	/** At most 12, in-stock first; a sold-out colour is marked, not left out. */
+	colors: { family: string | null; hex_stops: string[]; in_stock: boolean }[]
+}
+
+/** A strip card: the listing item of the product's first SKU, and its group. */
+export interface StripItem extends CatalogItem {
+	/** The product this card stands for — what a page compares to show no product twice. */
+	product_id: string
+	group: StripGroup
+}
+
 export interface ProductDetailData {
+	/**
+	 * New catalogue only: the product's own purchase notice (owner, 2026-11-05) — shown above the
+	 * buy button, `badge` over the photo. `null` means none; absent on a v1 page, which keeps the
+	 * built-in `ATTR_NOTES`.
+	 */
+	attribute_notice?: { title: string; text: string; badge: string | null } | null
+	/**
+	 * v2 only: the values of the characteristics that declare size/material — the same text the
+	 * Merchant feed sends as `g:size` / `g:material`. Absent on a v1 page (filament `polymer` rule).
+	 */
+	semantic_values?: { size: string | null; material: string | null }
+
 	variant: PromoFields & {
 		id: string
 		name: string
@@ -58,8 +98,19 @@ export interface ProductDetailData {
 		 * stored bare («Вага | 1»), so the specification table needs it to print «1 кг».
 		 */
 		attributes: { k: string; l: string; v: string | number | boolean; unit?: string | null }[]
-		variant_type: { key: string; label: string } | null
-		/** The «Виробник» attribute — the brand. Never the vendor, which is the supplier. */
+		/**
+		 * `semantic` (v2 only) is the axis meaning: a `color`/`size`/`material` axis becomes the
+		 * ProductGroup's `variesBy`; `generic` (current, length…) is never passed off as one.
+		 */
+		variant_type: {
+			key: string
+			label: string
+			semantic?: 'generic' | 'color' | 'size' | 'material'
+		} | null
+		/**
+		 * The brand. v2: the product's brand entity, else the characteristic marked «Бренд»; v1:
+		 * the «Виробник» attribute. Never the vendor, which is the supplier.
+		 */
 		manufacturer: string | null
 	}
 	siblings: (PromoFields & {
@@ -75,20 +126,14 @@ export interface ProductDetailData {
 	})[]
 	category_slug: string
 	category_name: string
+	/** Root-first ancestors ending with the product's own category; absent from older backends. */
+	category_path?: { _id: string; name: string; slug: string }[]
 	/**
-	 * Set only on a refill: the spooled version of the same filament. After
-	 * `split-refill-products.js` the two are separate products with no siblings in common, so
-	 * this is the only thing that connects them.
+	 * A path too long to embed (Plan-0010 D06.4): `category_path` is then the category alone and
+	 * the page reads the ancestors with `loadCategoryAncestors`.
 	 */
-	spooled_counterpart?: {
-		slug: string
-		name: string
-		price: number
-		/** The spool's own promotion, if any; absent from an older backend. */
-		sale_price?: number | null
-		/** false when it is the cheapest spool rather than this refill's own colour. */
-		matched_colour: boolean
-	} | null
+	category_path_paged?: true
+	category_path_total?: number
 }
 
 /**

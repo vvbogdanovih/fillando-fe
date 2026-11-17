@@ -81,7 +81,8 @@ describe('the header and the mobile menu mark the active item', () => {
 		...STATIC_NAV_LINKS
 	]
 
-	const renderHeader = () => render(createElement(Header, { navLinks: NAV_LINKS }))
+	// The header takes the category tree; «Каталог» lists it in the panel under the header.
+	const renderHeader = () => render(createElement(Header, { categories: NAV_LINKS.slice(0, 2) }))
 
 	const openMobileMenu = () => {
 		render(createElement(MobileMenu, { navLinks: NAV_LINKS }))
@@ -105,11 +106,15 @@ describe('the header and the mobile menu mark the active item', () => {
 	it('leaves every other item without aria-current', () => {
 		currentPath = '/filament'
 		renderHeader()
-
+		expect(screen.getByRole('link', { name: 'Філамент X' })).not.toHaveAttribute('aria-current')
+		// The marketplace header keeps search, the account and the cart (TD-0015): the static
+		// pages are in the footer and the mobile menu.
+		expect(screen.queryByRole('link', { name: 'FAQ' })).toBeNull()
+		cleanup()
+		openMobileMenu()
 		expect(screen.getByRole('link', { name: 'FAQ' })).not.toHaveAttribute('aria-current')
 		expect(screen.getByRole('link', { name: 'Опт' })).not.toHaveAttribute('aria-current')
 		expect(screen.getByRole('link', { name: 'Контакти' })).not.toHaveAttribute('aria-current')
-		expect(screen.getByRole('link', { name: 'Філамент X' })).not.toHaveAttribute('aria-current')
 	})
 
 	it('keeps the category marked on its landing', () => {

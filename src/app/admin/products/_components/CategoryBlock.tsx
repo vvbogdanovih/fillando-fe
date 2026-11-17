@@ -10,7 +10,7 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/common/components/ui/select'
-import { categoriesApi } from '../../categories/categories.api'
+import { useCategoryOptions } from '../../categories/categories.queries'
 import { vendorsApi } from '../../vendors/vendors.api'
 import type { ProductFormValues } from '../products.schema'
 
@@ -21,10 +21,7 @@ interface CategoryBlockProps {
 }
 
 export const CategoryBlock = ({ control, errors, onCategoryChange }: CategoryBlockProps) => {
-	const { data: categories = [], isLoading } = useQuery({
-		queryKey: ['categories'],
-		queryFn: () => categoriesApi.getAll()
-	})
+	const { data: categories = [], isLoading } = useCategoryOptions()
 
 	const { data: vendors = [], isLoading: isVendorsLoading } = useQuery({
 		queryKey: ['vendors'],

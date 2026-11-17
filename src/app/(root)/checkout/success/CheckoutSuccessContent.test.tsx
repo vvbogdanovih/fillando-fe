@@ -11,7 +11,9 @@ import { fetchOrderPaymentStatus, initLiqpayCheckout } from '../checkout.api'
 import type { OrderPaymentStatus } from '../checkout.api.schemas'
 import { changePaymentMethodPublic } from '@/common/components/order-payment/order-payment.api'
 import { gtag } from '@/common/lib/gtag'
-import { trackPurchase } from '@/common/lib/ga4-events'
+import { claimPurchaseTracking, trackPurchase } from '@/common/lib/ga4-events'
+import { useConsentStore } from '@/common/store/useConsentStore'
+import { rememberOrderContact } from '@/common/lib/ads-attribution'
 import { CheckoutSuccessContent } from './CheckoutSuccessContent'
 
 const navigation = vi.hoisted(() => ({ search: new URLSearchParams() }))
@@ -41,7 +43,8 @@ vi.mock('@/common/components/order-payment/order-payment.api', async importOrigi
 vi.mock('@/common/hooks/useLenisModalLock', () => ({ useLenisModalLock: () => undefined }))
 
 vi.mock('@/common/lib/ga4-events', () => ({
-	trackPurchase: vi.fn()
+	trackPurchase: vi.fn(),
+	claimPurchaseTracking: vi.fn()
 }))
 
 vi.mock('react-hot-toast', () => ({
@@ -117,6 +120,11 @@ const retryButton = () => screen.queryByRole('button', { name: 'Повторит
 describe('CheckoutSuccessContent — статус оплати', () => {
 	beforeEach(() => {
 		vi.resetAllMocks()
+		// A first visit: this browser has not reported the order yet.
+		vi.mocked(claimPurchaseTracking).mockReturnValue(true)
+		// …by a visitor who accepted cookies.
+		act(() => useConsentStore.setState({ status: 'granted', isReopened: false }))
+		window.sessionStorage.clear()
 	})
 
 	// vitest runs without `globals`, so RTL's automatic cleanup is not registered.
@@ -142,6 +150,67 @@ describe('CheckoutSuccessContent — статус оплати', () => {
 			expect.objectContaining({ transaction_id: ORDER, value: 1500, currency: 'UAH' })
 		)
 		expect(fetchOrderPaymentStatus).not.toHaveBeenCalled()
+	})
+
+	it('reports nothing without an order number, and nothing again for an order already reported', async () => {
+		renderSuccess('payment=COD&total=1500')
+		expect(screen.getByText('Дякуємо за замовлення!')).toBeInTheDocument()
+		cleanup()
+
+		vi.mocked(claimPurchaseTracking).mockReturnValue(false)
+		renderSuccess(`order=${ORDER}&payment=COD&total=1500`)
+		await waitFor(() => expect(claimPurchaseTracking).toHaveBeenCalledWith(ORDER))
+		expect(gtag).not.toHaveBeenCalled()
+		expect(trackPurchase).not.toHaveBeenCalled()
+	})
+
+	it('reports the order whatever the cookie answer — Consent Mode decides how it is sent', async () => {
+		act(() => useConsentStore.setState({ status: 'denied' }))
+		renderSuccess(`order=${ORDER}&payment=COD&total=1500`)
+
+		await waitFor(() => expect(gtag).toHaveBeenCalledTimes(1))
+		expect(claimPurchaseTracking).toHaveBeenCalledWith(ORDER)
+		expect(gtag).toHaveBeenCalledWith(
+			'event',
+			'conversion',
+			expect.objectContaining({ transaction_id: ORDER })
+		)
+	})
+
+	it('sends the contact kept at checkout as enhanced conversion data, before the conversion', async () => {
+		rememberOrderContact(ORDER, { email: ' Buyer@Example.com ', phone: '+380991234567' })
+		renderSuccess(`order=${ORDER}&payment=COD&total=1500`)
+
+		await waitFor(() => expect(gtag).toHaveBeenCalledTimes(2))
+		expect(vi.mocked(gtag).mock.calls[0]).toEqual([
+			'set',
+			'user_data',
+			{ email: 'buyer@example.com', phone_number: '+380991234567' }
+		])
+		expect(vi.mocked(gtag).mock.calls[1].slice(0, 2)).toEqual(['event', 'conversion'])
+		// Read once: a reload has nothing left to send.
+		expect(window.sessionStorage.getItem('fillando-order-contact')).toBeNull()
+	})
+
+	it('sends no contact for another order, nor for a buyer who did not accept cookies', async () => {
+		rememberOrderContact('FO-0000999', { email: 'a@example.com', phone: '+380991234567' })
+		renderSuccess(`order=${ORDER}&payment=COD&total=1500`)
+		await waitFor(() => expect(gtag).toHaveBeenCalledTimes(1))
+		expect(gtag).not.toHaveBeenCalledWith('set', 'user_data', expect.anything())
+		cleanup()
+		vi.mocked(gtag).mockClear()
+
+		// Not kept at all without consent at checkout…
+		act(() => useConsentStore.setState({ status: 'unknown' }))
+		rememberOrderContact(ORDER, { email: 'a@example.com', phone: '+380991234567' })
+		expect(window.sessionStorage.getItem('fillando-order-contact')).toContain('FO-0000999')
+		// …and not sent when the answer was withdrawn before the success page.
+		act(() => useConsentStore.setState({ status: 'granted' }))
+		rememberOrderContact(ORDER, { email: 'a@example.com', phone: '+380991234567' })
+		act(() => useConsentStore.setState({ status: 'denied' }))
+		renderSuccess(`order=${ORDER}&payment=COD&total=1500`)
+		await waitFor(() => expect(gtag).toHaveBeenCalledTimes(1))
+		expect(gtag).not.toHaveBeenCalledWith('set', 'user_data', expect.anything())
 	})
 
 	it('LiqPay: shows the thank-you card and converts once when the lookup says PAID', async () => {

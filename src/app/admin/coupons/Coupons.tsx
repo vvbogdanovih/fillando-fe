@@ -356,7 +356,7 @@ export function Coupons() {
 			<Card>
 				<CardHeader className='border-b'>
 					<div className='flex items-center justify-between gap-3'>
-						<CardTitle>Discount coupons</CardTitle>
+						<CardTitle>Знижкові купони</CardTitle>
 						<Button variant='outline' onClick={() => setPanel({ mode: 'create' })}>
 							<PlusIcon className='size-4' />
 							Новий купон

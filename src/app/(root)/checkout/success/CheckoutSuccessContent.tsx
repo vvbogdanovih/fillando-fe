@@ -24,8 +24,9 @@ import { Button } from '@/common/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui/card'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { gtag } from '@/common/lib/gtag'
-import { trackPurchase } from '@/common/lib/ga4-events'
+import { claimPurchaseTracking, trackPurchase } from '@/common/lib/ga4-events'
 import { GOOGLE_ADS_PURCHASE_CONVERSION } from '@/common/constants/analytics.constants'
+import { takeOrderContact } from '@/common/lib/ads-attribution'
 import { formatOrderNumber } from '../checkout.schema'
 import { fetchOrderPaymentStatus } from '../checkout.api'
 import type { OrderPaymentStatus } from '../checkout.api.schemas'
@@ -271,22 +272,30 @@ export function CheckoutSuccessContent() {
 
 	const conversionSent = useRef(false)
 	useEffect(() => {
-		if (!shouldConvert || conversionSent.current) return
+		// No order number — a bare visit to /checkout/success — is no purchase: it used to send a
+		// conversion with an empty transaction id (F12). A reload or a way back here reports the
+		// same order once per browser (`claimPurchaseTracking`).
+		//
+		// Consent is not a condition (Consent Mode v2, owner 2026-11-16): the tag is always
+		// loaded, and without «Прийняти» it sends this conversion as a cookieless ping.
+		if (!shouldConvert || conversionSent.current || !raw) return
 		conversionSent.current = true
-		// Queued onto window.dataLayer rather than called through window.gtag: the tag
-		// is consent-gated and may not have loaded (or may load minutes later, when the
-		// visitor accepts). gtag.js drains the queue on startup, so the conversion
-		// survives. The previous `typeof window.gtag !== 'function'` guard returned
-		// without setting the ref, and with stable deps the effect never re-ran —
-		// silently dropping the conversion whenever the tag was slow.
+		if (!claimPurchaseTracking(raw)) return
+		// Enhanced conversions: the buyer's e-mail and phone, hashed by gtag.js before they
+		// leave the browser. Present only for a consenting buyer (`takeOrderContact`), and set
+		// before the event that carries it.
+		const contact = takeOrderContact(raw)
+		if (contact) gtag('set', 'user_data', contact)
+		// Queued onto window.dataLayer rather than called through window.gtag: gtag.js may not
+		// have loaded yet, and it drains the queue on startup, so the conversion survives.
 		gtag('event', 'conversion', {
 			send_to: GOOGLE_ADS_PURCHASE_CONVERSION,
-			transaction_id: raw ?? '',
+			transaction_id: raw,
 			...(conversionValue !== undefined ? { value: conversionValue, currency: 'UAH' } : {})
 		})
 		// GA4 purchase rides on the same guard, so it fires exactly when the Ads conversion does.
 		// Aggregated on purpose: the cart is already cleared and the line items are not here.
-		trackPurchase({ transaction_id: raw ?? '', value: conversionValue })
+		trackPurchase({ transaction_id: raw, value: conversionValue })
 	}, [shouldConvert, conversionValue, raw])
 
 	const view: View = isLiqpay
@@ -449,7 +458,7 @@ export function CheckoutSuccessContent() {
 						</>
 					) : (
 						<Button asChild className='mt-2 w-full'>
-							<Link href={UI_URLS.CATALOG.FILAMENT}>Продовжити покупки</Link>
+							<Link href={UI_URLS.CATALOG.ROOT}>Продовжити покупки</Link>
 						</Button>
 					)}
 					<Link

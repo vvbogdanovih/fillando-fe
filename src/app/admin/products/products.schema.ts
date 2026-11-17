@@ -282,7 +282,5 @@ export type PageOrientation = 'portrait' | 'landscape'
 export interface PriceListPayload {
 	category_ids?: string[]
 	in_stock_only?: boolean
-	tier1_percent?: number
-	tier2_percent?: number
 	orientation?: PageOrientation
 }

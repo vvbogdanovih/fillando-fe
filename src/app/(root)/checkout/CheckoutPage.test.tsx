@@ -9,10 +9,13 @@ import { CheckoutPage } from './CheckoutPage'
 import {
 	createOrder,
 	fetchActivePaymentProvider,
+	fetchNovaPostCities,
+	fetchNovaPostWarehouses,
 	initLiqpayCheckout,
 	validateCouponCode
 } from './checkout.api'
 import { submitLiqpayForm } from './liqpay.utils'
+import { trackBeginCheckout } from '@/common/lib/ga4-events'
 
 // `vi.mock` factories are hoisted above imports, so anything they close over must be hoisted too.
 const { routerPush, routerReplace, GUEST_ITEM, authState, cartPersist } = vi.hoisted(() => {
@@ -53,6 +56,7 @@ const { routerPush, routerReplace, GUEST_ITEM, authState, cartPersist } = vi.hoi
 	}
 })
 
+vi.mock('@/common/lib/ga4-events', () => ({ trackBeginCheckout: vi.fn() }))
 vi.mock('next/image', () => ({
 	default: (props: ImgHTMLAttributes<HTMLImageElement>) => (
 		<img {...props} alt={props.alt ?? ''} />
@@ -176,6 +180,28 @@ beforeEach(() => {
 // vitest runs without `globals`, so RTL's automatic cleanup is not registered.
 afterEach(cleanup)
 
+describe('CheckoutPage — аналітика (F12)', () => {
+	it('reports begin_checkout once with the SKU as item id, never the variant id', async () => {
+		useCartStore.setState({
+			guestItems: [
+				{ ...GUEST_ITEM, _meta: { ...GUEST_ITEM._meta, sku: 'FL-000001' } },
+				// A line stored before lines kept their SKU: named, but no made-up id.
+				{ ...GUEST_ITEM, variant_id: 'variant-2', quantity: 2 }
+			]
+		})
+		renderCheckout()
+
+		await waitFor(() => expect(trackBeginCheckout).toHaveBeenCalledTimes(1))
+		expect(trackBeginCheckout).toHaveBeenCalledWith({
+			value: 2100,
+			items: [
+				{ item_id: 'FL-000001', item_name: 'PLA 1.75 чорний', price: 700, quantity: 1 },
+				{ item_name: 'PLA 1.75 чорний', price: 700, quantity: 2 }
+			]
+		})
+	})
+})
+
 describe('CheckoutPage — накладний платіж', () => {
 	it('asks for confirmation before selecting COD and keeps it after agreeing', async () => {
 		renderCheckout()
@@ -251,7 +277,9 @@ describe('CheckoutPage — оформлення замовлення', () => {
 					name: 'Тест Тестенко',
 					phone: '+380991234567',
 					email: 'test@example.com'
-				}
+				},
+				// The banner was never answered: the answer goes with the order, and nothing else.
+				attribution: { consent: 'unknown' }
 			})
 		)
 		expect(clearAfterOrderMock()).toHaveBeenCalledTimes(1)
@@ -558,7 +586,7 @@ describe('CheckoutPage — готовність кошика (cartReady)', () =>
 		})
 
 		expect(routerReplace).toHaveBeenCalledTimes(1)
-		expect(routerReplace).toHaveBeenCalledWith(UI_URLS.CATALOG.FILAMENT)
+		expect(routerReplace).toHaveBeenCalledWith(UI_URLS.CATALOG.ROOT)
 		expect(loader()).toBeInTheDocument()
 	})
 
@@ -577,7 +605,7 @@ describe('CheckoutPage — готовність кошика (cartReady)', () =>
 		})
 
 		expect(routerReplace).toHaveBeenCalledTimes(1)
-		expect(routerReplace).toHaveBeenCalledWith(UI_URLS.CATALOG.FILAMENT)
+		expect(routerReplace).toHaveBeenCalledWith(UI_URLS.CATALOG.ROOT)
 	})
 
 	it('logged in: renders the form once the server cart has been fetched with items', () => {
@@ -717,5 +745,47 @@ describe('CheckoutPage — купон і акційні товари (TD-0012)',
 		renderCheckout()
 		expect(screen.getAllByText('600 ₴').length).toBeGreaterThan(0)
 		expect(screen.queryByText('540 ₴')).not.toBeInTheDocument()
+	})
+})
+
+describe('CheckoutPage — поштомат чи відділення', () => {
+	const pickCity = async () => {
+		vi.mocked(fetchNovaPostCities).mockResolvedValue([
+			{ ref: 'city-1', description: 'Бровари' }
+		])
+		fireEvent.change(screen.getByLabelText('Місто'), { target: { value: 'Бров' } })
+		fireEvent.click(await screen.findByRole('button', { name: 'Бровари' }))
+	}
+
+	it('offers two choices — a buyer is never asked whether a branch is a post or a cargo one', () => {
+		renderCheckout()
+
+		expect(screen.getByRole('radio', { name: 'Поштомат (до 20 кг)' })).toBeChecked()
+		expect(screen.getByRole('radio', { name: 'Відділення' })).not.toBeChecked()
+		expect(screen.queryByRole('radio', { name: /Поштове|Вантажне/ })).not.toBeInTheDocument()
+	})
+
+	it('lists post and cargo branches together under «Відділення»', async () => {
+		vi.mocked(fetchNovaPostWarehouses).mockImplementation(async (_city, type) =>
+			type === 'BRANCH'
+				? [
+						{ number: 1, description: 'Відділення №1: вул. Київська, 1' },
+						{ number: 3, description: 'Відділення №3 (до 30 кг): вул. Гагаріна, 9' }
+					]
+				: []
+		)
+		renderCheckout()
+		await pickCity()
+
+		fireEvent.click(screen.getByRole('radio', { name: 'Відділення' }))
+		fireEvent.focus(screen.getByRole('textbox', { name: 'Відділення' }))
+
+		expect(
+			await screen.findByRole('button', { name: 'Відділення №1: вул. Київська, 1' })
+		).toBeInTheDocument()
+		expect(
+			screen.getByRole('button', { name: 'Відділення №3 (до 30 кг): вул. Гагаріна, 9' })
+		).toBeInTheDocument()
+		expect(fetchNovaPostWarehouses).toHaveBeenLastCalledWith('city-1', 'BRANCH', undefined)
 	})
 })

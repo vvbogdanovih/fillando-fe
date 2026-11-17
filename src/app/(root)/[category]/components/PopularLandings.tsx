@@ -1,128 +1,101 @@
-'use client'
-
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { pluralUk, productsCount } from '@/common/utils'
+import { pluralUk } from '@/common/utils'
+import { cn } from '@/common/utils/shad-cn.utils'
+import { shortLabel } from './landing-label'
 
 export interface PopularLanding {
 	slug: string
 	h1: string
 	image: string | null
-	/** null when the backend did not send one — a tile reading "0 товарів" would be a lie. */
+	/** null when the backend did not send one — a pill reading «0» would be a lie. */
 	product_count: number | null
+	/** Its own category when the pills span several (the catalogue hub); else the props'. */
+	category?: { slug: string; name: string }
 }
 
 interface PopularLandingsProps {
-	categorySlug: string
-	categoryName: string
+	categorySlug?: string
+	categoryName?: string
 	landings: PopularLanding[]
+	title?: string
+	/** The hub's section heading (Unbounded, like its strips); a category keeps its quiet label. */
+	display?: boolean
 }
 
-/** Five across, two rows — the tenth tile is «Ще N видів» when there are more. */
-const VISIBLE = 9
+export { shortLabel }
 
 /**
- * A stable accent per tile. There is no colour on a landing to read, and the artboard's dots
- * are a visual marker rather than data, so the hue is derived from the slug: the same landing
- * always gets the same dot, and neighbouring tiles do not collide.
- */
-const DOT_COLORS = [
-	'#2f855a',
-	'#3182ce',
-	'#805ad5',
-	'#d69e2e',
-	'#dd6b20',
-	'#e53e3e',
-	'#319795',
-	'#b83280'
-]
-const dotColor = (slug: string) => {
-	let hash = 0
-	for (const char of slug) hash = (hash * 31 + char.charCodeAt(0)) % 100003
-	return DOT_COLORS[hash % DOT_COLORS.length]
-}
-
-/**
- * The tile label: the H1 without a trailing mention of the category.
+ * A category's landings as a row of pills — the label and how many products it holds (owner,
+ * 2026-11-14; before that five-across tiles with a dot, nine shown and the rest behind «Ще N
+ * видів»). A pill takes the width of its label, so no name is cut, and every landing is visible:
+ * these are the category's internal links to its landings, the ones a crawler follows. The dot is
+ * gone because its colour was a hash of the slug — beside filament it read as the plastic's colour.
  *
- * «PLA філамент» in a category called «Філамент» is a tile that says «PLA» — which is what the
- * artboard shows and what fits a 5-across grid. Nothing else is guessed: an H1 the rule cannot
- * shorten («Філамент, що світиться») is printed whole rather than cut somewhere arbitrary. A
- * landing that wants a different short label needs a field of its own; there is none yet.
+ * The label is the H1 without the category's name only on the category's own page, under its
+ * heading. On the hub the pills come from every category at once, so each prints its H1 whole.
  */
-export const shortLabel = (h1: string, categoryName: string): string => {
-	const trimmed = h1
-		.replace(new RegExp(`[\\s—–-]*${escapeRegExp(categoryName)}\\s*$`, 'i'), '')
-		.trim()
-	return trimmed.length > 0 ? trimmed : h1
-}
-
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-export const PopularLandings = ({ categorySlug, categoryName, landings }: PopularLandingsProps) => {
-	const [expanded, setExpanded] = useState(false)
+export const PopularLandings = ({
+	categorySlug,
+	categoryName,
+	landings: all,
+	title = 'Популярні види',
+	display = false
+}: PopularLandingsProps) => {
+	// A landing with no products is a known empty listing — noindex, left out of the sitemap —
+	// so no pill links to it either (P02). An unknown count (null) still shows.
+	const landings = all.filter(item => item.product_count !== 0)
 
 	if (landings.length === 0) return null
 
-	const hidden = landings.length - VISIBLE
-
 	return (
-		<nav aria-label='Популярні види' className='mb-8'>
-			<h2 className='text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase'>
-				Популярні види
+		<nav aria-label={title} className='mb-8'>
+			<h2
+				className={cn(
+					display
+						? 'font-display mb-3.5 text-lg font-semibold md:text-xl'
+						: 'text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase'
+				)}
+			>
+				{title}
 			</h2>
-			<div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'>
-				{/*
-				 * Every landing is rendered, and the overflow is hidden with a class rather than
-				 * sliced out of the array. These tiles are the category's internal links to its
-				 * landings — a crawler that never presses «Ще N видів» would otherwise see nine
-				 * of the fourteen, and the rest would depend on the sitemap alone.
-				 */}
-				{landings.map((item, index) => (
+			<div className='flex flex-wrap gap-2'>
+				{landings.map(item => (
 					<Link
-						key={item.slug}
-						href={`/${categorySlug}/${item.slug}`}
-						hidden={!expanded && hidden > 0 && index >= VISIBLE}
-						className='border-border/50 bg-card hover:border-primary group flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors'
+						key={`${item.category?.slug ?? categorySlug}/${item.slug}`}
+						href={`/${item.category?.slug ?? categorySlug}/${item.slug}`}
+						className={cn(
+							'border-border bg-card hover:border-primary inline-flex min-h-11 items-center gap-2 rounded-full border pr-4 text-sm font-semibold transition-colors',
+							item.image ? 'pl-2' : 'pl-4'
+						)}
 					>
-						{item.image ? (
+						{item.image && (
+							// The admin's tile image, when there is one; decoration beside the label.
 							<Image
 								src={item.image}
 								alt=''
-								width={32}
-								height={32}
-								className='size-8 shrink-0 rounded object-cover'
-							/>
-						) : (
-							<span
-								aria-hidden
-								className='size-3 shrink-0 rounded-full'
-								style={{ background: dotColor(item.slug) }}
+								width={28}
+								height={28}
+								className='size-7 shrink-0 rounded-full object-cover'
 							/>
 						)}
-						<span className='min-w-0'>
-							<span className='group-hover:text-primary block truncate text-sm font-medium transition-colors'>
-								{shortLabel(item.h1, categoryName)}
-							</span>
-							{item.product_count !== null && (
-								<span className='text-muted-foreground block text-xs'>
-									{productsCount(item.product_count)}
+						{item.category ? item.h1 : shortLabel(item.h1, categoryName ?? '')}
+						{item.product_count !== null && (
+							// One text for a screen reader and for a crawler reading the link —
+							// «PLA, 64 товари»; the eye sees the figure alone. The spaces are the
+							// link's own text: a flex row draws none, the text keeps them.
+							<>
+								<span className='sr-only'>,</span>{' '}
+								<span className='text-muted-foreground text-[13px] font-normal'>
+									{item.product_count}
+								</span>{' '}
+								<span className='sr-only'>
+									{pluralUk(item.product_count, 'товар', 'товари', 'товарів')}
 								</span>
-							)}
-						</span>
+							</>
+						)}
 					</Link>
 				))}
-
-				{hidden > 0 && !expanded && (
-					<button
-						type='button'
-						onClick={() => setExpanded(true)}
-						className='border-border/50 text-muted-foreground hover:border-primary hover:text-primary rounded-lg border border-dashed px-3 py-2.5 text-sm transition-colors'
-					>
-						Ще {hidden} {pluralUk(hidden, 'вид', 'види', 'видів')}
-					</button>
-				)}
 			</div>
 		</nav>
 	)

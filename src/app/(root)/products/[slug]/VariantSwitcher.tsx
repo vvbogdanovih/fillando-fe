@@ -1,15 +1,9 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuTrigger
-} from '@/common/components/ui/dropdown-menu'
 import { ColorSwatch } from '@/common/components/ColorSwatch'
+import { UI_URLS } from '@/common/constants/ui-routes.constants'
 import { cn } from '@/common/utils/shad-cn.utils'
 import { variantLabel, type PublicColor } from '@/common/utils/color.utils'
 
@@ -21,117 +15,84 @@ export interface SwitchableVariant {
 	v_value: string | null
 	color: PublicColor | null
 }
-
 interface VariantSwitcherProps {
 	variants: SwitchableVariant[]
 	currentSlug: string
-	/** «Колір», «Довжина» — whatever the product calls its axis. */
 	axisLabel: string
 }
 
-/**
- * Choosing between a product's variants — swatches when the axis is colour, a dropdown when it
- * is anything else.
- *
- * It sits above the buy button, not below it: the colour is part of the decision, and a
- * shopper who picks one after pressing «Додати в кошик» has added the wrong thing (Plan-0005
- * C5). Out-of-stock variants stay reachable but muted, which the dropdown already did and the
- * swatch row keeps — the mock does not show that state, and losing it would hide half the
- * catalogue's reality.
- */
+/** All choices have real hrefs in the initial HTML, including non-colour variants. */
 export const VariantSwitcher = ({ variants, currentSlug, axisLabel }: VariantSwitcherProps) => {
-	const router = useRouter()
-
-	// Swatches only where every variant resolved to a dictionary colour: a half-painted row
-	// would read as "these three have no colour" rather than "the dictionary has a gap".
-	const useSwatches = variants.length > 1 && variants.every(v => v.color)
-	const current = variants.find(v => v.slug === currentSlug)
-
 	if (variants.length <= 1) return null
-
-	if (useSwatches) {
+	const current = variants.find(v => v.slug === currentSlug)
+	const useSwatches = variants.every(v => v.color)
+	const choices = variants.map(sibling => {
+		const label = variantLabel(sibling) ?? sibling.name
+		const isOut = sibling.stock <= 0
+		const isCurrent = sibling.slug === currentSlug
+		const hint = isOut ? `${label} — немає в наявності` : label
 		return (
-			<div>
-				<p className='text-muted-foreground mb-2 text-sm'>
-					{axisLabel}:{' '}
-					<span className='text-foreground font-medium'>
-						{current ? variantLabel(current) : ''}
-					</span>
-				</p>
-				<div className='flex flex-wrap gap-2'>
-					{variants.map(sibling => {
-						const label = variantLabel(sibling) ?? sibling.name
-						const isCurrent = sibling.slug === currentSlug
-						const isOut = sibling.stock <= 0
-						// One tooltip string, used on the button and on the chip inside it. The chip
-						// covers 32 of the button's 40 px, and the browser shows the innermost
-						// title under the cursor — so a chip carrying the bare colour name hid the
-						// «немає в наявності» hint exactly where a shopper aims (Plan-0005 I-o).
-						const hint = isOut ? `${label} — немає в наявності` : label
-						return (
-							<button
-								key={sibling.id}
-								type='button'
-								onClick={() => router.push(`/products/${sibling.slug}`)}
-								title={hint}
-								aria-label={label}
-								aria-current={isCurrent ? 'true' : undefined}
-								className={cn(
-									'flex size-10 items-center justify-center rounded-full ring-2 ring-offset-2 transition-all',
-									isCurrent
-										? 'ring-green-600'
-										: 'ring-transparent hover:ring-gray-300',
-									isOut && 'opacity-40'
-								)}
-							>
-								<ColorSwatch
-									hexStops={sibling.color?.hex_stops ?? []}
-									family={sibling.color?.family}
-									size={32}
-									title={hint}
-								/>
-							</button>
-						)
-					})}
-				</div>
-			</div>
+			<Link
+				key={sibling.id}
+				href={UI_URLS.PRODUCT(sibling.slug)}
+				prefetch={false}
+				title={hint}
+				aria-label={label}
+				aria-current={isCurrent ? 'page' : undefined}
+				className={cn(
+					useSwatches
+						? 'flex size-10 items-center justify-center rounded-full ring-2 ring-offset-2 transition-all'
+						: 'flex items-center rounded-md px-3 py-2 text-sm hover:bg-gray-100',
+					useSwatches &&
+						(isCurrent ? 'ring-green-600' : 'ring-transparent hover:ring-gray-300'),
+					!useSwatches && isCurrent && 'bg-gray-100 font-medium',
+					isOut && 'opacity-40'
+				)}
+			>
+				{useSwatches ? (
+					<ColorSwatch
+						hexStops={sibling.color?.hex_stops ?? []}
+						family={sibling.color?.family}
+						size={32}
+						title={hint}
+					/>
+				) : (
+					<>
+						{label}
+						{isOut && <span className='ml-2 text-xs'>— немає в наявності</span>}
+					</>
+				)}
+			</Link>
 		)
-	}
-
+	})
 	return (
 		<div>
-			<p className='text-muted-foreground mb-2 text-sm'>{axisLabel}:</p>
-			<DropdownMenu>
-				<DropdownMenuTrigger className='border-input flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-sm shadow-xs outline-none focus:outline-none focus-visible:outline-none'>
-					<span>{current ? (variantLabel(current) ?? current.name) : ''}</span>
-					<ChevronDown className='size-4 opacity-50' />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent
-					className='max-h-[360px] min-w-(--radix-dropdown-menu-trigger-width) bg-white'
-					align='start'
-					sideOffset={4}
-				>
-					<DropdownMenuRadioGroup
-						value={currentSlug}
-						onValueChange={slug => router.push(`/products/${slug}`)}
+			<p className='text-muted-foreground mb-2 text-sm'>
+				{axisLabel}:
+				{useSwatches && (
+					<span className='text-foreground ml-1 font-medium'>
+						{current ? variantLabel(current) : ''}
+					</span>
+				)}
+			</p>
+			{useSwatches ? (
+				<div className='flex flex-wrap gap-2'>{choices}</div>
+			) : (
+				<details className='group rounded-md border'>
+					<summary className='flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm [&::-webkit-details-marker]:hidden'>
+						<span>
+							{current ? (variantLabel(current) ?? current.name) : 'Оберіть варіант'}
+						</span>
+						<ChevronDown className='size-4 opacity-50 group-open:rotate-180' />
+					</summary>
+					<nav
+						aria-label={axisLabel}
+						className='max-h-[360px] overflow-y-auto border-t p-1'
 					>
-						{variants.map(sibling => (
-							<DropdownMenuRadioItem
-								key={sibling.id}
-								value={sibling.slug}
-								className={sibling.stock <= 0 ? 'text-muted-foreground/50' : ''}
-							>
-								{variantLabel(sibling) ?? sibling.name}
-								{sibling.stock <= 0 && (
-									<span className='text-muted-foreground/40 ml-2 text-xs'>
-										— немає в наявності
-									</span>
-								)}
-							</DropdownMenuRadioItem>
-						))}
-					</DropdownMenuRadioGroup>
-				</DropdownMenuContent>
-			</DropdownMenu>
+						{choices}
+					</nav>
+				</details>
+			)}
 		</div>
 	)
 }

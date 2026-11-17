@@ -12,8 +12,12 @@ function Slider({
 	className,
 	defaultValue,
 	value,
+	thumbLabels,
 	...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: React.ComponentProps<typeof SliderPrimitive.Root> & {
+	/** Accessible name per thumb, e.g. «Ціна: від» / «Ціна: до». */
+	thumbLabels?: string[]
+}) {
 	const values = value ?? defaultValue ?? [0]
 	const thumbCount = Array.isArray(values) ? values.length : 1
 	return (
@@ -38,6 +42,7 @@ function Slider({
 					key={i}
 					data-slot='slider-thumb'
 					data-index={i}
+					aria-label={thumbLabels?.[i]}
 					className={thumbClassName}
 				/>
 			))}

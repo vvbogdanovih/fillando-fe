@@ -23,6 +23,8 @@ interface HtmlEditorProps {
 	value: string
 	onChange: (html: string) => void
 	placeholder?: string
+	/** A `<fieldset disabled>` does not stop typing in the editor: the form passes it its lock. */
+	readOnly?: boolean
 }
 
 /**
@@ -40,12 +42,17 @@ interface HtmlEditorProps {
  */
 const normalizeSpaces = (html: string) => html.replace(/(\D|^)\u00a0/g, '$1 ')
 
-export const HtmlEditor = ({ value, onChange, placeholder }: HtmlEditorProps) => {
+export const HtmlEditor = ({ value, onChange, placeholder, readOnly }: HtmlEditorProps) => {
 	return (
 		<QuillEditor
 			theme='snow'
 			value={value}
-			onChange={html => onChange(normalizeSpaces(html))}
+			readOnly={readOnly}
+			// Only what the admin typed or formatted: Quill re-renders a loaded text on mount
+			// («api»), and that is no edit — the category page would call it unsaved at once.
+			onChange={(html, _delta, source) => {
+				if (source === 'user') onChange(normalizeSpaces(html))
+			}}
 			placeholder={placeholder}
 			modules={{ toolbar: TOOLBAR_OPTIONS }}
 			className='bg-white [&_.ql-editor]:min-h-32'

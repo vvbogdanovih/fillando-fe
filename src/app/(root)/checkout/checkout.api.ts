@@ -2,6 +2,7 @@ import '@/common/lib/zod-locale'
 import * as z from 'zod'
 import { httpService } from '@/common/services/http.service'
 import { API_URLS } from '@/common/constants'
+import type { WarehouseType } from './checkout.constants'
 import type { CreateOrderPayload } from './checkout.schema'
 import {
 	createOrderResponseSchema,
@@ -47,7 +48,7 @@ export async function fetchNovaPostCities(q: string): Promise<NovaCity[]> {
 
 export async function fetchNovaPostWarehouses(
 	cityRef: string,
-	type: 'PARCEL_LOCKER' | 'POST' | 'CARGO',
+	type: WarehouseType,
 	q?: string
 ): Promise<NovaWarehouse[]> {
 	const trimmed = q?.trim()

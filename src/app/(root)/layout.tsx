@@ -1,14 +1,16 @@
-import { ReactNode } from 'react'
+import { ReactNode, Suspense } from 'react'
 import { Header } from '@/common/components/Header'
 import { Footer } from '@/common/components/Footer'
 import { JsonLd } from '@/common/components/JsonLd'
 import { CookieConsentBanner } from '@/common/components/CookieConsentBanner'
+import { NavigationProgress } from '@/common/components/NavigationProgress'
 // Deep path, not the `motion` barrel — see the note in SmoothScrollProvider.
 import { SmoothScrollProvider } from '@/common/components/motion/SmoothScrollProvider'
 import { SITE_NAME, SITE_URL } from '@/common/constants/seo.constants'
 import { CONTACTS } from '@/common/constants/contacts.constants'
-import { STATIC_NAV_LINKS, type NavLink } from '@/common/constants/navigation.constants'
 import { getCategoryNavLinks } from '@/common/utils/navigation.utils'
+import { StoreStrip } from '@/common/components/StoreStrip'
+import { loadStorefrontSettings } from '@/common/utils/storefront-settings.server'
 
 /**
  * `logo` pointed at `/logo.png`, which has never existed in `public/` — Google fetched a 404
@@ -48,13 +50,19 @@ export default async function Layout({ children }: { children: ReactNode }) {
 	// Fetched here, in the one server component every storefront page passes through, so the
 	// links are in the HTML a crawler receives rather than appearing after hydration.
 	const categories = await getCategoryNavLinks()
-	const navLinks: NavLink[] = [...categories, ...STATIC_NAV_LINKS]
+	// The strip's lines are «Вітрина» copy (TD-0015); without the settings there is no strip.
+	const settings = await loadStorefrontSettings()
 
 	return (
 		<SmoothScrollProvider>
 			<div className='flex min-h-screen w-full flex-col'>
+				{/* Wraps only the bar (useSearchParams), never page content: 404/308 stay real. */}
+				<Suspense fallback={null}>
+					<NavigationProgress />
+				</Suspense>
 				<JsonLd data={orgSchema} />
-				<Header navLinks={navLinks} />
+				<StoreStrip items={settings?.strip ?? []} />
+				<Header categories={categories} />
 				<div className='flex-1'>{children}</div>
 				<Footer categories={[...categories]} />
 				{/* Storefront only — admin and auth are out of scope for the ads tag. */}

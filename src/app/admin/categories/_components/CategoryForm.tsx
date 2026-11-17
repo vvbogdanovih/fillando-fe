@@ -26,6 +26,7 @@ import {
 	SelectValue
 } from '@/common/components/ui/select'
 import { categoriesApi } from '../categories.api'
+import { syncCategory } from '../categories.queries'
 import {
 	categoryFormSchema,
 	type CategoryFormValues,
@@ -33,16 +34,6 @@ import {
 	type Category
 } from '../categories.schema'
 
-/**
- * The one node of Google's taxonomy that filament falls under (TD-0006 §5.2). There is no
- * "filament" node — 499682 is the leaf for printer accessories, and `g:product_type` adds the
- * detail. The artboard's 2496 was wrong: in the real taxonomy that is Business & Industrial >
- * Medical, so the hint carries the checked value instead.
- */
-const FILAMENT_GOOGLE_CATEGORY = {
-	id: '499682',
-	path: 'Electronics > Print, Copy, Scan & Fax > 3D Printer Accessories'
-}
 const GOOGLE_TAXONOMY_URL =
 	'https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt'
 
@@ -130,15 +121,7 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 		}
 	}
 
-	const syncToCache = (updated: Category) => {
-		queryClient.setQueryData<Category[]>(['categories'], prev => {
-			if (!prev) return [updated]
-			const exists = prev.find(c => c._id === updated._id)
-			return exists
-				? prev.map(c => (c._id === updated._id ? updated : c))
-				: [...prev, updated]
-		})
-	}
+	const syncToCache = (updated: Category) => syncCategory(queryClient, updated)
 
 	// Run the image upload flow after a category _id is available
 	const runImageUpload = async (categoryId: string, file: File): Promise<string | null> => {
@@ -428,29 +411,16 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 									нове
 								</span>
 							</div>
-							<Button
-								type='button'
-								size='xs'
-								variant='outline'
-								onClick={() => {
-									setValue('google_product_category_id', FILAMENT_GOOGLE_CATEGORY.id, {
-										shouldDirty: true
-									})
-									setValue('google_product_category_path', FILAMENT_GOOGLE_CATEGORY.path, {
-										shouldDirty: true
-									})
-								}}
-							>
-								Підставити для філаменту
-							</Button>
 						</div>
 						<div className='flex gap-3'>
 							<div className='flex w-40 shrink-0 flex-col gap-1.5'>
-								<Label htmlFor='google_product_category_id'>Google-категорія (ID)</Label>
+								<Label htmlFor='google_product_category_id'>
+									Google-категорія (ID)
+								</Label>
 								<Input
 									id='google_product_category_id'
 									inputMode='numeric'
-									placeholder={FILAMENT_GOOGLE_CATEGORY.id}
+									placeholder='ID з таксономії'
 									{...register('google_product_category_id')}
 									aria-invalid={!!errors.google_product_category_id}
 								/>
@@ -461,18 +431,18 @@ export const CategoryForm = ({ initial, onClose }: CategoryFormProps) => {
 								)}
 							</div>
 							<div className='flex flex-1 flex-col gap-1.5'>
-								<Label htmlFor='google_product_category_path'>Шлях таксономії</Label>
+								<Label htmlFor='google_product_category_path'>
+									Шлях таксономії
+								</Label>
 								<Input
 									id='google_product_category_path'
-									placeholder={FILAMENT_GOOGLE_CATEGORY.path}
+									placeholder='Шлях обраної категорії'
 									{...register('google_product_category_path')}
 								/>
 							</div>
 						</div>
 						<p className='text-muted-foreground text-xs'>
-							Іде у фід як g:google_product_category; шлях — лише підказка для адміна.
-							Для філаменту — {FILAMENT_GOOGLE_CATEGORY.id}: окремого вузла «filament» у
-							Google немає, деталізацію дає product_type.{' '}
+							Іде у фід як g:google_product_category; шлях — лише підказка для адміна.{' '}
 							<a
 								href={GOOGLE_TAXONOMY_URL}
 								target='_blank'

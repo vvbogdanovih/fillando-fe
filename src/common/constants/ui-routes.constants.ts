@@ -2,6 +2,7 @@ export const UI_URLS = {
 	HOME: '/',
 	NOT_FOUND: '/404',
 	SEARCH: '/search',
+	PRODUCT: (slug: string) => `/products/${encodeURIComponent(slug)}`,
 	PRICE_SHEET: '/price-sheet',
 	WHOLESALE: '/wholesale',
 	FAQ: '/faq',
@@ -16,6 +17,7 @@ export const UI_URLS = {
 		REVALIDATE: '/api/revalidate'
 	},
 	CATALOG: {
+		ROOT: '/catalog',
 		FILAMENT: '/filament'
 	},
 	AUTH: {
@@ -44,6 +46,7 @@ export const UI_URLS = {
 		CATEGORIES: '/admin/categories',
 		COLORS: '/admin/colors',
 		LANDINGS: '/admin/landings',
+		STOREFRONT: '/admin/storefront',
 		FEED: '/admin/feed',
 		VENDORS: '/admin/vendors',
 		USERS: '/admin/users',

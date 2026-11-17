@@ -40,52 +40,137 @@ describe('shortLabel', () => {
 })
 
 describe('PopularLandings', () => {
-	it('shows the short label and the product count on every tile', () => {
+	it('shows the short label and the product count on every pill', () => {
 		renderTiles([tile({ slug: 'pla', h1: 'PLA філамент', product_count: 64 })])
 
+		// The figure for the eye, the words around it for a screen reader — and one text for both and
+		// for a crawler reading the link: «PLA, 64 товари», never «PLA64, 64 товари».
+		const pill = screen.getByRole('link', { name: 'PLA, 64 товари' })
+		expect(pill).toHaveAttribute('href', '/filament/pla')
+		expect(pill.textContent).toBe('PLA, 64 товари')
+		// Only the figure is seen beside the label.
+		expect(
+			[...pill.querySelectorAll('span')]
+				.filter(span => !span.className.includes('sr-only'))
+				.map(span => span.textContent)
+		).toEqual(['64'])
+	})
+
+	it('shows no pill for a landing with no products — a known empty listing (P02)', () => {
+		renderTiles([
+			tile({ slug: 'pla', h1: 'PLA філамент', product_count: 64 }),
+			tile({ slug: 'nylon', h1: 'Nylon філамент', product_count: 0 })
+		])
+
 		expect(screen.getByText('PLA')).toBeInTheDocument()
-		expect(screen.getByText('64 товари')).toBeInTheDocument()
+		expect(screen.queryByText('Nylon')).not.toBeInTheDocument()
+		expect(screen.queryByText(/0 товарів/)).not.toBeInTheDocument()
+	})
+
+	it('renders nothing when every landing is empty', () => {
+		const { container } = renderTiles([tile({ slug: 'nylon', h1: 'Nylon', product_count: 0 })])
+
+		expect(container).toBeEmptyDOMElement()
 	})
 
 	it('prints no count at all when the backend did not send one', () => {
 		renderTiles([tile({ slug: 'pla', h1: 'PLA філамент', product_count: null })])
 
-		expect(screen.getByText('PLA')).toBeInTheDocument()
+		expect(screen.getByRole('link', { name: 'PLA' })).toBeInTheDocument()
 		expect(screen.queryByText(/товар/)).not.toBeInTheDocument()
 	})
 
-	it('uses the tile image when there is one, and a dot when there is not', () => {
+	it('shows the admin image when there is one, and no invented mark when there is not', () => {
 		const { container } = renderTiles([
 			tile({ slug: 'pla', h1: 'PLA філамент', image: 'https://cdn.test/pla.webp' }),
 			tile({ slug: 'petg', h1: 'PETG філамент' })
 		])
 
-		// The tile image is decorative — `alt=''` keeps it out of the accessibility tree, so it
-		// is queried as an element rather than by role.
+		// The image is decorative — `alt=''` keeps it out of the accessibility tree, so it is
+		// queried as an element rather than by role.
 		const images = container.querySelectorAll('img')
 		expect(images).toHaveLength(1)
 		expect(images[0]).toHaveAttribute('src', 'https://cdn.test/pla.webp')
+		// The dot coloured by a hash of the slug is gone: beside filament it read as a colour.
+		expect(container.querySelector('[style*="background"]')).toBeNull()
 	})
 
-	it('shows nine tiles and offers the rest behind «Ще N видів»', () => {
-		const { container } = renderTiles(
-			Array.from({ length: 14 }, (_, i) => tile({ slug: `l${i}`, h1: `Вид ${i} філамент` }))
-		)
+	it('shows every landing — no «Ще N видів», and a long name whole (owner, 2026-11-14)', () => {
+		renderTiles([
+			...Array.from({ length: 13 }, (_, i) =>
+				tile({ slug: `l${i}`, h1: `Вид ${i} філамент` })
+			),
+			tile({ slug: 'abs', h1: 'ABS пластик для 3D-друку' })
+		])
 
-		expect(screen.getAllByRole('link')).toHaveLength(9)
-		expect(screen.getByRole('button', { name: 'Ще 5 видів' })).toBeInTheDocument()
-		// Hidden, not dropped: these tiles are the category's internal links to its landings,
-		// and a crawler never presses the button.
-		expect(container.querySelectorAll('a')).toHaveLength(14)
-	})
-
-	it('shows every tile once there is nothing left to hide', () => {
-		renderTiles(
-			Array.from({ length: 9 }, (_, i) => tile({ slug: `l${i}`, h1: `Вид ${i} філамент` }))
-		)
-
-		expect(screen.getAllByRole('link')).toHaveLength(9)
+		// These pills are the category's internal links to its landings: all of them visible.
+		const links = screen.getAllByRole('link')
+		expect(links).toHaveLength(14)
+		expect(links.every(link => !link.hasAttribute('hidden'))).toBe(true)
 		expect(screen.queryByRole('button')).not.toBeInTheDocument()
+		expect(screen.getByText('ABS пластик для 3D-друку').className).not.toContain('truncate')
+	})
+
+	it('takes its own category per pill on the hub, and the hub heading in the display face', () => {
+		render(
+			<PopularLandings
+				title='Популярні добірки'
+				display
+				landings={[
+					tile({
+						slug: 'pla',
+						h1: 'PLA філамент',
+						category: { slug: 'filament', name: 'Філамент' }
+					})
+				]}
+			/>
+		)
+
+		expect(screen.getByRole('link', { name: /PLA/ })).toHaveAttribute('href', '/filament/pla')
+		expect(screen.getByRole('heading', { name: 'Популярні добірки' }).className).toContain(
+			'font-display'
+		)
+	})
+
+	// The short label drops the category's name, which is the page's own heading on a category. The
+	// hub's pills come from every category at once: shortened there, «Однополюсні» and «Чорний»
+	// stood side by side with nothing to say of what (review 2026-11-14).
+	it('prints the whole H1 on the hub, where no heading names the category', () => {
+		render(
+			<PopularLandings
+				title='Популярні добірки'
+				display
+				landings={[
+					tile({
+						slug: 'pla',
+						h1: 'PLA філамент',
+						category: { slug: 'filament', name: 'Філамент' }
+					}),
+					tile({
+						slug: 'odnopolyusni',
+						h1: 'Однополюсні автоматичні вимикачі',
+						product_count: null,
+						category: { slug: 'avtomaty', name: 'Автоматичні вимикачі' }
+					})
+				]}
+			/>
+		)
+
+		expect(screen.getByRole('link', { name: 'PLA філамент, 12 товарів' })).toHaveAttribute(
+			'href',
+			'/filament/pla'
+		)
+		expect(
+			screen.getByRole('link', { name: 'Однополюсні автоматичні вимикачі' })
+		).toHaveAttribute('href', '/avtomaty/odnopolyusni')
+	})
+
+	it('keeps the quiet label on a category page', () => {
+		renderTiles([tile({ slug: 'pla', h1: 'PLA філамент' })])
+
+		expect(screen.getByRole('heading', { name: 'Популярні види' }).className).not.toContain(
+			'font-display'
+		)
 	})
 
 	it('renders nothing when the category has no published landings', () => {

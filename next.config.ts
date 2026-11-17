@@ -1,8 +1,19 @@
 import type { NextConfig } from 'next'
+import { existsSync, writeFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const appDir = path.dirname(fileURLToPath(import.meta.url))
+
+// A test build in its own dist dir (`NEXT_DIST_DIR`, the Playwright configs) type-checks with its own
+// tsconfig: Next appends every dist dir to `include` and rewrites the whole file, which must not touch
+// the committed tsconfig.json. The test one only extends it and is git-ignored; created on first use.
+const testTsconfig = process.env.NEXT_DIST_DIR ? 'tsconfig.e2e.json' : null
+if (testTsconfig && !existsSync(path.join(appDir, testTsconfig)))
+	writeFileSync(
+		path.join(appDir, testTsconfig),
+		`${JSON.stringify({ extends: './tsconfig.json' }, null, '\t')}\n`
+	)
 
 // Kill switch for the S3 width-derivative pipeline. Defaults to off so the loader
 // can never ship ahead of the backfill; flip to 'true' in the environment once
@@ -13,6 +24,7 @@ const nextConfig: NextConfig = {
 	output: 'standalone',
 	// Keep Playwright's dev build separate from a developer's running server.
 	distDir: process.env.NEXT_DIST_DIR || '.next',
+	...(testTsconfig ? { typescript: { tsconfigPath: testTsconfig } } : {}),
 	reactCompiler: true,
 	// Search crawlers get a blocking render so notFound() can set a real 404
 	// status; regular users keep streamed responses.

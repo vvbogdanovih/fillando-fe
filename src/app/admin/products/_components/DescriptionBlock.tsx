@@ -29,9 +29,15 @@ interface DescriptionBlockProps {
 	descriptionRef: MutableRefObject<DescriptionValue | null>
 	// Pre-populate the editor with existing content (used by edit form)
 	initialValue?: DescriptionValue
+	/** Every edit the admin makes — not Quill's own re-render of a loaded text («api»). */
+	onChange?: (value: DescriptionValue) => void
 }
 
-export const DescriptionBlock = ({ descriptionRef, initialValue }: DescriptionBlockProps) => {
+export const DescriptionBlock = ({
+	descriptionRef,
+	initialValue,
+	onChange
+}: DescriptionBlockProps) => {
 	const [value, setValue] = useState(initialValue?.html ?? '')
 
 	// Initialize ref with existing content so save without edits still sends correct data
@@ -45,11 +51,12 @@ export const DescriptionBlock = ({ descriptionRef, initialValue }: DescriptionBl
 	const handleChange = (
 		html: string,
 		_delta: unknown,
-		_source: unknown,
+		source: unknown,
 		editor: UnprivilegedEditor
 	) => {
 		setValue(html)
 		descriptionRef.current = { html, json: editor.getContents() as object }
+		if (source === 'user') onChange?.(descriptionRef.current)
 	}
 
 	return (

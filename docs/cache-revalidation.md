@@ -18,7 +18,7 @@ admin saves a landing                          (or the backend saves a product /
   → POST /api/revalidate {"resource":"landings"}
   → revalidateTag('landings', { expire: 0 })    the landing fetches
     revalidateTag('sitemap',  { expire: 0 })    the sitemap's memoised entry list
-    revalidatePath('/sitemap.xml')              the sitemap route's own daily render
+    revalidatePath('/sitemap.xml')              the sitemap route path
 ```
 
 The caller names a **resource**, never a tag, a path or a slug. `INVALIDATIONS` in
@@ -36,8 +36,8 @@ string covers all of them: no old-slug/new-slug tuple to carry, and no dependenc
 | Resource     | Tags                   | Paths          | Why those and nothing more                                                                                                                                                                                                                              |
 | ------------ | ---------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `landings`   | `landings`, `sitemap`  | `/sitemap.xml` | Unchanged from the first version of this endpoint.                                                                                                                                                                                                      |
-| `products`   | `products`, `landings` | `/sitemap.xml` | `landings` as well, because the «Популярні види» tiles print `product_count`, which is read from `/landings?category_id=` and not from any product entry. The sitemap memo carries `products` itself, for a created or archived variant's URL.          |
-| `categories` | `categories`           | `/sitemap.xml` | One tag covers the category doc read by `/[category]`, the `/categories` list the storefront menu is built from, and the sitemap memo's category URLs. It does **not** touch `products`: renaming a category does not change a price or a stock figure. |
+| `products`   | `products`, `landings` | `/sitemap.xml` | `landings` as well, because the «Популярні види» pills print `product_count`, which is read from `/landings?category_id=` and not from any product entry. The sitemap memo carries `products` itself, for a created or archived variant's URL.          |
+| `categories` | `categories`, `products` | `/sitemap.xml` | Category documents, menu and sitemap plus product detail, which embeds category names, specification units and presentation rules. |
 
 Why the boundary sits there. A `products` purge has to reach everything a crawler and Google
 Merchant read as rendered HTML — the price, the availability, the archive flag and the name in
@@ -81,13 +81,16 @@ purge logs `expired tags` followed by `set` — the backend really is re-queried
 | ------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `landings`   | `(root)/[category]/[landing]/page.tsx` — `loadLanding`, covering both `generateMetadata` and the page body | the landing H1, intro, SEO text and FAQ                                                     |
 | `landings`   | `(root)/[category]/page.tsx` `generateMetadata` — `/landings?category_id=`                                 | the canonical that points a filtered listing at the landing covering it                     |
-| `landings`   | `(root)/[category]/page.tsx` page body — `/landings?category_id=`                                          | the «Популярні види» tiles, including their `product_count`                                 |
+| `landings`   | `(root)/[category]/page.tsx` page body — `/landings?category_id=`                                          | the «Популярні види» pills, including their `product_count`                                 |
 | `products`   | `(root)/products/[slug]/page.tsx` — **both** `serverFetch` calls, one URL                                  | the price, the stock, the name, the `Product` JSON-LD, the title and the archived `noindex` |
 | `products`   | `(root)/[category]/page.tsx` page body — `/products/catalog?…`                                             | the SSR grid, its prices and the facet counts                                               |
 | `categories` | `(root)/[category]/page.tsx` — **both** `/categories/slug/<slug>` calls, one URL                           | the category name in the H1 and the title, and the dimension set the sidebar renders        |
-| `sitemap`    | `sitemap.ts` — the **`unstable_cache` options object**, third argument                                     | the memoised entry list; `landings`' handle on it                                           |
-| `products`   | `sitemap.ts` — same options object                                                                         | the product URLs a created or archived variant adds or drops                                |
-| `categories` | `sitemap.ts` — same options object                                                                         | the category URLs                                                                           |
+| `categories` | `catalog/catalog-hub.server.ts` — `/categories/slug/<slug>` per hub tile, the category route's own URL      | the hub tiles' photos                                                                       |
+| `landings`   | `catalog/catalog-hub.server.ts` `loadCategoryLandings` — `/landings?category_id=`, also the typed route's   | the hub's «Популярні добірки», the typed «Популярні види» and landing redirect |
+| `products`   | `common/utils/catalog-strips.server.ts` `stripUrl` — home and hub strips, one address author              | «Новинки», «Акції» (`on_sale`) and the «Вітрина» collections                                |
+| `sitemap`    | `common/utils/sitemap-files.ts` — the **`unstable_cache` options** of the index and the part memos         | the memoised index and parts; `landings`' handle on them                                    |
+| `products`   | `common/utils/sitemap-files.ts` — same options objects                                                     | the product URLs a created or archived variant adds or drops                                |
+| `categories` | `common/utils/sitemap-files.ts` — same options objects                                                     | the category URLs                                                                           |
 
 The sitemap memo lists one tag per data source it embeds, so the handler purges its own resource
 tag and never has to know which memos exist. Its inner `serverFetch` calls pass `revalidate: 0`
@@ -114,6 +117,16 @@ Four groups are affected today, and every member of a group must carry the **sam
 | `/products/catalog?…`      | `[category]/page.tsx`, the landing route, `Home.tsx` — the query strings coincide more often than they look | `[PRODUCTS]`   |
 | `/categories`              | `common/utils/navigation.utils.ts` (`getCategoryNavLinks`), `Home.tsx`                                      | `[CATEGORIES]` |
 
+Since Plan-0010 (D06) the storefront no longer reads `/categories`: navigation and `/catalog` read
+`/categories/tree?limit=1000` (all pages) and `/categories/{id}/ancestors?limit=1000` with `[CATEGORIES]`,
+`/products/catalog/v2/category-counts`, `/products/catalog/v2?…` and `/products/catalog/v2/strip?…` (home and hub strips, `stripUrl`) with `[PRODUCTS]`, `/storefront-settings`
+with `[CATEGORIES, LANDINGS]` (a collection embeds its typed landing's pins, address and status, and a landing
+save purges only `landings` — audit 11.11.2026), `/routes/resolve?path=` with `[CATEGORIES, PRODUCTS, LANDINGS]` — each URL from one module
+with one array (`common/utils/catalog-tree.server.ts`, `catalog/typed-listing.server.ts`,
+`common/utils/storefront-settings.server.ts`, `common/utils/moved-route.server.ts`). A cursor walk that meets a
+409 repeats once with `cache: 'no-store'` (audit 31.10.2026): a write that moves the catalogue revision without
+purging `categories` must not leave an older first page answering every render with a refused cursor.
+
 The last three cross file boundaries, which is what makes them dangerous: an untagged call to a
 URL a tagged call also makes is not a missed refresh, it is a **silent hole** — whichever render
 happens first writes the shared entry, and if that one passed no tags the purge has nothing to
@@ -129,9 +142,15 @@ string as the bare category page with that filter. Do not "improve" one member o
 > reach the storefront menu, and a first render through the landing route or the home page can
 > claim the shared entry untagged.
 
-`/sitemap.xml` needs both halves of its purge: the tag expires the memoised entry list (keyed on
-the product-variant count, which a landing edit never moves) and the path expires the
-`force-static` route's own 86400s render. Purging one leaves the sitemap up to ~48h stale.
+`/sitemap.xml` now uses the `catalog-sitemap-snapshot-v1` artifact memo, tagged
+SITEMAP/PRODUCTS/CATEGORIES, over one verified backend export. The route is dynamic;
+the old product-count key and second force-static daily render are removed.
+Since 2026-10-29 the memos are `catalog-sitemap-index-v2` and `catalog-sitemap-part-v2`
+(`common/utils/sitemap-files.ts`) with the same tags; `/sitemap.xml` and `/sitemap/<n>.xml`
+are force-dynamic route handlers, so the `/sitemap.xml` path purge is harmless and the tags
+do the work (`docs/http-service.md`, «Sitemap»).
+The existing tag + path invalidation remains compatible. Purge acknowledgement
+before public visibility/URL activation remains separate work.
 
 ---
 
@@ -171,7 +190,11 @@ and delete, with `x-revalidate-secret` taken from its own `REVALIDATE_SECRET` (s
 `fillando-be/src/docs/STOREFRONT_REVALIDATION.md`). The product and category services send
 `products` and `categories` the same way — one call per write, and one call per batch for a bulk
 import. The call is fire-and-forget on its side — a
-failure is a warning in the backend log, never a failed save. To turn it on: set the **same**
+failure never fails a save. The backend keeps every purge in a MongoDB outbox until this endpoint
+answers 2xx (retried with a growing pause, a warning on the 3rd try), and sends each acknowledged
+purge once more 10 s later — the echo expires a page rendered from the old data just around the
+first purge (Plan-0010 P12/P15). A 401 or 503 here therefore means owed purges, not lost ones:
+they go out once the secret is fixed. To turn it on: set the **same**
 `REVALIDATE_SECRET` (≥32 chars) in `.env.prod` here and in the backend's environment. Nothing
 else on the frontend changes.
 

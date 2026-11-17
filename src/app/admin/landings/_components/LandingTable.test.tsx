@@ -19,38 +19,38 @@ beforeEach(() => {
 	deleteLanding.mockReset()
 	revalidateStorefront.mockReset()
 })
-vi.mock('@/app/admin/categories/categories.api', () => ({
-	categoriesApi: {
-		getAll: () =>
-			Promise.resolve([
-				{
-					_id: 'cat1',
-					name: 'Філамент',
-					slug: 'filament',
-					image: null,
-					order: 0,
-					required_attributes: [
-						{
-							key: 'polymer',
-							label: 'Тип пластику',
-							filter_type: 'multi-select',
-							is_required: true,
-							unit: null
-						},
-						{
-							key: 'finish',
-							label: 'Ефект поверхні',
-							filter_type: 'multi-select',
-							is_required: true,
-							unit: null
-						}
-					],
-					createdAt: '',
-					updatedAt: ''
-				}
-			])
+vi.mock('@/app/admin/categories/categories.api', async () => {
+	const { mockCategoriesApi } = await import('@/app/admin/categories/categories.test-utils')
+	return {
+		categoriesApi: mockCategoriesApi([
+			{
+				_id: 'cat1',
+				name: 'Філамент',
+				slug: 'filament',
+				image: null,
+				order: 0,
+				required_attributes: [
+					{
+						key: 'polymer',
+						label: 'Тип пластику',
+						filter_type: 'multi-select',
+						is_required: true,
+						unit: null
+					},
+					{
+						key: 'finish',
+						label: 'Ефект поверхні',
+						filter_type: 'multi-select',
+						is_required: true,
+						unit: null
+					}
+				],
+				createdAt: '',
+				updatedAt: ''
+			}
+		])
 	}
-}))
+})
 
 const landing = (over: Partial<AdminLanding> & Pick<AdminLanding, 'h1'>) =>
 	({

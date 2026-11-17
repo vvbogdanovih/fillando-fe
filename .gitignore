@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /.next-e2e/
+# Next's own copy for test builds (next.config.ts) — it rewrites it on every build
+/tsconfig.e2e.json
 /out/
 
 # production
@@ -33,6 +35,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env
+.env.local
 .env.prod
 
 # vercel

@@ -7,12 +7,14 @@ import { defineConfig, devices } from '@playwright/test'
  * Keep the two origins in sync with `e2e/helpers.ts`. See `e2e/README.md`.
  */
 const STOREFRONT_PORT = 9100
-const MOCK_API_PORT = 9001
+const MOCK_API_PORT = 19001
 const STOREFRONT_ORIGIN = `http://localhost:${STOREFRONT_PORT}`
 const MOCK_API_ORIGIN = `http://localhost:${MOCK_API_PORT}`
 
 export default defineConfig({
 	testDir: 'e2e',
+	// Real-backend suites have their own configs (playwright.categories/release.config.ts).
+	testIgnore: ['category-workspace.spec.ts', 'release/**'],
 	fullyParallel: false,
 	workers: 1,
 	retries: 1,
@@ -30,7 +32,7 @@ export default defineConfig({
 			command: 'node e2e/mock-api.mjs',
 			port: MOCK_API_PORT,
 			env: { MOCK_API_PORT: String(MOCK_API_PORT), MOCK_API_ALLOW_ORIGIN: STOREFRONT_ORIGIN },
-			reuseExistingServer: true,
+			reuseExistingServer: false,
 			stdout: 'pipe',
 			stderr: 'pipe'
 		},
@@ -42,9 +44,9 @@ export default defineConfig({
 			env: {
 				NEXT_PUBLIC_API_BASE_URL: MOCK_API_ORIGIN,
 				PORT: String(STOREFRONT_PORT),
-				NEXT_DIST_DIR: '.next-e2e'
+				NEXT_DIST_DIR: '.next-e2e/storefront'
 			},
-			reuseExistingServer: true,
+			reuseExistingServer: false,
 			timeout: 180_000
 		}
 	]

@@ -34,8 +34,8 @@ import { trackAddToCart, trackViewItem } from '@/common/lib/ga4-events'
 import { mapCartErrorMessage } from '@/common/utils/cart-error.utils'
 import { variantLabel } from '@/common/utils/color.utils'
 import { buildSpecRows } from './product-attributes'
+import { productDisplayName } from './product-title.utils'
 import { buildProductJsonLd } from './product-jsonld.utils'
-import { findSpooledSibling } from './refill.utils'
 import { VariantSwitcher } from './VariantSwitcher'
 import {
 	ATTR_NOTES,
@@ -48,6 +48,11 @@ interface ProductPageProps {
 	initialData?: ProductDetailData | null
 	/** Serialized by the server; keeps the JSON-LD validity window stable during hydration. */
 	renderedAt: string
+	/**
+	 * The whole category path when the detail marks it too long to embed (Plan-0010 D06.4), read
+	 * on the server; null otherwise — `category_path` then holds it.
+	 */
+	categoryPath?: { _id: string; name: string; slug: string }[] | null
 }
 
 /** A product page changes at the pace of a price import, not of a click. */
@@ -55,7 +60,12 @@ const PRODUCT_STALE_TIME = 5 * 60 * 1000
 
 const formatKg = (grams: number) => (grams / 1000).toLocaleString('uk-UA')
 
-export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps) => {
+export const ProductPage = ({
+	slug,
+	initialData,
+	renderedAt,
+	categoryPath = null
+}: ProductPageProps) => {
 	// `staleTime` is what stops the server-rendered page from refetching itself the moment it
 	// hydrates — one request per view saved, and one fewer chance for a 5xx to arrive while the
 	// shopper is reading. `isError` is deliberately not read: a failed refetch leaves the last
@@ -160,21 +170,20 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 	/** «Колір», «Довжина» — whatever this product calls its axis. */
 	const axisLabel = product.variant_type?.label ?? 'Варіація'
 
+	/**
+	 * The new catalogue answers with the product's own purchase notice (owner, 2026-11-05): the
+	 * refill warning and its photo badge are data of the product there, so nothing below guesses
+	 * from attribute keys or variant text for a v2 page.
+	 */
+	const typedCard = data.attribute_notice !== undefined
+
 	// Above the buy button, never in the description: the description renders below the CTA,
 	// i.e. after the decision (TD-0002 §5.2.1).
-	const attrNote =
-		product.attributes.map(attr => ATTR_NOTES[attr.k]?.[String(attr.v)]).find(Boolean) ??
-		(REFILL_VARIANT_PATTERN.test(variant.v_value ?? '') ? REFILL_NOTE : undefined)
+	const attrNote = typedCard
+		? (data.attribute_notice ?? undefined)
+		: (product.attributes.map(attr => ATTR_NOTES[attr.k]?.[String(attr.v)]).find(Boolean) ??
+			(REFILL_VARIANT_PATTERN.test(variant.v_value ?? '') ? REFILL_NOTE : undefined))
 
-	/**
-	 * Whether this page is a refill, and what the spooled version of it costs.
-	 *
-	 * Two shapes, because the data is mid-move. Once `split-refill-products.js` has run the
-	 * refill is its own product carrying `spool_included = Ні (рефіл)`, and the backend answers
-	 * with `spooled_counterpart`. Before that it is a variant sitting among spooled colours on
-	 * one product, recognisable only by the marker in its value — and its counterpart is a
-	 * sibling.
-	 */
 	// The variant axis prints what the shopper chose, not the product-level value stored for it.
 	const specRows = buildSpecRows(
 		product.attributes,
@@ -183,25 +192,25 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 			: {}
 	)
 
+	/**
+	 * Whether this legacy (v1) page is a refill. A v2 page never takes this path: its badge and
+	 * notice come from the product above. Two shapes, because the data is mid-move: a refill
+	 * product carrying `spool_included = Ні (рефіл)`, or a variant among the colours of one
+	 * product, recognisable only by the marker in its value.
+	 */
 	const isRefill =
-		product.attributes.some(
+		!typedCard &&
+		(product.attributes.some(
 			attr => attr.k === 'spool_included' && String(attr.v) === 'Ні (рефіл)'
-		) || REFILL_VARIANT_PATTERN.test(variant.v_value ?? '')
-
-	const spooledSibling = isRefill ? findSpooledSibling(variant, siblings) : undefined
-	const spooled =
-		data.spooled_counterpart ??
-		(spooledSibling
-			? {
-					slug: spooledSibling.slug,
-					name: spooledSibling.name,
-					price: spooledSibling.price,
-					sale_price: spooledSibling.sale_price ?? null,
-					matched_colour: true
-				}
-			: null)
-
-	const displayName = variantValue ? `${product.name} — ${variantValue}` : variant.name
+		) ||
+			REFILL_VARIANT_PATTERN.test(variant.v_value ?? ''))
+	/** The text on the photo. */
+	const photoBadge = typedCard
+		? (data.attribute_notice?.badge ?? null)
+		: isRefill
+			? 'Без котушки'
+			: null
+	const displayName = productDisplayName(variantValue ? product.name : variant.name, variantValue)
 	const promoLabel = promoPercentLabel(variant)
 	const promoEnds = formatPromoEndsAt(variant.promo_ends_at)
 	const isOutOfStock = availableStock <= 0
@@ -244,7 +253,8 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 				sale_price: variant.sale_price ?? null,
 				promo_ends_at: variant.promo_ends_at ?? null,
 				thumbnail: variant.images[0] ?? null,
-				slug: variant.slug
+				slug: variant.slug,
+				sku: variant.sku
 			})
 			trackAddToCart({
 				item_id: variant.sku,
@@ -261,7 +271,13 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 		}
 	}
 
-	const productSchema = buildProductJsonLd(data, displayName, new Date(renderedAt))
+	const productSchema = buildProductJsonLd(data, displayName, new Date(renderedAt), {
+		group: variantValue ? product.name : variant.name,
+		variant: variantValue
+	})
+
+	// A path too long to embed arrives marked; the server read it whole (Plan-0010 D06.4).
+	const path = (data.category_path_paged && categoryPath) || data.category_path
 
 	return (
 		<div className='container mx-auto max-w-7xl px-4 py-8'>
@@ -269,7 +285,15 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 			<Breadcrumbs
 				items={[
 					{ name: 'Головна', href: '/' },
-					{ name: category_name, href: catalogPath },
+					// The whole ancestor chain from the public tree (TD-0013 F06), after «Каталог» as on
+					// the category page (owner, 01.11.2026); an older backend without `category_path`
+					// still gets the one category it knows.
+					...(path?.length
+						? [
+								{ name: 'Каталог', href: UI_URLS.CATALOG.ROOT },
+								...path.map(row => ({ name: row.name, href: `/${row.slug}` }))
+							]
+						: [{ name: category_name, href: catalogPath }]),
 					{ name: displayName, href: `/products/${variant.slug}` }
 				]}
 			/>
@@ -280,9 +304,9 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 					<div className='bg-muted relative aspect-square overflow-hidden rounded-xl'>
 						{/* The one thing about a refill a photo cannot show: there is no spool in
 						    the box. It sits on the image because that is where the eye lands. */}
-						{isRefill && (
+						{photoBadge && (
 							<span className='absolute top-3 left-3 z-10 rounded-full bg-black/85 px-3 py-1 text-xs font-medium text-white'>
-								Без котушки
+								{photoBadge}
 							</span>
 						)}
 						<div className='absolute inset-4'>
@@ -383,12 +407,8 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 
 				{/* Product info */}
 				<div className='flex flex-col gap-5 lg:w-1/2'>
-					{/* The brand, from the «Виробник» attribute — never the vendor (TD-0006 §5.4). */}
-					{product.manufacturer && (
-						<Badge variant='outline' className='w-fit text-xs font-medium'>
-							{product.manufacturer}
-						</Badge>
-					)}
+					{/* No brand chip (owner, 2026-11-08): the page shows what the admin configures — the
+					    brand is a row of the table when its characteristic is ticked for it. */}
 					<h1 className='text-2xl font-bold'>{displayName}</h1>
 
 					{/* Archived beats the stock count: a discontinued variant can still have a
@@ -432,19 +452,6 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 							<p className='text-muted-foreground text-sm'>Акція {promoEnds}</p>
 						)}
 						{priceAsOf && <p className='text-muted-foreground text-sm'>{priceAsOf}</p>}
-						{/* What the same filament costs with a spool, so the saving is visible
-						    without hunting for the other page. */}
-						{isRefill && spooled && (
-							<p className='text-muted-foreground text-sm'>
-								на котушці — {spooled.matched_colour ? '' : 'від '}
-								<Link
-									href={`/products/${spooled.slug}`}
-									className='hover:text-primary underline underline-offset-2'
-								>
-									{formatUah(effectivePrice(spooled))}
-								</Link>
-							</p>
-						)}
 						<span className='text-muted-foreground text-sm'>Арт. {variant.sku}</span>
 					</div>
 
@@ -480,18 +487,6 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 									{attrNote.title}
 								</p>
 								<p className='mt-1 text-xs text-amber-800'>{attrNote.text}</p>
-								{/* The warning tells the shopper they need their own spool; this
-								    is the way out for the ones who would rather not. */}
-								{spooled && (
-									<Link
-										href={`/products/${spooled.slug}`}
-										className='mt-2 inline-block text-xs font-medium text-amber-900 underline underline-offset-2'
-									>
-										Обрати варіант на котушці —{' '}
-										{spooled.matched_colour ? '' : 'від '}
-										{formatUah(effectivePrice(spooled))}
-									</Link>
-								)}
 							</div>
 						)}
 						{isLowStock && (
@@ -649,8 +644,8 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 				</div>
 			)}
 
-			{/* Attributes — curated: fixed order, one row per characteristic, and the value the
-			    shopper actually chose on the variant axis. */}
+			{/* Attributes — the rows as the backend orders them, one row per characteristic, and
+			    the value the shopper actually chose on the variant axis. */}
 			{specRows.length > 0 && (
 				<div className='border-border/50 bg-card mt-6 rounded-xl border p-4 shadow-lg shadow-black/10'>
 					<table className='w-full text-sm'>
@@ -663,14 +658,7 @@ export const ProductPage = ({ slug, initialData, renderedAt }: ProductPageProps)
 									<td className='text-muted-foreground w-1/2 py-2 pr-8'>
 										{row.label}
 									</td>
-									<td
-										className={cn(
-											'py-2 font-medium',
-											row.emphasised && 'font-semibold text-amber-700'
-										)}
-									>
-										{row.value}
-									</td>
+									<td className='py-2 font-medium'>{row.value}</td>
 								</tr>
 							))}
 						</tbody>

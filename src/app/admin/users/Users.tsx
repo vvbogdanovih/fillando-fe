@@ -84,7 +84,8 @@ export function Users() {
 	const totalPages = Math.max(1, Math.ceil(total / limit))
 
 	return (
-		<div className='p-6'>
+		// A table of a few columns, not a dashboard: capped along the left edge (owner, 2026-11-04).
+		<div className='max-w-6xl p-6'>
 			<Card>
 				<CardHeader className='border-b'>
 					<div className='flex items-center justify-between gap-3'>

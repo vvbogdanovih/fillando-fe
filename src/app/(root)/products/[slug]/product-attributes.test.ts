@@ -4,7 +4,11 @@ import { buildSpecRows, type ProductAttribute } from './product-attributes'
 const attr = (k: string, l: string, v: string): ProductAttribute => ({ k, l, v })
 
 describe('buildSpecRows', () => {
-	it('puts the characteristics in the order the mock reads them', () => {
+	/**
+	 * The order is the backend's (owner, 2026-11-05): a v2 page arrives ordered by the category's
+	 * definitions, a v1 page in its stored order. The storefront has no order of its own.
+	 */
+	it('keeps the rows in the order they arrive', () => {
 		const rows = buildSpecRows([
 			attr('series', 'Серія', 'Basic'),
 			attr('polymer', 'Тип пластику', 'PLA'),
@@ -12,16 +16,29 @@ describe('buildSpecRows', () => {
 			attr('finish', 'Ефект поверхні', 'Silk')
 		])
 
-		expect(rows.map(r => r.key)).toEqual(['spool_included', 'polymer', 'finish', 'series'])
+		expect(rows.map(r => r.key)).toEqual(['series', 'polymer', 'spool_included', 'finish'])
 	})
 
-	it('keeps an unrecognised characteristic rather than dropping it', () => {
+	/**
+	 * Visibility is the definition's «У таблиці характеристик на сторінці товару», applied by the
+	 * backend: whatever arrives is printed, `material` and «Виробник» included.
+	 */
+	it('hides nothing the backend sends', () => {
 		const rows = buildSpecRows([
-			attr('diameter', 'Діаметр', '1.75 мм'),
+			attr('material', 'Матеріал', 'PLA Silk'),
+			attr('vyrobnyk', 'Виробник', 'Kingroon'),
 			attr('polymer', 'Тип пластику', 'PLA')
 		])
 
-		expect(rows.map(r => r.key)).toEqual(['polymer', 'diameter'])
+		expect(rows.map(r => r.key)).toEqual(['material', 'vyrobnyk', 'polymer'])
+	})
+
+	it('emphasises no value', () => {
+		const rows = buildSpecRows([attr('spool_included', 'Котушка в комплекті', 'Ні (рефіл)')])
+
+		expect(rows).toEqual([
+			{ key: 'spool_included', label: 'Котушка в комплекті', value: 'Ні (рефіл)' }
+		])
 	})
 
 	/**
@@ -48,27 +65,6 @@ describe('buildSpecRows', () => {
 		expect(rows[0].value).toBe('Silk')
 	})
 
-	/** `material` is the string the four dimensions were derived from — printing both says it twice. */
-	it('drops the superseded material row', () => {
-		const rows = buildSpecRows([
-			attr('material', 'Матеріал', 'PLA Silk'),
-			attr('polymer', 'Тип пластику', 'PLA'),
-			attr('finish', 'Ефект поверхні', 'Silk')
-		])
-
-		expect(rows.map(r => r.key)).toEqual(['polymer', 'finish'])
-	})
-
-	/** The brand is the chip above the H1; the mock's table has no «Виробник» row. */
-	it('drops the manufacturer row it would repeat from the brand chip', () => {
-		const rows = buildSpecRows([
-			attr('vyrobnyk', 'Виробник', 'Kingroon'),
-			attr('polymer', 'Тип пластику', 'PLA')
-		])
-
-		expect(rows.map(r => r.key)).toEqual(['polymer'])
-	})
-
 	/** The weight is stored in kilograms as a bare `1`; the unit comes from the category. */
 	it('prints the unit the attribute carries', () => {
 		const rows = buildSpecRows([{ k: 'vaha', l: 'Вага', v: 1, unit: 'кг' }])
@@ -76,17 +72,17 @@ describe('buildSpecRows', () => {
 		expect(rows[0].value).toBe('1 кг')
 	})
 
-	it('drops a unit-bearing dimension whose unit the payload does not carry yet', () => {
-		const rows = buildSpecRows([
-			{ k: 'vaha', l: 'Вага', v: 1 },
-			attr('polymer', 'Тип пластику', 'PLA')
-		])
+	/**
+	 * The unit belongs to the characteristic's settings; there is no rule hiding a bare number
+	 * any more (retired 2026-11-05 — every numeric characteristic of the shop has its unit).
+	 */
+	it('prints a value without a unit as stored', () => {
+		const rows = buildSpecRows([{ k: 'vaha', l: 'Вага', v: 1 }])
 
-		// «Вага | 1» reads as one gram, one spool or one metre — a bare number is not a fact.
-		expect(rows.map(r => r.key)).toEqual(['polymer'])
+		expect(rows[0].value).toBe('1')
 	})
 
-	it('keeps a unit-bearing dimension whose value spells the unit out itself', () => {
+	it('keeps a value that spells the unit out itself', () => {
 		const rows = buildSpecRows([attr('vaha', 'Вага', '1000 г')])
 
 		expect(rows[0].value).toBe('1000 г')
@@ -107,17 +103,16 @@ describe('buildSpecRows', () => {
 		expect(rows[0].value).toBe('Чорний (Black)')
 	})
 
-	it('sets a refill apart from the rest of the table', () => {
-		const rows = buildSpecRows([
-			attr('spool_included', 'Котушка в комплекті', 'Ні (рефіл)'),
-			attr('polymer', 'Тип пластику', 'PETG')
-		])
-
-		expect(rows[0].emphasised).toBe(true)
-		expect(rows[1].emphasised).toBe(false)
-	})
-
 	it('is empty for a product with no attributes', () => {
 		expect(buildSpecRows([])).toEqual([])
+	})
+
+	it('prints a non-filament category the same way', () => {
+		const rows = buildSpecRows([
+			{ k: 'material', l: 'Матеріал', v: 'Бавовна' },
+			{ k: 'power', l: 'Потужність', v: 60, unit: 'Вт' }
+		])
+		expect(rows.map(row => row.key)).toEqual(['material', 'power'])
+		expect(rows[1].value).toBe('60 Вт')
 	})
 })

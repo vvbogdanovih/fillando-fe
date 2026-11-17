@@ -11,6 +11,7 @@ vi.mock('next/image', () => ({
 		<img {...props} alt={props.alt ?? ''} />
 	)
 }))
+vi.mock('@/common/lib/ga4-events', () => ({ trackAddToCart: vi.fn() }))
 vi.mock('@/common/store/useCartStore', async () => {
 	const { create } = await import('zustand')
 	const useCartStore = create(() => ({
@@ -86,7 +87,41 @@ describe('CatalogProductCard — promotions (TD-0012)', () => {
 		expect(useCartStore.getState().addItem).toHaveBeenCalledWith(
 			'v1',
 			1,
-			expect.objectContaining({ price: 419, sale_price: 356, promo_ends_at: null })
+			expect.objectContaining({
+				price: 419,
+				sale_price: 356,
+				promo_ends_at: null,
+				sku: 'FL-000001'
+			})
 		)
+		// The card's add is reported like the product page's: SKU as item id, the price paid.
+		const { trackAddToCart } = await import('@/common/lib/ga4-events')
+		expect(trackAddToCart).toHaveBeenCalledWith({
+			item_id: 'FL-000001',
+			item_name: 'Kingroon PLA — Чорний (Black)',
+			price: 356,
+			quantity: 1
+		})
+	})
+})
+
+describe('CatalogProductCard — photo', () => {
+	it('sizes the photo for the catalogue grid and lazy-loads it by default', () => {
+		const { container } = render(<CatalogProductCard item={item()} href='/x' />)
+		const photo = container.querySelector('img')!
+		expect(photo).toHaveAttribute(
+			'sizes',
+			'(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
+		)
+		expect(photo).not.toHaveAttribute('fetchpriority')
+	})
+
+	it('takes a strip’s own sizes, and an eager card asks for its photo first', () => {
+		const { container } = render(
+			<CatalogProductCard item={item()} href='/x' priority sizes='210px' />
+		)
+		const photo = container.querySelector('img')!
+		expect(photo).toHaveAttribute('sizes', '210px')
+		expect(photo).toHaveAttribute('fetchpriority', 'high')
 	})
 })

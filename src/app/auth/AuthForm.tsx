@@ -50,7 +50,7 @@ export function AuthForm<T extends FieldValues>({
 }: AuthFormProps<T>) {
 	const {
 		handleSubmit,
-		formState: { isSubmitting, isValid }
+		formState: { isSubmitting }
 	} = form
 
 	return (
@@ -63,7 +63,7 @@ export function AuthForm<T extends FieldValues>({
 
 				{fields}
 
-				<Button type='submit' disabled={!isValid || isSubmitting || isPending}>
+				<Button type='submit' disabled={isSubmitting || isPending}>
 					{isSubmitting || isPending ? 'Loading...' : title}
 				</Button>
 

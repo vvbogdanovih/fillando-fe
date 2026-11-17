@@ -11,9 +11,11 @@ import { KpiTile } from '../_components/KpiTile'
 import { feedApi } from './feed.api'
 import {
 	EXCLUSION_LABELS,
+	excludedTotal,
 	FAILURE_COPY,
 	WARNING_COPY,
 	warningCountLabel,
+	type FeedExclusionReason,
 	type FeedStatus,
 	type FeedWarning
 } from './feed.schema'
@@ -316,7 +318,7 @@ export const Feed = () => {
 											tone='warn'
 										/>
 										<KpiTile
-											value={summary.excluded.length}
+											value={excludedTotal(summary)}
 											label='виключено з фіда'
 											tone='bad'
 										/>
@@ -328,6 +330,19 @@ export const Feed = () => {
 											Ці товари Google не побачить узагалі — виправте причину
 											й перегенеруйте.
 										</p>
+										{excludedTotal(summary) > summary.excluded.length && (
+											<p className='text-sm text-gray-700'>
+												Показано перші {summary.excluded.length} з{' '}
+												{excludedTotal(summary)} за SKU. За причинами:{' '}
+												{Object.entries(summary.excluded_by_reason ?? {})
+													.map(
+														([reason, count]) =>
+															`${EXCLUSION_LABELS[reason as FeedExclusionReason] ?? reason} — ${count}`
+													)
+													.join('; ')}
+												.
+											</p>
+										)}
 										{summary.excluded.length === 0 ? (
 											<p className='rounded-lg border border-gray-200 p-3 text-sm text-gray-500'>
 												Жодного виключення — усі активні варіанти у фіді.
