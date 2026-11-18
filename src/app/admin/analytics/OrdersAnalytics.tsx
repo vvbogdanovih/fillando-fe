@@ -104,7 +104,35 @@ export const OrdersAnalytics = () => {
 				</div>
 			) : (
 				<div className={cn('space-y-4 transition-opacity', isFetching && 'opacity-60')}>
-					{/* The owner's question first: when do orders come in. Everything else is context. */}
+					{/* Owner, 2026-11-17: the totals lead the page and are never collapsed. */}
+					<KpiRow totals={data.totals} previous={data.previous_period_totals} />
+					<div className='grid gap-4 md:grid-cols-2'>
+						<BreakdownCard
+							title='Спосіб оплати'
+							dimension='payment_method'
+							rows={data.by_payment_method}
+						/>
+						<BreakdownCard
+							title='Доставка'
+							dimension='delivery_method'
+							rows={data.by_delivery_method}
+						/>
+						<BreakdownCard
+							title='Статус замовлення'
+							dimension='order_status'
+							rows={data.by_order_status}
+						/>
+						<BreakdownCard
+							title='Статус оплати'
+							dimension='payment_status'
+							rows={data.by_payment_status}
+						/>
+					</div>
+					<TopProductsTable
+						byRevenue={data.top_products_by_revenue}
+						byQuantity={data.top_products_by_quantity}
+					/>
+
 					<OrdersByDayChart
 						days={data.by_day}
 						paidOnly={paidOnly}
@@ -112,41 +140,6 @@ export const OrdersAnalytics = () => {
 					/>
 					<WeekdayProfileCard rows={data.by_weekday} />
 					<OrdersHeatmap cells={data.heatmap} />
-
-					<details className='group rounded-lg border border-gray-200 bg-white'>
-						<summary className='cursor-pointer px-6 py-4 text-sm font-medium text-gray-700 select-none'>
-							Підсумки, розрізи й топ товарів
-						</summary>
-						<div className='space-y-4 border-t border-gray-100 p-6'>
-							<KpiRow totals={data.totals} previous={data.previous_period_totals} />
-							<div className='grid gap-4 md:grid-cols-2'>
-								<BreakdownCard
-									title='Спосіб оплати'
-									dimension='payment_method'
-									rows={data.by_payment_method}
-								/>
-								<BreakdownCard
-									title='Доставка'
-									dimension='delivery_method'
-									rows={data.by_delivery_method}
-								/>
-								<BreakdownCard
-									title='Статус замовлення'
-									dimension='order_status'
-									rows={data.by_order_status}
-								/>
-								<BreakdownCard
-									title='Статус оплати'
-									dimension='payment_status'
-									rows={data.by_payment_status}
-								/>
-							</div>
-							<TopProductsTable
-								byRevenue={data.top_products_by_revenue}
-								byQuantity={data.top_products_by_quantity}
-							/>
-						</div>
-					</details>
 				</div>
 			)}
 		</div>

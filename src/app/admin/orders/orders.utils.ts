@@ -106,6 +106,26 @@ export const formatCustomerShort = (order: Order): string => {
 	return `${name} · ${phone}`
 }
 
+/**
+ * The form's inputs hold text, the backend takes `warehouse_number` as a number only: a retyped
+ * «Номер відділення» went out as `"7"` and every such save was a 400. An emptied field is left
+ * out, so the backend answers with its own «Оберіть відділення…».
+ */
+export const normalizeDeliveryAddress = (
+	address: Record<string, unknown>
+): Record<string, unknown> => {
+	const raw = address.warehouse_number
+	if (typeof raw !== 'string') return address
+	const text = raw.trim()
+	if (text !== '' && !/^\d+$/.test(text)) throw new Error('Номер відділення має бути числом')
+	// Same key order as the stored address, so a retyped identical number is «no change».
+	return Object.fromEntries(
+		Object.entries(address).flatMap(([key, value]) =>
+			key !== 'warehouse_number' ? [[key, value]] : text === '' ? [] : [[key, Number(text)]]
+		)
+	)
+}
+
 export const buildOrderPatchPayload = (
 	initial: Order,
 	values: PatchOrderPayload
@@ -125,9 +145,17 @@ export const buildOrderPatchPayload = (
 	}
 
 	if (values.delivery_address) {
-		const current = JSON.stringify(initial.delivery_address ?? {})
-		const next = JSON.stringify(values.delivery_address ?? {})
-		if (current !== next) patch.delivery_address = values.delivery_address
+		const address = normalizeDeliveryAddress(values.delivery_address)
+		// The stored side is read the same way: a response may carry the number as text.
+		const stored = (initial.delivery_address ?? {}) as Record<string, unknown>
+		const current = JSON.stringify(
+			typeof stored.warehouse_number === 'string' &&
+				/^\s*\d+\s*$/.test(stored.warehouse_number)
+				? normalizeDeliveryAddress(stored)
+				: stored
+		)
+		const next = JSON.stringify(address)
+		if (current !== next) patch.delivery_address = address
 	}
 
 	if (values.payment_method && values.payment_method !== initial.payment_method) {
