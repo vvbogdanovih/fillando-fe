@@ -50,6 +50,7 @@ import {
 import { OrderItemsList } from './orders.components'
 import { InvoiceModal } from './InvoiceModal'
 import { ManualDiscountCard } from './ManualDiscountCard'
+import { NovaPostAddressFields } from './NovaPostAddressFields'
 import { OrderLinePicker, variantLabel } from './OrderLinePicker'
 import { OrderStatusActions } from './OrderStatusActions'
 import { StatusHistoryCard } from './StatusHistoryCard'
@@ -86,42 +87,19 @@ function normalizeEditValues(order: Order): PatchOrderPayload {
 function AddressFields({
 	deliveryMethod,
 	deliveryAddress,
-	onChange
+	onPatch
 }: {
 	deliveryMethod: DeliveryMethod
 	deliveryAddress: Record<string, unknown>
-	onChange: (key: string, value: string) => void
+	onPatch: (patch: Record<string, unknown>) => void
 }) {
+	const onChange = (key: string, value: string) => onPatch({ [key]: value })
 	if (deliveryMethod === 'PICKUP') {
 		return <p className='text-muted-foreground text-sm'>Самовивіз — адреса не потрібна.</p>
 	}
 
 	if (deliveryMethod === 'NOVA_POST') {
-		return (
-			<div className='grid gap-3 sm:grid-cols-3'>
-				<div className='space-y-2'>
-					<Label>Місто</Label>
-					<Input
-						value={String(deliveryAddress.city_name ?? '')}
-						onChange={e => onChange('city_name', e.target.value)}
-					/>
-				</div>
-				<div className='space-y-2'>
-					<Label>Відділення</Label>
-					<Input
-						value={String(deliveryAddress.warehouse_description ?? '')}
-						onChange={e => onChange('warehouse_description', e.target.value)}
-					/>
-				</div>
-				<div className='space-y-2'>
-					<Label>Номер відділення</Label>
-					<Input
-						value={String(deliveryAddress.warehouse_number ?? '')}
-						onChange={e => onChange('warehouse_number', e.target.value)}
-					/>
-				</div>
-			</div>
-		)
+		return <NovaPostAddressFields address={deliveryAddress} onPatch={onPatch} />
 	}
 
 	return (
@@ -761,7 +739,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 					<AddressFields
 						deliveryMethod={editValues.delivery_method!}
 						deliveryAddress={deliveryAddress}
-						onChange={(key, value) =>
+						onPatch={patch =>
 							setEditValues(prev =>
 								prev
 									? {
@@ -771,7 +749,7 @@ export function OrderDetails({ orderId }: { orderId: string }) {
 													string,
 													unknown
 												>),
-												[key]: value
+												...patch
 											}
 										}
 									: prev
