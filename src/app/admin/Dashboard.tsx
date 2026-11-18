@@ -9,8 +9,8 @@ export const Dashboard = () => {
 		<div className='p-6'>
 			<h1 className='text-2xl font-semibold text-gray-900'>Аналітика замовлень</h1>
 			<p className='mt-2 text-gray-500'>
-				Коли надходять замовлення — по днях, днях тижня й годинах, щоб ставити рекламний
-				бюджет по днях. Підсумки й розрізи — нижче, згорнуті.
+				Підсумки, розрізи й топ товарів за період, а під ними — коли надходять замовлення:
+				по днях, днях тижня й годинах, щоб ставити рекламний бюджет по днях.
 			</p>
 
 			<section className='mt-6' aria-labelledby='admin-analytics-heading'>
