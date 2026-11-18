@@ -71,6 +71,18 @@ describe('orders UI critical flows', () => {
 		expect(screen.getByText('К-сть: 2')).toBeInTheDocument()
 	})
 
+	it("shows today's stock of a line and flags one the stock no longer covers", () => {
+		const [item] = baseOrder.items
+		const { rerender } = render(<OrderItemsList items={[{ ...item, stock_now: 5 }]} />)
+		expect(screen.getByText('Зараз у наявності: 5')).toBeInTheDocument()
+
+		rerender(<OrderItemsList items={[{ ...item, stock_now: 1 }]} />)
+		expect(screen.getByText('Зараз у наявності: 1 — не вистачає')).toBeInTheDocument()
+
+		rerender(<OrderItemsList items={[{ ...item, stock_now: null }]} />)
+		expect(screen.getByText('Товару вже немає в каталозі')).toBeInTheDocument()
+	})
+
 	it('builds PATCH payload with changed fields only', () => {
 		const payload = buildOrderPatchPayload(baseOrder, {
 			customer: {
