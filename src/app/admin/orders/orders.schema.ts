@@ -64,7 +64,10 @@ const orderItemSchema = z.object({
 	// edit preview needs to re-price the coupon over a kept line exactly as the backend does.
 	list_price: z.preprocess(value => parseOptionalNumber(value), z.number().optional()),
 	promo_percent: z.number().nullable().optional().catch(null),
-	line_total: z.preprocess(value => parseNumberWithDefault(value, 0), z.number())
+	line_total: z.preprocess(value => parseNumberWithDefault(value, 0), z.number()),
+	// The SKU's stock in the catalogue right now (admin responses only) — an order reserves
+	// nothing. `null` — the SKU is gone from the catalogue; absent — the backend did not say.
+	stock_now: z.number().nullable().optional().catch(undefined)
 })
 
 const novaPostAddressSchema = z.object({
